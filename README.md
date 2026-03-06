@@ -12,12 +12,21 @@
 ## Visão geral da Solução #
  Esse é o repositório inicial para a Residência Técnica em Sistemas de Informação.
 
+## Estrutura inicial do repositório #
+
+- `app/`: ponto de integração da aplicação e organização geral do código.
+- `backend/`: serviços do lado do servidor, regras de negócio e APIs.
+- `frontend/`: interface do usuário e consumo das APIs.
+- `docs/`: documentação técnica e funcional do projeto.
+
+Cada pasta possui um arquivo `README.md` explicando seu objetivo.
+
 
 > # Observações sobre o Template do Repositório #
 > O repositório deve estar dividido em diretórios de acordo com as responsabilidades técnicas. Exemplo:
-> * documentacao - documentação
+> * docs - documentação
 > * app - aplicativo mobile
 > * frontend - aplicação web
 > * backend - aplicação backend
 >
-> Obrigatóriamente deve existir um README.MD em cada diretório criado.
+> Obrigatoriamente deve existir um README.md em cada diretório criado.
