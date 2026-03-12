@@ -8,6 +8,7 @@
 | Aluno 2 | [@mauriciogrocha](https://github.com/mauriciogrocha) |
 | Aluno 3 | [@pamploninhaa](https://github.com/pamploninhaa) |
 | Aluno 4 | [@gusmelo](https://github.com/gusmelo) |
+| Aluno 5 | [@HyagoRezende](https://github.com/HyagoRezende) |
 
 ## Visão geral da Solução #
  Esse é o repositório inicial para a Residência Técnica em Sistemas de Informação.
