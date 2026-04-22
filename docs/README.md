@@ -28,6 +28,9 @@ Esta pasta concentra a documentação técnica e funcional do projeto **eFCaaS**
 
 - **`eFCaaS - PRD.pdf`**
   - *Product Requirements Document*: requisitos e especificação do produto em maior detalhe (o que precisa ser entregue e por quê).
+ 
+- **`Backlog.pdf`**
+  - *Backlog*: backlog atualizado com a priorização das funcionalidades a serem implementadas.
 
 ### `docs/Diagramas/`
 
