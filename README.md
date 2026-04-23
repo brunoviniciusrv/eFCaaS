@@ -42,3 +42,11 @@ A plataforma operará no modelo *white label* (multi-tenant), permitindo que dif
 - Diagrama de Arquitetura e Componentes
 
 
+> # Observações sobre o Template do Repositório #
+> O repositório deve estar dividido em diretórios de acordo com as responsabilidades técnicas. Exemplo:
+> * documentacao - documentação
+> * app - aplicativo mobile
+> * frontend - aplicação web
+> * backend - aplicação backend
+>
+> Obrigatóriamente deve existir um README.MD em cada diretório criado.
