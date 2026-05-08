@@ -38,9 +38,11 @@ import {
   Send,
   Eye,
   ArrowUpRight,
+  User,
   Info,
   TrendingUp,
-  UserPlus
+  UserPlus,
+  Box
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -114,14 +116,15 @@ export const CuratorDashboard = ({
   const [trendFilter, setTrendFilter] = useState<number>(0);
 
   const getSourceIcon = (source: string) => {
-    switch (source) {
-      case 'WhatsApp': return <MessageCircle size={16} className="text-green-500" />;
-      case 'Facebook': return <FacebookIcon size={16} className="text-blue-600" />;
-      case 'Instagram': return <InstagramIcon size={16} className="text-pink-600" />;
-      case 'Telegram': return <Send size={16} className="text-sky-500" />;
-      case 'E-mail': return <Mail size={16} className="text-slate-500" />;
-      default: return <Inbox size={16} className="text-slate-500" />;
-    }
+    const s = source?.toLowerCase() || '';
+    if (s.includes('whatsapp')) return <MessageCircle size={16} className="text-green-500" />;
+    if (s.includes('facebook')) return <FacebookIcon size={16} className="text-blue-600" />;
+    if (s.includes('instagram')) return <InstagramIcon size={16} className="text-pink-600" />;
+    if (s.includes('telegram')) return <Send size={16} className="text-sky-500" />;
+    if (s.includes('e-mail') || s.includes('email')) return <Mail size={16} className="text-slate-500" />;
+    if (s.includes('tiktok')) return <TrendingUp size={16} className="text-black" />;
+    if (s.includes('twitter') || s.includes('x')) return <Info size={16} className="text-slate-800" />;
+    return <Inbox size={16} className="text-slate-500" />;
   };
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -194,9 +197,9 @@ export const CuratorDashboard = ({
                            item.senderAddress?.toLowerCase().includes(receivedSearchQuery.toLowerCase());
       const matchesSource = sourceFilter === 'all' || item.sourceType === sourceFilter;
       const matchesDate = !dateFilter || item.receivedAt.startsWith(dateFilter);
-      const isNotDeleted = item.status !== 'deleted';
+      const isVisible = item.status === 'received';
       
-      return matchesSearch && matchesSource && matchesDate && isNotDeleted;
+      return matchesSearch && matchesSource && matchesDate && isVisible;
     }).sort((a, b) => {
       let comparison = new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime();
       return sortReceivedOrder === 'asc' ? comparison : -comparison;
@@ -501,7 +504,7 @@ export const CuratorDashboard = ({
                   </button>
                   <button 
                     onClick={() => onDeleteReceivedNews(item.id)}
-                    className="p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                    className="p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -636,7 +639,7 @@ export const CuratorDashboard = ({
               <div 
                 key={item.id}
                 className={cn(
-                  "p-6 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row gap-6",
+                  "p-6 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-start gap-6 cursor-pointer hover:shadow-md",
                   selectedNewsIds.includes(item.id) ? "ring-2" : ""
                 )}
                 style={{ 
@@ -644,74 +647,131 @@ export const CuratorDashboard = ({
                   borderColor: selectedNewsIds.includes(item.id) ? themeConfig.general.accent : themeConfig.general.border,
                   '--tw-ring-color': themeConfig.general.accent
                 } as any}
+                onClick={() => setSelectedNewsId(item.id)}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 flex-1 overflow-hidden">
                   <input 
                     type="checkbox"
                     checked={selectedNewsIds.includes(item.id)}
-                    onChange={() => handleToggleSelection(item.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleToggleSelection(item.id);
+                    }}
                     className="w-5 h-5 mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
                       <StatusBadge status={item.status} themeConfig={themeConfig} />
-                      <span className="text-xs opacity-50">{item.source} • {item.date}</span>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
+                        {getSourceIcon(item.source)}
+                        <span className="text-[10px] font-bold uppercase opacity-60">{item.source}</span>
+                      </div>
+                      <span className="text-xs opacity-40">{item.date}</span>
                     </div>
-                    <h3 className="text-lg font-bold leading-tight">{item.title}</h3>
+                    <h3 className="text-lg font-bold leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
                     <p className="text-sm opacity-70 line-clamp-2">{item.content}</p>
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      {(item.senderName || item.senderAddress) && (
+                        <div className="flex items-center gap-1">
+                          <User size={12} className="opacity-40" />
+                          <span className="text-[10px] font-medium opacity-50">
+                            {item.senderName || 'Remetente'} {item.senderAddress ? `(${item.senderAddress})` : ''}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Box size={10} className="opacity-30" />
+                        <span className="text-[10px] font-mono opacity-30">{item.id}</span>
+                      </div>
+                      {item.receivedAt && (
+                        <div className="flex items-center gap-1 opacity-30">
+                          <Clock size={10} />
+                          <span className="text-[10px] font-bold">{new Date(item.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-between gap-4 min-w-[240px]">
-                  <div className="space-y-2">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
-                        <span>Gravidade</span>
-                        <span>{item.aiScores?.gravity}%</span>
+                <div className="flex flex-col justify-between gap-4 w-full md:w-[280px] shrink-0">
+                  <div className="space-y-3 p-4 rounded-2xl bg-slate-50/50 border" style={{ borderColor: themeConfig.general.border }}>
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                          <span>Gravidade</span>
+                          {item.isAIProcessing ? (
+                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                          ) : (
+                            <span>{item.aiScores?.gravity}%</span>
+                          )}
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          {item.isAIProcessing ? (
+                            <div className="h-full w-1/3 bg-blue-400 animate-loading-shimmer" />
+                          ) : (
+                            <div 
+                              className="h-full transition-all duration-1000" 
+                              style={{ 
+                                width: `${item.aiScores?.gravity}%`, 
+                                backgroundColor: (item.aiScores?.gravity || 0) > 70 ? themeConfig.status.error : themeConfig.status.warning 
+                              }} 
+                            />
+                          )}
+                        </div>
                       </div>
-                      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full transition-all" 
-                          style={{ 
-                            width: `${item.aiScores?.gravity}%`, 
-                            backgroundColor: (item.aiScores?.gravity || 0) > 70 ? themeConfig.status.error : themeConfig.status.warning 
-                          }} 
-                        />
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                          <span>Urgência</span>
+                          {item.isAIProcessing ? (
+                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                          ) : (
+                            <span>{item.aiScores?.urgency}%</span>
+                          )}
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          {item.isAIProcessing ? (
+                            <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
+                          ) : (
+                            <div 
+                              className="h-full transition-all duration-1000" 
+                              style={{ 
+                                width: `${item.aiScores?.urgency}%`, 
+                                backgroundColor: themeConfig.status.warning 
+                              }} 
+                            />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
-                        <span>Urgência</span>
-                        <span>{item.aiScores?.urgency}%</span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full transition-all" 
-                          style={{ 
-                            width: `${item.aiScores?.urgency}%`, 
-                            backgroundColor: themeConfig.status.warning 
-                          }} 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
-                        <span>Tendência</span>
-                        <span>{item.aiScores?.trend}%</span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full transition-all" 
-                          style={{ 
-                            width: `${item.aiScores?.trend}%`, 
-                            backgroundColor: themeConfig.status.info 
-                          }} 
-                        />
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                          <span>Tendência</span>
+                          {item.isAIProcessing ? (
+                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                          ) : (
+                            <span>{item.aiScores?.trend}%</span>
+                          )}
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          {item.isAIProcessing ? (
+                            <div className="h-full w-2/3 bg-blue-400 animate-loading-shimmer" />
+                          ) : (
+                            <div 
+                              className="h-full transition-all duration-1000" 
+                              style={{ 
+                                width: `${item.aiScores?.trend}%`, 
+                                backgroundColor: themeConfig.status.info 
+                              }} 
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                   <button 
-                    onClick={() => handleOpenAssign(item.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenAssign(item.id);
+                    }}
                     className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2"
                     style={{ borderColor: themeConfig.general.border, hover: { backgroundColor: `${themeConfig.general.accent}10` } } as any}
                   >
@@ -803,7 +863,11 @@ export const CuratorDashboard = ({
                   const sla = getSLAStatus(item.startTime);
                   
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
+                    <tr 
+                      key={item.id} 
+                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                      onClick={() => setSelectedNewsId(item.id)}
+                    >
                       <td className="px-6 py-4">
                         <div className="max-w-md">
                           <h3 className="text-sm font-semibold line-clamp-1">{item.title}</h3>

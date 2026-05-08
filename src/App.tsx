@@ -281,6 +281,27 @@ function App() {
       date: new Date().toISOString().split('T')[0],
       status: newsData.assignedTo ? 'in_progress' : 'pending',
       evidence: [],
+      aiScores: {
+        gravity: Math.floor(Math.random() * 50) + 10,
+        urgency: Math.floor(Math.random() * 50) + 10,
+        trend: Math.floor(Math.random() * 50) + 10
+      },
+      aiEvaluation: {
+        score: 0.5,
+        explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
+        warningLevel: "nível de alerta moderado / revisão necessária",
+        characteristics: [
+          "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
+          "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
+          "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
+        ],
+        topics: ["Geral", "Não Categorizado", "Simulação"],
+        entities: [
+          { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
+        ],
+        location: "Indefinido",
+        dates: [new Date().toISOString().split('T')[0]]
+      },
       assignmentHistory: newsData.assignedTo ? [{
         id: Math.random().toString(36).substr(2, 9),
         assignedTo: newsData.assignedTo,
@@ -295,15 +316,25 @@ function App() {
   };
 
   const handleForwardToTriage = (receivedItem: ReceivedNewsItem) => {
+    const newId = Math.random().toString(36).substr(2, 9);
     const newNewsItem: NewsItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: newId,
       title: receivedItem.title,
       content: receivedItem.content,
       source: receivedItem.sourceType,
+      senderName: receivedItem.senderName,
+      senderAddress: receivedItem.senderAddress,
+      receivedAt: receivedItem.receivedAt,
       date: new Date().toISOString().split('T')[0],
       status: 'pending',
+      isAIProcessing: true,
+      aiScores: {
+        gravity: 0,
+        urgency: 0,
+        trend: 0
+      },
       media: receivedItem.media?.map(m => ({
-        type: m.type as 'image' | 'video' | 'audio',
+        type: m.type as 'image' | 'video' | 'audio' | 'document',
         url: m.url
       })),
       evidence: [],
@@ -313,14 +344,54 @@ function App() {
         sources: [''],
         isInverifiable: false,
         contactWithAuthor: { hadContact: null }
-      }
+      },
+      assignmentHistory: [{
+        id: 'h-' + Math.random().toString(36).substr(2, 5),
+        assignedTo: '',
+        assignedBy: user.id,
+        timestamp: new Date().toISOString(),
+        action: 'assigned',
+        reason: 'Recuperado de Curadoria Externa'
+      }]
     };
 
     setNews(prev => [newNewsItem, ...prev]);
-    setReceivedNews(prev => prev.map(rn => 
-      rn.id === receivedItem.id ? { ...rn, status: 'in_triage' as const } : rn
-    ));
+    setReceivedNews(prev => prev.filter(rn => rn.id !== receivedItem.id));
     addAuditLog('forward_to_triage', `Received News #${receivedItem.id}`, `Forwarded to news triage`);
+
+    // Simulate AI classification
+    setTimeout(() => {
+      setNews(prev => prev.map(n => {
+        if (n.id === newId) {
+          return {
+            ...n,
+            isAIProcessing: false,
+            aiScores: {
+              gravity: Math.floor(Math.random() * 60) + 20,
+              urgency: Math.floor(Math.random() * 70) + 10,
+              trend: Math.floor(Math.random() * 80) + 10
+            },
+            aiEvaluation: {
+              score: 0.5,
+              explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
+              warningLevel: "nível de alerta moderado / revisão necessária",
+              characteristics: [
+                "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
+                "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
+                "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
+              ],
+              topics: ["Geral", "Não Categorizado", "Simulação"],
+              entities: [
+                { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
+              ],
+              location: "Indefinido",
+              dates: [new Date().toISOString().split('T')[0]]
+            }
+          };
+        }
+        return n;
+      }));
+    }, 4000);
   };
 
   const handleDeleteReceivedNews = (id: string) => {
