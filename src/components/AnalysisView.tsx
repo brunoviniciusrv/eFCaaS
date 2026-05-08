@@ -28,7 +28,11 @@ import {
   Building2,
   Users,
   List,
-  Box
+  Box,
+  RotateCcw,
+  ArrowRight,
+  Clock,
+  UserPlus
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -304,26 +308,136 @@ export const AnalysisView = ({
                       ))}
                     </div>
 
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                          <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Fonte Original</label>
-                          <div className="flex items-center gap-2">
-                            <LinkIcon size={14} className="opacity-40" />
-                            <span className="text-sm font-bold text-blue-600 truncate">{selectedNews.source}</span>
-                          </div>
-                       </div>
-                       <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                          <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Data de Captura</label>
-                          <div className="flex items-center gap-2">
-                             <Calendar size={14} className="opacity-40" />
-                             <span className="text-sm font-bold">{selectedNews.date}</span>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-                </section>
-              </motion.div>
-            )}
+                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Fonte Original / Veículo</label>
+                              <div className="flex items-center gap-2">
+                                <LinkIcon size={14} className="opacity-40" />
+                                <span className="text-sm font-bold text-blue-600 truncate">{selectedNews.source}</span>
+                              </div>
+                           </div>
+                           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Data de Captura</label>
+                              <div className="flex items-center gap-2">
+                                 <Calendar size={14} className="opacity-40" />
+                                 <span className="text-sm font-bold">{selectedNews.date}</span>
+                              </div>
+                           </div>
+                           {(selectedNews.senderName || selectedNews.senderAddress) && (
+                             <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col justify-between">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-blue-600 opacity-60 block mb-1">Remetente Externo</label>
+                                <div className="flex items-center gap-2">
+                                   <Users size={14} className="text-blue-600/40" />
+                                   <div className="flex flex-col">
+                                      <span className="text-sm font-bold truncate">{selectedNews.senderName || 'Desconhecido'}</span>
+                                      {selectedNews.senderAddress && <span className="text-[10px] opacity-60 truncate">{selectedNews.senderAddress}</span>}
+                                   </div>
+                                </div>
+                             </div>
+                           )}
+                           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">ID Único do Sistema</label>
+                              <div className="flex items-center gap-2">
+                                 <Box size={14} className="opacity-40" />
+                                 <span className="text-sm font-mono font-bold text-[10px]">{selectedNews.id}</span>
+                              </div>
+                           </div>
+                           {selectedNews.receivedAt && (
+                             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Horário de Recebimento</label>
+                                <div className="flex items-center gap-2">
+                                   <Clock size={14} className="opacity-40" />
+                                   <span className="text-sm font-bold">{new Date(selectedNews.receivedAt).toLocaleString()}</span>
+                                </div>
+                             </div>
+                           )}
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Action History section */}
+                    <section 
+                      className="rounded-3xl border shadow-sm overflow-hidden mt-8"
+                      style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
+                    >
+                      <div className="p-5 border-b flex items-center justify-between" style={{ backgroundColor: `${themeConfig.dashboard.background}20`, borderColor: themeConfig.general.border }}>
+                        <div className="flex items-center gap-2">
+                          <History size={18} className="opacity-60" />
+                          <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Histórico de Ações</h3>
+                        </div>
+                      </div>
+                      <div className="p-8">
+                        <div className="space-y-6">
+                          {selectedNews.assignmentHistory?.map((h, i) => (
+                            <div key={h.id} className="relative flex gap-6 pb-2">
+                              {i !== selectedNews.assignmentHistory!.length - 1 && (
+                                <div className="absolute left-[11px] top-[24px] bottom-0 w-px bg-slate-100" />
+                              )}
+                              <div className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10",
+                                h.action === 'assigned' ? "bg-blue-100 text-blue-600" :
+                                h.action === 'reopened' ? "bg-amber-100 text-amber-600" :
+                                h.action === 'rejected' ? "bg-red-100 text-red-600" :
+                                "bg-slate-100 text-slate-600"
+                              )}>
+                                {h.action === 'assigned' && <UserPlus size={12} />}
+                                {h.action === 'reopened' && <RotateCcw size={12} />}
+                                {h.action === 'rejected' && <XCircle size={12} />}
+                                {h.action === 'reassigned' && <Users size={12} />}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="text-xs font-bold uppercase tracking-widest">
+                                    {h.action === 'assigned' ? 'Notícia Atribuída' : 
+                                     h.action === 'reopened' ? 'Checagem Reaberta' :
+                                     h.action === 'rejected' ? 'Revisão Rejeitada' :
+                                     'Tarefa Reatribuída'}
+                                  </p>
+                                  <span className="text-[10px] opacity-40 font-medium">
+                                    {new Date(h.timestamp).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                                  <p className="opacity-70 mb-2 leading-relaxed">
+                                    {h.action === 'assigned' && `Responsável definido para o fluxo de triagem.`}
+                                    {h.action === 'reopened' && `A checagem foi recusada e enviada para correções.`}
+                                    {h.action === 'rejected' && `A revisão foi reprovada pelo editor.`}
+                                    {h.action === 'reassigned' && `Tarefa movida para outro responsável.`}
+                                  </p>
+                                  {h.reason && (
+                                    <div className="pt-2 border-t border-slate-200 mt-2 italic opacity-60">
+                                      "{h.reason}"
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 opacity-60">
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] uppercase font-bold tracking-tighter">Por</span>
+                                      <span className="text-[10px] font-bold">{h.assignedBy}</span>
+                                    </div>
+                                    {h.assignedTo && (
+                                      <>
+                                        <ArrowRight size={10} />
+                                        <div className="flex flex-col">
+                                          <span className="text-[9px] uppercase font-bold tracking-tighter">Para</span>
+                                          <span className="text-[10px] font-bold">{h.assignedTo}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {(!selectedNews.assignmentHistory || selectedNews.assignmentHistory.length === 0) && (
+                            <div className="text-center py-6 opacity-30 italic text-xs">
+                              Nenhum histórico registrado para esta notícia.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+                  </motion.div>
+                )}
 
             {activeTab === 'metrics' && (
               <motion.div 
@@ -357,18 +471,28 @@ export const AnalysisView = ({
                           <div className="text-right">
                             <span className="text-[10px] font-bold uppercase tracking-widest opacity-40 block leading-none mb-1">{score.label}</span>
                             <div className="flex items-baseline justify-end gap-0.5">
-                              <span className="text-2xl font-black" style={{ color: themeConfig.dashboard.text }}>{score.value}</span>
-                              <span className="text-[10px] opacity-30 font-bold">/100</span>
+                              {selectedNews.isAIProcessing ? (
+                                <span className="text-xs font-bold text-blue-500 animate-pulse">Calculando...</span>
+                              ) : (
+                                <>
+                                  <span className="text-2xl font-black" style={{ color: themeConfig.dashboard.text }}>{score.value || 0}</span>
+                                  <span className="text-[10px] opacity-30 font-bold">/100</span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
                         <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden">
-                           <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${score.value}%` }}
-                            className="h-full rounded-full"
-                            style={{ backgroundColor: score.color }}
-                           />
+                           {selectedNews.isAIProcessing ? (
+                             <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
+                           ) : (
+                             <motion.div 
+                               initial={{ width: 0 }}
+                               animate={{ width: `${score.value || 0}%` }}
+                               className="h-full rounded-full"
+                               style={{ backgroundColor: score.color }}
+                             />
+                           )}
                         </div>
                       </div>
                     ))}
@@ -392,59 +516,74 @@ export const AnalysisView = ({
                     </div>
                   </div>
                   <div className="p-8 space-y-8">
-                    {selectedNews.aiEvaluation && (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                        <div className="space-y-6">
-                          <div className="space-y-4">
-                            <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                              <AlertCircle size={14} className="text-amber-500" /> Gatilhos e Linguagem
-                            </h4>
-                            <ul className="space-y-3">
-                              {selectedNews.aiEvaluation.characteristics.map((char, idx) => (
-                                <li key={idx} className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 flex gap-3 text-sm leading-relaxed" style={{ color: themeConfig.dashboard.text }}>
-                                  <div className="markdown-body">
-                                    <Markdown>{char}</Markdown>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
+                    {(() => {
+                      const analysisData = selectedNews.aiEvaluation || {
+                        characteristics: [
+                          "**Texto Padrão:** Avaliação em processamento ou não disponível.",
+                          "**Dados Simulados:** Este é um espaço reservado simulado.",
+                          "**Necessidade de Checagem:** Requer validação humana para confirmar conteúdos semânticos."
+                        ],
+                        entities: [
+                          { name: "Entidade Indefinida", description: "Sem entidades detectadas no momento." }
+                        ],
+                        location: "Não detectado",
+                        dates: ["-"]
+                      };
 
-                        <div className="space-y-6">
-                          <div className="space-y-4">
-                            <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                              <Users size={14} className="text-blue-500" /> Personagens & Locais
-                            </h4>
-                            <div className="space-y-3">
-                              {selectedNews.aiEvaluation.entities.map((entity, idx) => (
-                                <div key={idx} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                                  <p className="font-black text-sm mb-1">{entity.name}</p>
-                                  <p className="text-xs opacity-60 leading-relaxed">{entity.description}</p>
-                                </div>
-                              ))}
-                              <div className="flex gap-4 pt-2">
-                                <div className="flex-1 space-y-2">
-                                  <span className="text-[10px] font-bold uppercase opacity-40">Localização</span>
-                                  <div className="p-2 px-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 flex items-center gap-2">
-                                    <MapPin size={12} className="opacity-40" />
-                                    {selectedNews.aiEvaluation.location}
+                      return (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                                <AlertCircle size={14} className="text-amber-500" /> Gatilhos e Linguagem
+                              </h4>
+                              <ul className="space-y-3">
+                                {analysisData.characteristics.map((char, idx) => (
+                                  <li key={idx} className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 flex gap-3 text-sm leading-relaxed" style={{ color: themeConfig.dashboard.text }}>
+                                    <div className="markdown-body">
+                                      <Markdown>{char}</Markdown>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                                <Users size={14} className="text-blue-500" /> Personagens & Locais
+                              </h4>
+                              <div className="space-y-3">
+                                {analysisData.entities.map((entity, idx) => (
+                                  <div key={idx} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                                    <p className="font-black text-sm mb-1">{entity.name}</p>
+                                    <p className="text-xs opacity-60 leading-relaxed">{entity.description}</p>
                                   </div>
-                                </div>
-                                <div className="flex-1 space-y-2">
-                                  <span className="text-[10px] font-bold uppercase opacity-40">Período</span>
-                                  <div className="flex flex-wrap gap-1">
-                                    {selectedNews.aiEvaluation.dates.map((d, i) => (
-                                      <span key={i} className="px-2 py-1 bg-white border border-slate-100 rounded text-[9px] font-bold">{d}</span>
-                                    ))}
+                                ))}
+                                <div className="flex gap-4 pt-2">
+                                  <div className="flex-1 space-y-2">
+                                    <span className="text-[10px] font-bold uppercase opacity-40">Localização</span>
+                                    <div className="p-2 px-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 flex items-center gap-2">
+                                      <MapPin size={12} className="opacity-40" />
+                                      {analysisData.location}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                    <span className="text-[10px] font-bold uppercase opacity-40">Período</span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {analysisData.dates.map((d, i) => (
+                                        <span key={i} className="px-2 py-1 bg-white border border-slate-100 rounded text-[9px] font-bold">{d}</span>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </section>
               </motion.div>

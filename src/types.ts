@@ -176,14 +176,18 @@ export interface NewsItem {
   content: string;
   source: string;
   date: string;
+  receivedAt?: string;
+  senderName?: string;
+  senderAddress?: string;
   status: NewsStatus;
   priority?: 'low' | 'medium' | 'high';
   assignedTo?: string; // User ID
   startTime?: string; // ISO string
   completedAt?: string; // ISO string
   isRectified?: boolean;
+  isAIProcessing?: boolean;
   media?: {
-    type: 'image' | 'video' | 'audio';
+    type: 'image' | 'video' | 'audio' | 'document';
     url: string;
   }[];
   evidence: Evidence[];

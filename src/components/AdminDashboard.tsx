@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { StatusBadge } from './StatusBadge';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
 import { MOCK_USERS } from '../constants';
 import { 
@@ -253,28 +254,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (hours > 24) return { label: 'Atrasado', color: 'text-red-600 bg-red-50' };
     if (hours > 12) return { label: 'Alerta', color: 'text-amber-600 bg-amber-50' };
     return { label: 'No prazo', color: 'text-green-600 bg-green-50' };
-  };
-
-  const StatusBadge = ({ status }: { status: NewsStatus }) => {
-    const config = {
-      pending: { label: 'Fila da Agência', color: themeConfig.status.info, icon: Clock },
-      in_progress: { label: 'Em Análise', color: themeConfig.status.warning, icon: AlertCircle },
-      completed: { label: 'Concluída', color: themeConfig.status.success, icon: CheckCircle2 },
-      to_rectify: { label: 'Em Retificação', color: themeConfig.status.error, icon: RotateCcw },
-      final_review: { label: 'Revisão Final', color: '#8b5cf6', icon: CheckCircle2 },
-    };
-    
-    const currentConfig = config[status] || { label: status, color: '#94a3b8', icon: AlertCircle };
-    const { label, color, icon: Icon } = currentConfig;
-    return (
-      <span 
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-        style={{ backgroundColor: `${color}15`, color: color }}
-      >
-        <Icon size={12} />
-        {label}
-      </span>
-    );
   };
 
   return (
