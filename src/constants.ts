@@ -550,6 +550,7 @@ export const OFFICIAL_LABELS: LabelConfig[] = [
   { id: 'l4', name: 'Falta Contexto', color: '#3b82f6', description: 'A informação é verdadeira mas precisa de contexto para não enganar.' },
   { id: 'l5', name: 'Exagerado', color: '#eab308', description: 'A informação aumenta a realidade de forma desproporcional.' },
   { id: 'l6', name: 'Subestimado', color: '#a855f7', description: 'A informação diminui a realidade de forma desproporcional.' },
+  { id: 'l7', name: 'Inverificável', color: '#64748b', description: 'Não foi possível confirmar ou negar a informação com os recursos disponíveis.' },
 ];
 
 export const INITIAL_AGENCY_CONFIG: AgencyConfig = {

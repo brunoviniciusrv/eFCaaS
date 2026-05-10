@@ -238,6 +238,12 @@ function App() {
       return;
     }
 
+    const reportText = selectedNews.report?.trim() || '';
+    if (reportText.length < 20) {
+      alert("O preenchimento do parecer é obrigatório. Por favor, descreva detalhadamente a sua análise no editor do parecer (mínimo 20 caracteres).");
+      return;
+    }
+
     setIsSaving(true);
     setTimeout(() => {
       setNews(prev => prev.map(n => n.id === selectedNewsId ? { 
