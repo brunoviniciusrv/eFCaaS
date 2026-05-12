@@ -17,6 +17,7 @@ export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'view_dashboard', name: 'Visualizar Dashboard', description: 'Acesso às estatísticas gerais na página inicial', category: 'navigation' },
   { id: 'view_analysis', name: 'Fluxo de Checagem', description: 'Acesso à tela de análise e verificação de fatos', category: 'navigation' },
   { id: 'view_curator', name: 'Painel de Curadoria', description: 'Acesso à triagem e notícias recebidas', category: 'navigation' },
+  { id: 'view_newsroom', name: 'Painel de Redação', description: 'Acesso à redação final e edição de pareceres', category: 'navigation' },
   { id: 'view_admin', name: 'Painel Administrativo', description: 'Acesso às configurações globais do sistema', category: 'navigation' },
   { id: 'create_news', name: 'Cadastrar Notícias', description: 'Capacidade de adicionar manualmente novas notícias para triagem', category: 'actions' },
   { id: 'manage_received', name: 'Gerenciar Recebidos', description: 'Encaminhar ou excluir sugestões externas', category: 'actions' },
@@ -57,7 +58,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Editor',
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
-    permissions: ['view_dashboard', 'create_news', 'review_and_approve']
+    permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_newsroom']
   }
 ];
 
@@ -604,7 +605,6 @@ export const OFFICIAL_LABELS: LabelConfig[] = [
   { id: 'l4', name: 'Falta Contexto', color: '#3b82f6', description: 'A informação é verdadeira mas precisa de contexto para não enganar.' },
   { id: 'l5', name: 'Exagerado', color: '#eab308', description: 'A informação aumenta a realidade de forma desproporcional.' },
   { id: 'l6', name: 'Subestimado', color: '#a855f7', description: 'A informação diminui a realidade de forma desproporcional.' },
-  { id: 'l7', name: 'Inverificável', color: '#64748b', description: 'Não foi possível confirmar ou negar a informação com os recursos disponíveis.' },
 ];
 
 export const INITIAL_AGENCY_CONFIG: AgencyConfig = {
