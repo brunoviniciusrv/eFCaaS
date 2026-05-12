@@ -1,0 +1,8 @@
+{
+  "name": "Criar campo de redação",
+  "description": "Plataforma avançada para checagem de fatos com auxílio de IA, gestão de evidências e ferramentas de investigação.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

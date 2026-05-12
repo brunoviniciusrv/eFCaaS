@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Represents a user in the platform with identity and access management fields.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "editor", "checker", "curator"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "avatarUrl": { "type": "string" },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "canEditUsers": { "type": "boolean" },
+            "canViewLogs": { "type": "boolean" },
+            "canApproveNews": { "type": "boolean" },
+            "canDeleteNews": { "type": "boolean" }
+          }
+        },
+        "mustChangePassword": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role", "status"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Immutable record of system events and user actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userId", "userName", "action"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and permissions."
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System-wide immutable audit trail."
+    }
+  }
+}
