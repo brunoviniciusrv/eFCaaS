@@ -213,3 +213,17 @@ export interface FactCheckTool {
   url?: string;
   description: string;
 }
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: string;
+  isRead: boolean;
+  link?: string;
+  targetUserId?: string;
+  targetRole?: UserProfile['role'] | UserProfile['role'][];
+  relatedNewsId?: string;
+  category: 'assignment' | 'queue' | 'received_news' | 'system';
+}

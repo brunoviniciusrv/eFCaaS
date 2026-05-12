@@ -25,6 +25,7 @@ import {
   DropResult 
 } from '@hello-pangea/dnd';
 import { StatusBadge } from './StatusBadge';
+import { NotificationBell } from './NotificationBell';
 import { NewsItem, UserProfile, ThemeConfig } from '../types';
 import { cn } from '../lib/utils';
 
@@ -35,6 +36,9 @@ interface DashboardProps {
   handleStartAnalysis: (id: string) => void;
   handleMoveTask: (id: string, targetStatus: 'pending' | 'in_progress') => void;
   themeConfig: ThemeConfig;
+  notifications: any[];
+  onMarkNotifAsRead: (id: string) => void;
+  onClearNotifs: () => void;
 }
 
 export const Dashboard = ({ 
@@ -43,7 +47,10 @@ export const Dashboard = ({
   setSelectedNewsId, 
   handleStartAnalysis,
   handleMoveTask,
-  themeConfig
+  themeConfig,
+  notifications,
+  onMarkNotifAsRead,
+  onClearNotifs
 }: DashboardProps) => {
   const navigate = useNavigate();
   const stats = [
@@ -108,6 +115,15 @@ export const Dashboard = ({
               >
                 Monitorando a integridade da informação em tempo real.
               </motion.p>
+           </div>
+           <div className="flex items-center gap-4">
+              <NotificationBell 
+                notifications={notifications}
+                onMarkAsRead={onMarkNotifAsRead}
+                onClearAll={onClearNotifs}
+                themeConfig={themeConfig}
+                currentUser={user}
+              />
            </div>
         </section>
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from './StatusBadge';
+import { NotificationBell } from './NotificationBell';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
 import { MOCK_USERS } from '../constants';
 import { 
@@ -70,6 +71,9 @@ interface AdminDashboardProps {
   setAgencyConfig: React.Dispatch<React.SetStateAction<AgencyConfig>>;
   currentUser: UserProfile;
   setSelectedNewsId: (id: string | null) => void;
+  notifications: any[];
+  onMarkNotifAsRead: (id: string) => void;
+  onClearNotifs: () => void;
 }
 
 type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings';
@@ -89,7 +93,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   agencyConfig,
   setAgencyConfig,
   currentUser,
-  setSelectedNewsId
+  setSelectedNewsId,
+  notifications,
+  onMarkNotifAsRead,
+  onClearNotifs
 }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -312,10 +319,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
           
-          <div className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center relative hover:bg-slate-50 cursor-pointer transition-colors">
-             <div className="w-1.5 h-1.5 bg-red-500 rounded-full absolute top-2.5 right-2.5 border-2 border-white" />
-             <Activity size={18} className="opacity-40" />
-          </div>
+          <NotificationBell 
+            notifications={notifications}
+            onMarkAsRead={onMarkNotifAsRead}
+            onClearAll={onClearNotifs}
+            themeConfig={themeConfig}
+            currentUser={currentUser}
+          />
         </div>
       </header>
 
@@ -594,29 +604,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Data / Hora</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Data</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Hora</th>
                   <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Ação</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Alvo</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Detalhes</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Atividade</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
-                    <td className="px-6 py-4 text-xs opacity-60 font-mono">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: `${themeConfig.general.accent}15`, color: themeConfig.general.accent }}>
-                        {log.action.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm opacity-70">{log.target || '-'}</td>
-                    <td className="px-6 py-4 text-xs opacity-60 italic">{log.details || '-'}</td>
-                  </tr>
-                ))}
+                {filteredLogs.map((log) => {
+                  const dateObj = new Date(log.timestamp);
+                  const date = dateObj.toLocaleDateString();
+                  const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  
+                  // Construct intuitive message if not already descriptive
+                  let activity = log.details || log.action.replace('_', ' ');
+                  if (log.target && activity.indexOf(log.target) === -1) {
+                    activity = `${activity} (${log.target})`;
+                  }
+
+                  return (
+                    <tr key={log.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
+                      <td className="px-6 py-4 text-xs opacity-60 font-medium">
+                        {date}
+                      </td>
+                      <td className="px-6 py-4 text-xs opacity-60 font-mono">
+                        {time}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <span className="opacity-80">{activity}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -171,7 +171,7 @@ export const Sidebar = ({
         })}
       </nav>
 
-      <div className={cn("p-3 border-t", !isSidebarOpen && "flex justify-center")} style={{ borderColor: themeConfig.sidebar.border }}>
+      <div className={cn("p-3 border-t space-y-2", !isSidebarOpen && "flex flex-col items-center")} style={{ borderColor: themeConfig.sidebar.border }}>
         <NavLink 
           to="/profile"
           className={({ isActive }) => cn(
@@ -205,6 +205,22 @@ export const Sidebar = ({
             </div>
           )}
         </NavLink>
+
+        <button
+          onClick={() => (window as any).handleAppLogout()}
+          className={cn(
+            "w-full flex items-center rounded-2xl transition-all group relative overflow-hidden text-red-500 hover:bg-red-50",
+            isSidebarOpen ? "p-3 gap-3" : "justify-center p-2"
+          )}
+        >
+          <LogOut size={22} className="shrink-0" />
+          {isSidebarOpen && <span className="text-sm font-bold">Encerrar Sessão</span>}
+          {!isSidebarOpen && (
+            <div className="absolute left-full ml-4 px-2 py-1 bg-red-600 text-white text-[10px] rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
+              Sair
+            </div>
+          )}
+        </button>
       </div>
     </motion.aside>
   );

@@ -119,16 +119,16 @@ export const INITIAL_RECEIVED_NEWS: ReceivedNewsItem[] = [
 ];
 
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  { id: 'l1', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(5, 2) },
-  { id: 'l2', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'News #1', timestamp: formatISO(5, 1), details: 'Assigned to Beatriz Santos' },
-  { id: 'l3', userId: 'u2', userName: 'Beatriz Santos', action: 'start_analysis', target: 'News #1', timestamp: formatISO(5, 0.5) },
-  { id: 'l4', userId: 'u1', userName: 'Ricardo Alencar', action: 'suspend_user', target: 'Mariana Costa', timestamp: formatISO(4, 10), details: 'Reason: Security violation' },
-  { id: 'l5', userId: 'u1', userName: 'Ricardo Alencar', action: 'approve_news', target: 'News #6', timestamp: formatISO(3, 5), details: 'Final review approved' },
-  { id: 'l6', userId: 'u4', userName: 'Juliana Mendes', action: 'register_news', target: 'News #8', timestamp: formatISO(2, 8) },
-  { id: 'l7', userId: 'u3', userName: 'Carlos Eduardo', action: 'edit_settings', timestamp: formatISO(2, 4), details: 'Updated labeling threshold' },
-  { id: 'l8', userId: 'u2', userName: 'Beatriz Santos', action: 'complete_analysis', target: 'News #1', timestamp: formatISO(1, 10) },
-  { id: 'l9', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(1, 1) },
-  { id: 'l10', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'News #10', timestamp: formatISO(0, 2) },
+  { id: 'l1', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(5, 2), details: 'Realizou login no sistema' },
+  { id: 'l2', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'Notícia #1', timestamp: formatISO(5, 1), details: 'Atribuiu notícia "Áudio vazado sugere manipulação de votos..." para Beatriz Santos' },
+  { id: 'l3', userId: 'u2', userName: 'Beatriz Santos', action: 'start_analysis', target: 'Notícia #1', timestamp: formatISO(5, 0.5), details: 'Iniciou análise da notícia' },
+  { id: 'l4', userId: 'u1', userName: 'Ricardo Alencar', action: 'suspend_user', target: 'Mariana Costa', timestamp: formatISO(4, 10), details: 'Suspendeu usuário por violação de segurança' },
+  { id: 'l5', userId: 'u1', userName: 'Ricardo Alencar', action: 'approve_news', target: 'Notícia #6', timestamp: formatISO(3, 5), details: 'Aprovou a revisão final da notícia "Anúncio de luz ultravioleta..." ' },
+  { id: 'l6', userId: 'u4', userName: 'Juliana Mendes', action: 'register_news', target: 'Notícia #8', timestamp: formatISO(2, 8), details: 'Registrou nova notícia: "Nova lei de trânsito prevê multa..."' },
+  { id: 'l7', userId: 'u3', userName: 'Carlos Eduardo', action: 'edit_settings', timestamp: formatISO(2, 4), details: 'Atualizou limites de etiquetas globais' },
+  { id: 'l8', userId: 'u2', userName: 'Beatriz Santos', action: 'complete_analysis', target: 'Notícia #1', timestamp: formatISO(1, 10), details: 'Concluiu análise e enviou para revisão' },
+  { id: 'l9', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(1, 1), details: 'Realizou login no sistema' },
+  { id: 'l10', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'Notícia #10', timestamp: formatISO(0, 2), details: 'Atribuiu notícia "Alerta de tsunami para o litoral..." para Beatriz Santos' },
 ];
 
 export const INITIAL_NEWS: NewsItem[] = [

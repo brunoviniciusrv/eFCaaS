@@ -57,6 +57,7 @@ import {
   ReceivedNewsStatus
 } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { NotificationBell } from './NotificationBell';
 
 import { 
   DragDropContext, 
@@ -80,6 +81,9 @@ interface CuratorDashboardProps {
   receivedNews: ReceivedNewsItem[];
   onForwardToTriage: (news: ReceivedNewsItem) => void;
   onDeleteReceivedNews: (id: string) => void;
+  notifications: any[];
+  onMarkNotifAsRead: (id: string) => void;
+  onClearNotifs: () => void;
 }
 
 type CuratorTab = 'triage' | 'received' | 'list' | 'kanban' | 'workload' | 'reviews';
@@ -98,7 +102,10 @@ export const CuratorDashboard = ({
   onAddNews,
   receivedNews,
   onForwardToTriage,
-  onDeleteReceivedNews
+  onDeleteReceivedNews,
+  notifications,
+  onMarkNotifAsRead,
+  onClearNotifs
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
   const isEditor = currentUser.role === 'editor';
@@ -316,10 +323,13 @@ export const CuratorDashboard = ({
            </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center relative hover:bg-slate-50 cursor-pointer transition-colors">
-            <div className="w-1.5 h-1.5 bg-red-500 rounded-full absolute top-2.5 right-2.5 border-2 border-white" />
-            <Bell size={18} className="opacity-40" />
-          </div>
+          <NotificationBell 
+            notifications={notifications}
+            onMarkAsRead={onMarkNotifAsRead}
+            onClearAll={onClearNotifs}
+            themeConfig={themeConfig}
+            currentUser={currentUser}
+          />
         </div>
       </header>
 
@@ -332,33 +342,25 @@ export const CuratorDashboard = ({
           { id: 'kanban', label: 'Fluxo', icon: Kanban, hideForEditor: true },
           { id: 'workload', label: 'Equipe', icon: Users, hideForEditor: true },
           { id: 'reviews', label: 'Revisões', icon: CheckCircle }
-        ].filter(tab => !isEditor || !(tab as any).hideForEditor).map(tab => {
-          const isReceivedTab = tab.id === 'received';
-          const unreadCount = isReceivedTab ? receivedNews.filter(n => n.status === 'received').length : 0;
-          
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as CuratorTab)}
-              className={cn(
-                "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative",
-                activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
-              )}
-              style={{ 
-                backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-                color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
-              }}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
+          ].filter(tab => !isEditor || !(tab as any).hideForEditor).map(tab => {
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as CuratorTab)}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative",
+                  activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
+                )}
+                style={{ 
+                  backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
+                  color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
+                }}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
       </div>
 
       {/* Triage View */}
