@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'analysis' | 'profile' | 'admin' | 'curator';
+export type View = 'dashboard' | 'analysis' | 'profile' | 'admin' | 'curator' | 'Inverificável';
 
 export interface LabelConfig {
   id: string;

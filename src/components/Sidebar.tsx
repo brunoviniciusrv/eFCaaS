@@ -25,6 +25,7 @@ interface SidebarProps {
   setIsSidebarOpen: (open: boolean) => void;
   themeConfig: ThemeConfig;
   agencyConfig: AgencyConfig;
+  onLogout?: () => void;
 }
 
 export const Sidebar = ({ 
@@ -34,7 +35,8 @@ export const Sidebar = ({
   isSidebarOpen, 
   setIsSidebarOpen,
   themeConfig,
-  agencyConfig
+  agencyConfig,
+  onLogout
 }: SidebarProps) => {
   const sidebarWidth = isSidebarOpen ? 260 : 80;
 
@@ -206,18 +208,30 @@ export const Sidebar = ({
           )}
         </NavLink>
 
-        <button
-          onClick={() => (window as any).handleAppLogout()}
+        <button 
+          onClick={onLogout}
           className={cn(
-            "w-full flex items-center rounded-2xl transition-all group relative overflow-hidden text-red-500 hover:bg-red-50",
-            isSidebarOpen ? "p-3 gap-3" : "justify-center p-2"
+            "w-full flex items-center rounded-2xl transition-all group relative mt-2",
+            isSidebarOpen ? "p-3 gap-3" : "justify-center p-2",
+            "text-red-500 hover:bg-red-50"
           )}
         >
           <LogOut size={22} className="shrink-0" />
-          {isSidebarOpen && <span className="text-sm font-bold">Encerrar Sessão</span>}
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <motion.span 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="text-sm font-bold"
+              >
+                Sair
+              </motion.span>
+            )}
+          </AnimatePresence>
           {!isSidebarOpen && (
             <div className="absolute left-full ml-4 px-2 py-1 bg-red-600 text-white text-[10px] rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
-              Sair
+              Sair do Sistema
             </div>
           )}
         </button>

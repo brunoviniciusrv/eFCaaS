@@ -98,6 +98,24 @@ function App() {
     return saved ? JSON.parse(saved) : INITIAL_AGENCY_CONFIG;
   });
 
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('auth_status') === 'true';
+  });
+
+  const handleLogin = (loggedInUser: UserProfile) => {
+    setUser(loggedInUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('auth_status', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('auth_status');
+    // Also reset onboarding for demo purposes if needed, or keep it.
+    // Usually logout doesn't reset onboarding, but here it might be desired for the flow.
+    setAgencyConfig(prev => ({ ...prev, isOnboardingCompleted: false }));
+  };
+
   useEffect(() => {
     localStorage.setItem('platform_theme_config', JSON.stringify(themeConfig));
   }, [themeConfig]);
@@ -340,6 +358,13 @@ function App() {
       return;
     }
 
+    // Check if report is empty
+    const reportText = selectedNews.report?.trim() || '';
+    if (reportText.length < 20) {
+      alert("O preenchimento do parecer é obrigatório. Por favor, descreva detalhadamente a sua análise no editor do parecer (mínimo 20 caracteres).");
+      return;
+    }
+
     setIsSaving(true);
     setTimeout(() => {
       setNews(prev => prev.map(n => n.id === selectedNewsId ? { 
@@ -384,27 +409,6 @@ function App() {
       date: new Date().toISOString().split('T')[0],
       status: newsData.assignedTo ? 'in_progress' : 'pending',
       evidence: [],
-      aiScores: {
-        gravity: Math.floor(Math.random() * 50) + 10,
-        urgency: Math.floor(Math.random() * 50) + 10,
-        trend: Math.floor(Math.random() * 50) + 10
-      },
-      aiEvaluation: {
-        score: 0.5,
-        explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
-        warningLevel: "nível de alerta moderado / revisão necessária",
-        characteristics: [
-          "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
-          "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
-          "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
-        ],
-        topics: ["Geral", "Não Categorizado", "Simulação"],
-        entities: [
-          { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
-        ],
-        location: "Indefinido",
-        dates: [new Date().toISOString().split('T')[0]]
-      },
       assignmentHistory: newsData.assignedTo ? [{
         id: Math.random().toString(36).substr(2, 9),
         assignedTo: newsData.assignedTo,
@@ -485,20 +489,10 @@ function App() {
     };
 
     setNews(prev => [newNewsItem, ...prev]);
-    setReceivedNews(prev => prev.filter(rn => rn.id !== receivedItem.id));
-
-    // Notify checkers about new item in triage
-    addNotification({
-      title: 'Notícia em Triagem',
-      message: `Uma nova notícia foi encaminhada para triagem: ${newNewsItem.title}`,
-      type: 'info',
-      category: 'queue',
-      targetRole: ['admin', 'curator'],
-      relatedNewsId: newNewsItem.id,
-      link: '/curator'
-    });
-
-    addAuditLog('forward_to_triage', `Notícia Recebida #${receivedItem.id}`, `Encaminhou notícia recebida "${receivedItem.title}" para triagem`);
+    setReceivedNews(prev => prev.map(rn => 
+      rn.id === receivedItem.id ? { ...rn, status: 'in_triage' as const } : rn
+    ));
+    addAuditLog('forward_to_triage', `Received News #${receivedItem.id}`, `Forwarded to news triage`);
 
     // Simulate AI classification
     setTimeout(() => {
@@ -511,22 +505,6 @@ function App() {
               gravity: Math.floor(Math.random() * 60) + 20,
               urgency: Math.floor(Math.random() * 70) + 10,
               trend: Math.floor(Math.random() * 80) + 10
-            },
-            aiEvaluation: {
-              score: 0.5,
-              explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
-              warningLevel: "nível de alerta moderado / revisão necessária",
-              characteristics: [
-                "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
-                "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
-                "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
-              ],
-              topics: ["Geral", "Não Categorizado", "Simulação"],
-              entities: [
-                { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
-              ],
-              location: "Indefinido",
-              dates: [new Date().toISOString().split('T')[0]]
             }
           };
         }
@@ -638,17 +616,9 @@ function App() {
     // User requested that after onboarding it returns to login screen
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUser(MOCK_USER); // Reset to a safe default
-    navigate('/');
-  };
-  (window as any).handleAppLogout = handleLogout;
-
-  const handleLogin = (selectedUser: UserProfile) => {
-    setUser(selectedUser);
-    setIsAuthenticated(true);
-  };
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
 
   if (showOnboarding) {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
@@ -682,6 +652,7 @@ function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 relative overflow-y-auto">
