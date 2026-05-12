@@ -1,6 +1,6 @@
 {
-  "name": "Plataforma de Curadoria de Fatos",
-  "description": "Sistema de Curadoria de Notícias com fluxo de verificação de fatos, dashboard administrativo e tela de login autêntica.",
+  "name": "eFCaaS",
+  "description": "Plataforma avançada para checagem de fatos com auxílio de IA, gestão de evidências e ferramentas de investigação.",
   "requestFramePermissions": [
     "microphone"
   ]

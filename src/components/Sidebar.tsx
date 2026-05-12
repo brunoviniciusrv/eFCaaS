@@ -9,7 +9,6 @@ import {
   ShieldAlert,
   Users,
   Eye,
-  FileText,
   Menu,
   ChevronRight,
   LogOut
@@ -124,13 +123,11 @@ export const Sidebar = ({
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
           { id: 'curator', label: 'Curadoria', icon: Eye, curatorOnly: true, path: '/curator' },
-          { id: 'newsroom', label: 'Redação', icon: FileText, editorOnly: true, path: '/newsroom' },
           { id: 'admin', label: 'Administração', icon: ShieldAlert, adminOnly: true, path: '/admin' },
           { id: 'profile', label: 'Meu Perfil', icon: User, path: '/profile' },
         ].map((item) => {
           if (item.adminOnly && user.role !== 'admin') return null;
           if (item.curatorOnly && user.role !== 'curator' && user.role !== 'admin' && user.role !== 'editor') return null;
-          if (item.editorOnly && user.role !== 'editor' && user.role !== 'admin') return null;
           
           return (
             <NavLink 

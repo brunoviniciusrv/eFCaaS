@@ -944,7 +944,7 @@ export const AnalysisView = ({
                   
                   <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[700px]">
                     {/* Editor Column */}
-                    <div className="p-8 border-r overflow-y-auto relative" style={{ borderColor: themeConfig.general.border }}>
+                    <div className="p-8 border-r overflow-y-auto" style={{ borderColor: themeConfig.general.border }}>
                        <div className="flex items-center justify-between mb-4">
                           <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Editor de Parecer</label>
                           <div className="flex gap-2">
@@ -952,17 +952,6 @@ export const AnalysisView = ({
                             <button className="p-2 hover:bg-slate-100 rounded-lg opacity-40 transition-all hover:opacity-100"><Info size={16} /></button>
                           </div>
                        </div>
-
-                       {(!selectedNews.report || selectedNews.report.trim().length < 20) && (
-                         <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3 animate-pulse">
-                           <AlertCircle className="text-amber-500 shrink-0" size={18} />
-                           <div>
-                             <p className="text-xs font-black text-amber-700 uppercase tracking-tight">Parecer Obrigatório</p>
-                             <p className="text-[10px] text-amber-600 font-bold leading-tight">O preenchimento do parecer é obrigatório antes de finalizar a análise.</p>
-                           </div>
-                         </div>
-                       )}
-
                        <textarea 
                         value={selectedNews.report}
                         onChange={(e) => handleUpdateReport(e.target.value)}

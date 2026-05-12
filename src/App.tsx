@@ -44,7 +44,6 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { CuratorDashboard } from './components/CuratorDashboard';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
-import { NewsroomView } from './components/NewsroomView';
 
 function App() {
   const navigate = useNavigate();
@@ -56,15 +55,7 @@ function App() {
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
   const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
     const saved = localStorage.getItem('platform_permission_profiles');
-    const profiles = saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
-    
-    // Safety check: Ensure view_newsroom is present in admin and editor profiles
-    return profiles.map((p: PermissionProfile) => {
-      if ((p.id === 'p-admin' || p.id === 'p-editor') && !p.permissions.includes('view_newsroom')) {
-        return { ...p, permissions: [...p.permissions, 'view_newsroom'] };
-      }
-      return p;
-    });
+    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
   });
 
   useEffect(() => {
@@ -757,16 +748,6 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
-              />
-            ) : <Navigate to="/dashboard" replace />
-          } />
-          <Route path="/newsroom" element={
-            checkPermission('view_newsroom') ? (
-              <NewsroomView 
-                news={news}
-                themeConfig={themeConfig}
-                user={user}
-                labels={labels}
               />
             ) : <Navigate to="/dashboard" replace />
           } />

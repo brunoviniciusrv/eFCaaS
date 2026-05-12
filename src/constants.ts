@@ -17,7 +17,6 @@ export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'view_dashboard', name: 'Visualizar Dashboard', description: 'Acesso às estatísticas gerais na página inicial', category: 'navigation' },
   { id: 'view_analysis', name: 'Fluxo de Checagem', description: 'Acesso à tela de análise e verificação de fatos', category: 'navigation' },
   { id: 'view_curator', name: 'Painel de Curadoria', description: 'Acesso à triagem e notícias recebidas', category: 'navigation' },
-  { id: 'view_newsroom', name: 'Painel de Redação', description: 'Acesso à redação final e edição de pareceres', category: 'navigation' },
   { id: 'view_admin', name: 'Painel Administrativo', description: 'Acesso às configurações globais do sistema', category: 'navigation' },
   { id: 'create_news', name: 'Cadastrar Notícias', description: 'Capacidade de adicionar manualmente novas notícias para triagem', category: 'actions' },
   { id: 'manage_received', name: 'Gerenciar Recebidos', description: 'Encaminhar ou excluir sugestões externas', category: 'actions' },
@@ -58,7 +57,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Editor',
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
-    permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_newsroom']
+    permissions: ['view_dashboard', 'create_news', 'review_and_approve']
   }
 ];
 
