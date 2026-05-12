@@ -24,19 +24,34 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  // Filter notifications for current user OR their role OR general ones
+  // Filter notifications based on user profiles and categories
   const userNotifications = notifications.filter(n => {
     // If targeted to a specific user, only they see it
     if (n.targetUserId) return n.targetUserId === currentUser.id;
-    // If targeted to a role, only users with that role see it
-    if (n.targetRole) {
-      if (Array.isArray(n.targetRole)) {
-        return n.targetRole.includes(currentUser.role);
-      }
-      return n.targetRole === currentUser.role;
+
+    // Checker restriction: only receives specific assignments (handled by targetUserId above)
+    // Here we handle the case where they shouldn't see general news/queue notifications
+    const isChecker = currentUser.role === 'checker' || currentUser.profileId === 'p-checker';
+    if (isChecker) {
+      // Checkers only see notifications meant for them personally or clearly assigned to them
+      return n.targetUserId === currentUser.id;
     }
-    // Otherwise it's general (but per user requirements, we'll mostly use the above)
-    return true;
+
+    // Admin/Curator/Editor logic
+    if (n.targetRole) {
+      const roles = Array.isArray(n.targetRole) ? n.targetRole : [n.targetRole];
+      // Check both role (legacy) and profileId for transitions
+      const userIdMatch = roles.some(r => 
+        currentUser.role === r || 
+        currentUser.profileId === `p-${r}` ||
+        currentUser.profileId === r
+      );
+      if (userIdMatch) return true;
+    }
+
+    // Default to false for non-targeted notifications if we want strict behavior
+    // but keep true for general ones if needed. User requirements imply strictness.
+    return false;
   }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const unreadCount = userNotifications.filter(n => !n.isRead).length;

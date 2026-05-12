@@ -14,7 +14,8 @@ import {
   INITIAL_REPORT_CONFIG,
   INITIAL_THEME_CONFIG,
   INITIAL_AGENCY_CONFIG,
-  INITIAL_RECEIVED_NEWS
+  INITIAL_RECEIVED_NEWS,
+  INITIAL_PERMISSION_PROFILES
 } from './constants';
 import { 
   UserProfile, 
@@ -29,7 +30,8 @@ import {
   ThemeConfig,
   AgencyConfig,
   ReceivedNewsItem,
-  Notification
+  Notification,
+  PermissionProfile
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
 
@@ -51,6 +53,39 @@ function App() {
   const [news, setNews] = useState<NewsItem[]>(INITIAL_NEWS);
   const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>(INITIAL_RECEIVED_NEWS);
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
+  const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
+    const saved = localStorage.getItem('platform_permission_profiles');
+    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('platform_permission_profiles', JSON.stringify(permissionProfiles));
+  }, [permissionProfiles]);
+
+  const checkPermission = (permId: string) => {
+    const profile = permissionProfiles.find(p => p.id === user.profileId);
+    if (!profile) return false;
+    return profile.permissions.includes(permId);
+  };
+
+  const handleUpdateProfile = (profile: PermissionProfile) => {
+    setPermissionProfiles(prev => prev.map(p => p.id === profile.id ? profile : p));
+    addAuditLog('update_profile', `Perfil: ${profile.name}`, `Permissões atualizadas: ${profile.permissions.length}`);
+  };
+
+  const handleCreateProfile = (profileData: Omit<PermissionProfile, 'id'>) => {
+    const newProfile: PermissionProfile = {
+      ...profileData,
+      id: 'p-' + Math.random().toString(36).substr(2, 5)
+    };
+    setPermissionProfiles(prev => [...prev, newProfile]);
+    addAuditLog('create_profile', `Perfil: ${newProfile.name}`, `Novo perfil de acesso criado`);
+  };
+
+  const handleDeleteProfile = (id: string) => {
+    setPermissionProfiles(prev => prev.filter(p => p.id !== id));
+    addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
+  };
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [labels, setLabels] = useState<LabelConfig[]>(OFFICIAL_LABELS);
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
@@ -666,12 +701,16 @@ function App() {
             />
           } />
           <Route path="/admin" element={
-            user.role === 'admin' ? (
+            checkPermission('view_admin') ? (
               <AdminDashboard 
                 news={news}
                 setNews={setNews}
                 users={users}
                 setUsers={setUsers}
+                permissionProfiles={permissionProfiles}
+                onUpdateProfile={handleUpdateProfile}
+                onCreateProfile={handleCreateProfile}
+                onDeleteProfile={handleDeleteProfile}
                 auditLogs={auditLogs}
                 labels={labels}
                 setLabels={setLabels}
@@ -690,7 +729,7 @@ function App() {
             ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="/curator" element={
-            (user.role === 'curator' || user.role === 'admin' || user.role === 'editor') ? (
+            checkPermission('view_curator') ? (
               <CuratorDashboard 
                 news={news}
                 setNews={setNews}

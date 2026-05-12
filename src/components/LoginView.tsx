@@ -42,8 +42,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
     setShowHelp(false);
   };
 
-  const brandName = agencyConfig?.name || 'eFCaaS';
-  const brandSub = agencyConfig?.description || 'Evidence-based Fact-Checking as a Service';
+  const isConfigured = agencyConfig?.isOnboardingCompleted;
+  const brandName = isConfigured ? agencyConfig.name : 'eFCaaS';
+  const brandSub = isConfigured ? '' : 'Evidence-based Fact-Checking as a Service';
   const accentColor = themeConfig.general.accent;
 
   return (
@@ -60,14 +61,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden"
               style={{ backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}30` }}
             >
-              {agencyConfig?.logo ? (
-                <img src={agencyConfig.logo} alt="Logo" className="w-full h-full object-cover" />
+              {agencyConfig?.logoUrl ? (
+                <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <Shield className="text-white" size={32} />
               )}
             </div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">{brandName}</h1>
-            <p className="text-sm text-slate-500 font-medium tracking-tight line-clamp-2">{brandSub}</p>
+            {brandSub && <p className="text-sm text-slate-500 font-medium tracking-tight line-clamp-2">{brandSub}</p>}
           </div>
 
           {/* Form */}

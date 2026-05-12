@@ -4,6 +4,7 @@ import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
 import { MOCK_USERS } from '../constants';
+import { PermissionsManager } from './PermissionsManager';
 import { 
   Users as UsersIcon, 
   Clock, 
@@ -34,7 +35,8 @@ import {
   PieChart as PieChartIcon,
   Info,
   Image as ImageIcon,
-  Palette
+  Palette,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -53,13 +55,17 @@ import {
   Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
-import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig } from '../types';
+import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
 
 interface AdminDashboardProps {
   news: NewsItem[];
   setNews: React.Dispatch<React.SetStateAction<NewsItem[]>>;
   users: UserProfile[];
   setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>>;
+  permissionProfiles: PermissionProfile[];
+  onUpdateProfile: (profile: PermissionProfile) => void;
+  onCreateProfile: (profile: Omit<PermissionProfile, 'id'>) => void;
+  onDeleteProfile: (id: string) => void;
   auditLogs: AuditLog[];
   labels: LabelConfig[];
   setLabels: React.Dispatch<React.SetStateAction<LabelConfig[]>>;
@@ -76,13 +82,17 @@ interface AdminDashboardProps {
   onClearNotifs: () => void;
 }
 
-type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings';
+type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings' | 'permissions';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   news, 
   setNews, 
   users,
   setUsers,
+  permissionProfiles,
+  onUpdateProfile,
+  onCreateProfile,
+  onDeleteProfile,
   auditLogs,
   labels,
   setLabels,
@@ -105,7 +115,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   // Modal states
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'checker' as UserProfile['role'] });
+  const [newUser, setNewUser] = useState({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
   const [isAddingLabel, setIsAddingLabel] = useState(false);
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState<Omit<LabelConfig, 'id'>>({ name: 'Verdadeiro', description: '', color: '#94a3b8' });
@@ -201,17 +211,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleAddUser = () => {
     if (!newUser.name || !newUser.email) return;
+    const selectedProfile = permissionProfiles.find(p => p.id === newUser.profileId);
     const user: UserProfile = {
       id: Math.random().toString(36).substr(2, 9),
       name: newUser.name,
       email: newUser.email,
-      role: newUser.role,
+      role: (selectedProfile?.id as any) || 'checker',
+      profileId: newUser.profileId,
       status: 'active',
       avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newUser.name}`
     };
     setUsers(prev => [...prev, user]);
     setIsAddingUser(false);
-    setNewUser({ name: '', email: '', role: 'checker' });
+    setNewUser({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
   };
 
   const handleSaveLabel = () => {
@@ -335,6 +347,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
           { id: 'users', label: 'Equipe', icon: UsersIcon },
           { id: 'audit', label: 'Logs', icon: FileText },
+          { id: 'permissions', label: 'Permissões', icon: Lock },
           { id: 'settings', label: 'Ajustes', icon: SettingsIcon },
         ].map((tab) => (
           <button
@@ -564,7 +577,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <td className="px-6 py-4 text-sm opacity-70">{user.email}</td>
                     <td className="px-6 py-4">
                       <span className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {user.role}
+                        {permissionProfiles.find(p => p.id === user.profileId)?.name || user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -664,7 +677,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="relative group w-24 h-24">
                         <div className="w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
                           {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                           ) : (
                             <ImageIcon size={32} className="text-slate-300" />
                           )}
@@ -1859,6 +1872,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Permissions Tab */}
+        {activeTab === 'permissions' && (
+          <div className="p-8">
+            <PermissionsManager 
+              profiles={permissionProfiles}
+              onUpdateProfile={onUpdateProfile}
+              onCreateProfile={onCreateProfile}
+              onDeleteProfile={onDeleteProfile}
+              themeConfig={themeConfig}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Label Modal */}
@@ -2015,7 +2041,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Função / Perfil</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Perfil de Acesso</label>
                   <select 
                     className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
                     style={{ 
@@ -2024,13 +2050,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       color: themeConfig.general.inputText,
                       '--tw-ring-color': themeConfig.general.accent
                     } as any}
-                    value={newUser.role}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as any }))}
+                    value={newUser.profileId}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, profileId: e.target.value }))}
                   >
-                    <option value="checker">Checador</option>
-                    <option value="editor">Editor</option>
-                    <option value="curator">Curador</option>
-                    <option value="admin">Administrador</option>
+                    {permissionProfiles.map(profile => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

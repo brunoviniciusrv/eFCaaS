@@ -78,11 +78,27 @@ export interface ThemeConfig {
   };
 }
 
+export interface SystemPermission {
+  id: string;
+  name: string;
+  description: string;
+  category: 'navigation' | 'actions' | 'settings';
+}
+
+export interface PermissionProfile {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[]; // IDs of SystemPermission
+  isDefault?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'editor' | 'checker' | 'curator';
+  profileId: string; // Reference to PermissionProfile
   avatarUrl: string;
   bio?: string;
   status: 'active' | 'suspended';

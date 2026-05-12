@@ -65,7 +65,7 @@ export const Sidebar = ({
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-8 h-8 object-contain" />
+                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <ShieldCheck size={24} />
                 )}
@@ -88,7 +88,7 @@ export const Sidebar = ({
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-6 h-6 object-contain" />
+                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <ShieldCheck size={20} />
                 )}
