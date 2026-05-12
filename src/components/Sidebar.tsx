@@ -67,7 +67,7 @@ export const Sidebar = ({
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-8 h-8 object-contain" />
+                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <ShieldCheck size={24} />
                 )}
@@ -90,7 +90,7 @@ export const Sidebar = ({
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-6 h-6 object-contain" />
+                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <ShieldCheck size={20} />
                 )}
@@ -173,7 +173,7 @@ export const Sidebar = ({
         })}
       </nav>
 
-      <div className={cn("p-3 border-t", !isSidebarOpen && "flex justify-center")} style={{ borderColor: themeConfig.sidebar.border }}>
+      <div className={cn("p-3 border-t space-y-2", !isSidebarOpen && "flex flex-col items-center")} style={{ borderColor: themeConfig.sidebar.border }}>
         <NavLink 
           to="/profile"
           className={({ isActive }) => cn(

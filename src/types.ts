@@ -78,11 +78,27 @@ export interface ThemeConfig {
   };
 }
 
+export interface SystemPermission {
+  id: string;
+  name: string;
+  description: string;
+  category: 'navigation' | 'actions' | 'settings';
+}
+
+export interface PermissionProfile {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[]; // IDs of SystemPermission
+  isDefault?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'editor' | 'checker' | 'curator';
+  profileId: string; // Reference to PermissionProfile
   avatarUrl: string;
   bio?: string;
   status: 'active' | 'suspended';
@@ -212,4 +228,18 @@ export interface FactCheckTool {
   icon: string;
   url?: string;
   description: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: string;
+  isRead: boolean;
+  link?: string;
+  targetUserId?: string;
+  targetRole?: UserProfile['role'] | UserProfile['role'][];
+  relatedNewsId?: string;
+  category: 'assignment' | 'queue' | 'received_news' | 'system';
 }

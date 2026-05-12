@@ -8,14 +8,65 @@ import {
   ReportStructureConfig, 
   ThemeConfig, 
   AgencyConfig,
-  ReceivedNewsItem 
+  ReceivedNewsItem,
+  SystemPermission,
+  PermissionProfile
 } from './types';
+
+export const SYSTEM_PERMISSIONS: SystemPermission[] = [
+  { id: 'view_dashboard', name: 'Visualizar Dashboard', description: 'Acesso às estatísticas gerais na página inicial', category: 'navigation' },
+  { id: 'view_analysis', name: 'Fluxo de Checagem', description: 'Acesso à tela de análise e verificação de fatos', category: 'navigation' },
+  { id: 'view_curator', name: 'Painel de Curadoria', description: 'Acesso à triagem e notícias recebidas', category: 'navigation' },
+  { id: 'view_admin', name: 'Painel Administrativo', description: 'Acesso às configurações globais do sistema', category: 'navigation' },
+  { id: 'create_news', name: 'Cadastrar Notícias', description: 'Capacidade de adicionar manualmente novas notícias para triagem', category: 'actions' },
+  { id: 'manage_received', name: 'Gerenciar Recebidos', description: 'Encaminhar ou excluir sugestões externas', category: 'actions' },
+  { id: 'manage_triage', name: 'Gerenciar Triagem', description: 'Organizar e Priorizar fila de triagem', category: 'actions' },
+  { id: 'assign_tasks', name: 'Atribuir Tarefas', description: 'Designar notícias para checadores específicos', category: 'actions' },
+  { id: 'perform_analysis', name: 'Realizar Análise', description: 'Preencher relatórios e buscar evidências', category: 'actions' },
+  { id: 'review_and_approve', name: 'Revisar e Aprovar', description: 'Aprovar, rejeitar ou solicitar retificação de checagens', category: 'actions' },
+  { id: 'admin_users', name: 'Gerenciar Usuários', description: 'Criar, suspender e editar perfis de usuários', category: 'settings' },
+  { id: 'admin_permissions', name: 'Gerenciar Permissões', description: 'Criar e editar perfis de acesso e permissões', category: 'settings' },
+  { id: 'admin_settings', name: 'Configurações da Agência', description: 'Alterar branding, temas e regras do sistema', category: 'settings' },
+  { id: 'view_audit_logs', name: 'Logs de Auditoria', description: 'Visualizar histórico de atividades de todos os usuários', category: 'settings' },
+];
+
+export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
+  {
+    id: 'p-admin',
+    name: 'Administrador',
+    description: 'Acesso total a todas as funcionalidades e configurações do sistema.',
+    isDefault: true,
+    permissions: SYSTEM_PERMISSIONS.map(p => p.id)
+  },
+  {
+    id: 'p-curator',
+    name: 'Curador',
+    description: 'Responsável pela triagem inicial, recebimento de denúncias e distribuição de tarefas.',
+    isDefault: true,
+    permissions: ['view_dashboard', 'view_curator', 'create_news', 'manage_received', 'manage_triage', 'assign_tasks']
+  },
+  {
+    id: 'p-checker',
+    name: 'Checador (CKA)',
+    description: 'Focado na análise técnica, busca de evidências e preenchimento de relatórios.',
+    isDefault: true,
+    permissions: ['view_dashboard', 'view_analysis', 'perform_analysis']
+  },
+  {
+    id: 'p-editor',
+    name: 'Editor',
+    description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
+    isDefault: true,
+    permissions: ['view_dashboard', 'create_news', 'review_and_approve']
+  }
+];
 
 export const MOCK_USER: UserProfile = {
   id: 'u1',
   name: 'Ricardo Alencar',
   email: 'ricardo.alencar@ais-news.com',
   role: 'admin',
+  profileId: 'p-admin',
   status: 'active',
   avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ricardo',
   bio: 'Arquiteto de sistemas sênior com 15 anos de experiência em segurança da informação e combate a fake news.'
@@ -28,6 +79,7 @@ export const MOCK_USERS: UserProfile[] = [
     name: 'Beatriz Santos',
     email: 'beatriz.santos@factcheck.org',
     role: 'checker',
+    profileId: 'p-checker',
     status: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Beatriz',
     bio: 'Jornalista investigativa apaixonada por transparência pública e análise de dados governamentais.'
@@ -37,6 +89,7 @@ export const MOCK_USERS: UserProfile[] = [
     name: 'Carlos Eduardo',
     email: 'cadu.editor@ais-news.com',
     role: 'editor',
+    profileId: 'p-editor',
     status: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carlos',
     bio: 'Editor-chefe especializado em semiótica e discurso político, garantindo neutralidade e precisão editorial.'
@@ -46,6 +99,7 @@ export const MOCK_USERS: UserProfile[] = [
     name: 'Juliana Mendes',
     email: 'juliana.mendes@curadoria.com',
     role: 'curator',
+    profileId: 'p-curator',
     status: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Juliana',
     bio: 'Especialista em fluxos de informação e monitoramento de redes sociais em tempo real.'
@@ -119,16 +173,16 @@ export const INITIAL_RECEIVED_NEWS: ReceivedNewsItem[] = [
 ];
 
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  { id: 'l1', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(5, 2) },
-  { id: 'l2', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'News #1', timestamp: formatISO(5, 1), details: 'Assigned to Beatriz Santos' },
-  { id: 'l3', userId: 'u2', userName: 'Beatriz Santos', action: 'start_analysis', target: 'News #1', timestamp: formatISO(5, 0.5) },
-  { id: 'l4', userId: 'u1', userName: 'Ricardo Alencar', action: 'suspend_user', target: 'Mariana Costa', timestamp: formatISO(4, 10), details: 'Reason: Security violation' },
-  { id: 'l5', userId: 'u1', userName: 'Ricardo Alencar', action: 'approve_news', target: 'News #6', timestamp: formatISO(3, 5), details: 'Final review approved' },
-  { id: 'l6', userId: 'u4', userName: 'Juliana Mendes', action: 'register_news', target: 'News #8', timestamp: formatISO(2, 8) },
-  { id: 'l7', userId: 'u3', userName: 'Carlos Eduardo', action: 'edit_settings', timestamp: formatISO(2, 4), details: 'Updated labeling threshold' },
-  { id: 'l8', userId: 'u2', userName: 'Beatriz Santos', action: 'complete_analysis', target: 'News #1', timestamp: formatISO(1, 10) },
-  { id: 'l9', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(1, 1) },
-  { id: 'l10', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'News #10', timestamp: formatISO(0, 2) },
+  { id: 'l1', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(5, 2), details: 'Realizou login no sistema' },
+  { id: 'l2', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'Notícia #1', timestamp: formatISO(5, 1), details: 'Atribuiu notícia "Áudio vazado sugere manipulação de votos..." para Beatriz Santos' },
+  { id: 'l3', userId: 'u2', userName: 'Beatriz Santos', action: 'start_analysis', target: 'Notícia #1', timestamp: formatISO(5, 0.5), details: 'Iniciou análise da notícia' },
+  { id: 'l4', userId: 'u1', userName: 'Ricardo Alencar', action: 'suspend_user', target: 'Mariana Costa', timestamp: formatISO(4, 10), details: 'Suspendeu usuário por violação de segurança' },
+  { id: 'l5', userId: 'u1', userName: 'Ricardo Alencar', action: 'approve_news', target: 'Notícia #6', timestamp: formatISO(3, 5), details: 'Aprovou a revisão final da notícia "Anúncio de luz ultravioleta..." ' },
+  { id: 'l6', userId: 'u4', userName: 'Juliana Mendes', action: 'register_news', target: 'Notícia #8', timestamp: formatISO(2, 8), details: 'Registrou nova notícia: "Nova lei de trânsito prevê multa..."' },
+  { id: 'l7', userId: 'u3', userName: 'Carlos Eduardo', action: 'edit_settings', timestamp: formatISO(2, 4), details: 'Atualizou limites de etiquetas globais' },
+  { id: 'l8', userId: 'u2', userName: 'Beatriz Santos', action: 'complete_analysis', target: 'Notícia #1', timestamp: formatISO(1, 10), details: 'Concluiu análise e enviou para revisão' },
+  { id: 'l9', userId: 'u1', userName: 'Ricardo Alencar', action: 'login', timestamp: formatISO(1, 1), details: 'Realizou login no sistema' },
+  { id: 'l10', userId: 'u1', userName: 'Ricardo Alencar', action: 'assign_task', target: 'Notícia #10', timestamp: formatISO(0, 2), details: 'Atribuiu notícia "Alerta de tsunami para o litoral..." para Beatriz Santos' },
 ];
 
 export const INITIAL_NEWS: NewsItem[] = [

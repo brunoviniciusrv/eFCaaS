@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from './StatusBadge';
+import { NotificationBell } from './NotificationBell';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
 import { MOCK_USERS } from '../constants';
+import { PermissionsManager } from './PermissionsManager';
 import { 
   Users as UsersIcon, 
   Clock, 
@@ -33,7 +35,8 @@ import {
   PieChart as PieChartIcon,
   Info,
   Image as ImageIcon,
-  Palette
+  Palette,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -52,13 +55,17 @@ import {
   Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
-import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig } from '../types';
+import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
 
 interface AdminDashboardProps {
   news: NewsItem[];
   setNews: React.Dispatch<React.SetStateAction<NewsItem[]>>;
   users: UserProfile[];
   setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>>;
+  permissionProfiles: PermissionProfile[];
+  onUpdateProfile: (profile: PermissionProfile) => void;
+  onCreateProfile: (profile: Omit<PermissionProfile, 'id'>) => void;
+  onDeleteProfile: (id: string) => void;
   auditLogs: AuditLog[];
   labels: LabelConfig[];
   setLabels: React.Dispatch<React.SetStateAction<LabelConfig[]>>;
@@ -70,15 +77,22 @@ interface AdminDashboardProps {
   setAgencyConfig: React.Dispatch<React.SetStateAction<AgencyConfig>>;
   currentUser: UserProfile;
   setSelectedNewsId: (id: string | null) => void;
+  notifications: any[];
+  onMarkNotifAsRead: (id: string) => void;
+  onClearNotifs: () => void;
 }
 
-type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings';
+type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings' | 'permissions';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   news, 
   setNews, 
   users,
   setUsers,
+  permissionProfiles,
+  onUpdateProfile,
+  onCreateProfile,
+  onDeleteProfile,
   auditLogs,
   labels,
   setLabels,
@@ -89,7 +103,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   agencyConfig,
   setAgencyConfig,
   currentUser,
-  setSelectedNewsId
+  setSelectedNewsId,
+  notifications,
+  onMarkNotifAsRead,
+  onClearNotifs
 }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -98,7 +115,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   // Modal states
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'checker' as UserProfile['role'] });
+  const [newUser, setNewUser] = useState({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
   const [isAddingLabel, setIsAddingLabel] = useState(false);
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState<Omit<LabelConfig, 'id'>>({ name: 'Verdadeiro', description: '', color: '#94a3b8' });
@@ -194,17 +211,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleAddUser = () => {
     if (!newUser.name || !newUser.email) return;
+    const selectedProfile = permissionProfiles.find(p => p.id === newUser.profileId);
     const user: UserProfile = {
       id: Math.random().toString(36).substr(2, 9),
       name: newUser.name,
       email: newUser.email,
-      role: newUser.role,
+      role: (selectedProfile?.id as any) || 'checker',
+      profileId: newUser.profileId,
       status: 'active',
       avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newUser.name}`
     };
     setUsers(prev => [...prev, user]);
     setIsAddingUser(false);
-    setNewUser({ name: '', email: '', role: 'checker' });
+    setNewUser({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
   };
 
   const handleSaveLabel = () => {
@@ -312,10 +331,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
           
-          <div className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center relative hover:bg-slate-50 cursor-pointer transition-colors">
-             <div className="w-1.5 h-1.5 bg-red-500 rounded-full absolute top-2.5 right-2.5 border-2 border-white" />
-             <Activity size={18} className="opacity-40" />
-          </div>
+          <NotificationBell 
+            notifications={notifications}
+            onMarkAsRead={onMarkNotifAsRead}
+            onClearAll={onClearNotifs}
+            themeConfig={themeConfig}
+            currentUser={currentUser}
+          />
         </div>
       </header>
 
@@ -325,6 +347,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
           { id: 'users', label: 'Equipe', icon: UsersIcon },
           { id: 'audit', label: 'Logs', icon: FileText },
+          { id: 'permissions', label: 'Permissões', icon: Lock },
           { id: 'settings', label: 'Ajustes', icon: SettingsIcon },
         ].map((tab) => (
           <button
@@ -554,7 +577,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <td className="px-6 py-4 text-sm opacity-70">{user.email}</td>
                     <td className="px-6 py-4">
                       <span className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {user.role}
+                        {permissionProfiles.find(p => p.id === user.profileId)?.name || user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -594,29 +617,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Data / Hora</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Data</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Hora</th>
                   <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Ação</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Alvo</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Detalhes</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Atividade</th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
-                    <td className="px-6 py-4 text-xs opacity-60 font-mono">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: `${themeConfig.general.accent}15`, color: themeConfig.general.accent }}>
-                        {log.action.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm opacity-70">{log.target || '-'}</td>
-                    <td className="px-6 py-4 text-xs opacity-60 italic">{log.details || '-'}</td>
-                  </tr>
-                ))}
+                {filteredLogs.map((log) => {
+                  const dateObj = new Date(log.timestamp);
+                  const date = dateObj.toLocaleDateString();
+                  const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  
+                  // Construct intuitive message if not already descriptive
+                  let activity = log.details || log.action.replace('_', ' ');
+                  if (log.target && activity.indexOf(log.target) === -1) {
+                    activity = `${activity} (${log.target})`;
+                  }
+
+                  return (
+                    <tr key={log.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
+                      <td className="px-6 py-4 text-xs opacity-60 font-medium">
+                        {date}
+                      </td>
+                      <td className="px-6 py-4 text-xs opacity-60 font-mono">
+                        {time}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <span className="opacity-80">{activity}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -644,7 +677,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="relative group w-24 h-24">
                         <div className="w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
                           {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                           ) : (
                             <ImageIcon size={32} className="text-slate-300" />
                           )}
@@ -1839,6 +1872,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Permissions Tab */}
+        {activeTab === 'permissions' && (
+          <div className="p-8">
+            <PermissionsManager 
+              profiles={permissionProfiles}
+              onUpdateProfile={onUpdateProfile}
+              onCreateProfile={onCreateProfile}
+              onDeleteProfile={onDeleteProfile}
+              themeConfig={themeConfig}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Label Modal */}
@@ -1995,7 +2041,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Função / Perfil</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Perfil de Acesso</label>
                   <select 
                     className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
                     style={{ 
@@ -2004,13 +2050,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       color: themeConfig.general.inputText,
                       '--tw-ring-color': themeConfig.general.accent
                     } as any}
-                    value={newUser.role}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as any }))}
+                    value={newUser.profileId}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, profileId: e.target.value }))}
                   >
-                    <option value="checker">Checador</option>
-                    <option value="editor">Editor</option>
-                    <option value="curator">Curador</option>
-                    <option value="admin">Administrador</option>
+                    {permissionProfiles.map(profile => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -14,7 +14,8 @@ import {
   INITIAL_REPORT_CONFIG,
   INITIAL_THEME_CONFIG,
   INITIAL_AGENCY_CONFIG,
-  INITIAL_RECEIVED_NEWS
+  INITIAL_RECEIVED_NEWS,
+  INITIAL_PERMISSION_PROFILES
 } from './constants';
 import { 
   UserProfile, 
@@ -28,7 +29,9 @@ import {
   ReportStructureConfig,
   ThemeConfig,
   AgencyConfig,
-  ReceivedNewsItem
+  ReceivedNewsItem,
+  Notification,
+  PermissionProfile
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
 
@@ -44,10 +47,45 @@ import { LoginView } from './components/LoginView';
 
 function App() {
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [news, setNews] = useState<NewsItem[]>(INITIAL_NEWS);
   const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>(INITIAL_RECEIVED_NEWS);
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
+  const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
+    const saved = localStorage.getItem('platform_permission_profiles');
+    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('platform_permission_profiles', JSON.stringify(permissionProfiles));
+  }, [permissionProfiles]);
+
+  const checkPermission = (permId: string) => {
+    const profile = permissionProfiles.find(p => p.id === user.profileId);
+    if (!profile) return false;
+    return profile.permissions.includes(permId);
+  };
+
+  const handleUpdateProfile = (profile: PermissionProfile) => {
+    setPermissionProfiles(prev => prev.map(p => p.id === profile.id ? profile : p));
+    addAuditLog('update_profile', `Perfil: ${profile.name}`, `Permissões atualizadas: ${profile.permissions.length}`);
+  };
+
+  const handleCreateProfile = (profileData: Omit<PermissionProfile, 'id'>) => {
+    const newProfile: PermissionProfile = {
+      ...profileData,
+      id: 'p-' + Math.random().toString(36).substr(2, 5)
+    };
+    setPermissionProfiles(prev => [...prev, newProfile]);
+    addAuditLog('create_profile', `Perfil: ${newProfile.name}`, `Novo perfil de acesso criado`);
+  };
+
+  const handleDeleteProfile = (id: string) => {
+    setPermissionProfiles(prev => prev.filter(p => p.id !== id));
+    addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
+  };
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [labels, setLabels] = useState<LabelConfig[]>(OFFICIAL_LABELS);
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
@@ -86,8 +124,53 @@ function App() {
     localStorage.setItem('platform_agency_config', JSON.stringify(agencyConfig));
   }, [agencyConfig]);
 
+  // Monitor received news for new items and notify
+  useEffect(() => {
+    const unreadReceived = receivedNews.filter(n => n.status === 'received');
+    // For each unread received news, if not already notified (using IDs)
+    // We can use a ref to track notified IDs to avoid spamming on every change
+  }, [receivedNews]);
+
+  const [notifiedReceivedIds, setNotifiedReceivedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    receivedNews.forEach(item => {
+      if (item.status === 'received' && !notifiedReceivedIds.has(item.id)) {
+        addNotification({
+          title: 'Nova Notícia Recebida',
+          message: `Uma nova sugestão de notícia chegou via ${item.sourceType}: ${item.title}`,
+          type: 'info',
+          category: 'received_news',
+          targetRole: ['admin', 'curator'],
+          link: '/curator'
+        });
+        setNotifiedReceivedIds(prev => new Set(prev).add(item.id));
+      }
+    });
+  }, [receivedNews, notifiedReceivedIds]);
+
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [isToolboxOpen, setIsToolboxOpen] = useState(false);
+
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const addNotification = (notif: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
+    const newNotif: Notification = {
+      ...notif,
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toISOString(),
+      isRead: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+  
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
 
   const addAuditLog = (action: string, target?: string, details?: string) => {
     const newLog: AuditLog = {
@@ -153,7 +236,23 @@ function App() {
         }
       ]
     } : n));
-    addAuditLog('assign_task', `News #${newsId}`, `Assigned to ${users.find(u => u.id === checkerId)?.name}. Briefing: ${briefing}`);
+    
+    const newsItem = news.find(n => n.id === newsId);
+    if (newsItem) {
+      addNotification({
+        title: 'Nova Tarefa Atribuída',
+        message: `Você recebeu uma nova tarefa: ${newsItem.title}`,
+        type: 'info',
+        category: 'assignment',
+        targetUserId: checkerId,
+        relatedNewsId: newsId,
+        link: `/analysis/${newsId}`
+      });
+    }
+
+    const targetNews = news.find(n => n.id === newsId);
+    const targetUser = users.find(u => u.id === checkerId);
+    addAuditLog('assign_task', `Notícia #${newsId}`, `Atribuiu notícia "${targetNews?.title}" para usuário ${targetUser?.name}. Briefing: ${briefing}`);
   };
 
   const handleApprove = (newsId: string, comments: string) => {
@@ -164,7 +263,8 @@ function App() {
       approvedBy: user.id,
       reviewComments: comments
     } : n));
-    addAuditLog('approve_news', `News #${newsId}`, `Comments: ${comments}`);
+    const targetNews = news.find(n => n.id === newsId);
+    addAuditLog('approve_news', `Notícia #${newsId}`, `Aprovou notícia "${targetNews?.title}". Comentários: ${comments}`);
   };
 
   const handleReject = (newsId: string, comments: string) => {
@@ -185,7 +285,8 @@ function App() {
         }
       ]
     } : n));
-    addAuditLog('reject_news', `News #${newsId}`, `Reason: ${comments}`);
+    const targetNews = news.find(n => n.id === newsId);
+    addAuditLog('reject_news', `Notícia #${newsId}`, `Rejeitou notícia "${targetNews?.title}". Motivo: ${comments}`);
   };
 
   const handleUpdateReportStructure = (updates: Partial<ReportStructure>) => {
@@ -297,7 +398,8 @@ function App() {
       }
       return n;
     }));
-    addAuditLog('reopen_news', `News #${newsId}`, `Reason: ${reason}`);
+    const targetNews = news.find(n => n.id === newsId);
+    addAuditLog('reopen_news', `Notícia #${newsId}`, `Reabriu notícia "${targetNews?.title}" para retificação. Motivo: ${reason}`);
   };
 
   const handleRegisterNews = (newsData: any) => {
@@ -317,7 +419,33 @@ function App() {
       }] : []
     };
     setNews(prev => [newItem, ...prev]);
-    addAuditLog('register_news', `News #${newItem.id}`, `Title: ${newItem.title}`);
+
+    // Notification logic
+    if (newItem.assignedTo) {
+      // If assigned directly, notify ONLY the checker
+      addNotification({
+        title: 'Nova Tarefa Atribuída',
+        message: `Você recebeu uma nova tarefa: ${newItem.title}`,
+        type: 'info',
+        category: 'assignment',
+        targetUserId: newItem.assignedTo,
+        relatedNewsId: newItem.id,
+        link: `/analysis/${newItem.id}`
+      });
+    } else {
+      // Otherwise notify curators/admins about new item in triage queue (Fila Disponível)
+      addNotification({
+        title: 'Nova Notícia na Fila',
+        message: `Uma nova notícia foi adicionada à fila disponível: ${newItem.title}`,
+        type: 'info',
+        category: 'queue',
+        targetRole: ['admin', 'curator'],
+        relatedNewsId: newItem.id,
+        link: '/curator'
+      });
+    }
+
+    addAuditLog('register_news', `Notícia #${newItem.id}`, `Registrou nova notícia: "${newItem.title}"`);
   };
 
   const handleForwardToTriage = (receivedItem: ReceivedNewsItem) => {
@@ -390,7 +518,8 @@ function App() {
       setReceivedNews(prev => prev.map(rn => 
         rn.id === id ? { ...rn, status: 'deleted' as const } : rn
       ));
-      addAuditLog('delete_received_news', `Received News #${id}`, `Deleted`);
+      const targetReceived = receivedNews.find(rn => rn.id === id);
+      addAuditLog('delete_received_news', `Notícia Recebida #${id}`, `Excluiu notícia recebida "${targetReceived?.title}"`);
     }
   };
 
@@ -423,7 +552,9 @@ function App() {
       }
       return n;
     }));
-    addAuditLog('move_task', `News #${newsId}`, `Moved to ${targetStatus}`);
+    const targetNews = news.find(n => n.id === newsId);
+    const statusLabel = targetStatus === 'in_progress' ? 'Em Análise' : 'Pendente';
+    addAuditLog('move_task', `Notícia #${newsId}`, `Moveu notícia "${targetNews?.title}" para status ${statusLabel}`);
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -481,15 +612,27 @@ function App() {
   const handleOnboardingComplete = (agency: AgencyConfig, theme: ThemeConfig) => {
     setAgencyConfig({ ...agency, isOnboardingCompleted: true });
     setThemeConfig(theme);
-    navigate('/dashboard');
+    setShowOnboarding(false);
+    // User requested that after onboarding it returns to login screen
   };
 
   if (!isAuthenticated) {
     return <LoginView onLogin={handleLogin} />;
   }
 
-  if (!agencyConfig.isOnboardingCompleted) {
+  if (showOnboarding) {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <LoginView 
+        onLogin={handleLogin} 
+        onOpenOnboarding={() => setShowOnboarding(true)}
+        themeConfig={themeConfig}
+        agencyConfig={agencyConfig}
+      />
+    );
   }
 
   return (
@@ -523,15 +666,22 @@ function App() {
               handleStartAnalysis={handleStartAnalysis}
               handleMoveTask={handleMoveTask}
               themeConfig={themeConfig}
+              notifications={notifications}
+              onMarkNotifAsRead={markNotificationAsRead}
+              onClearNotifs={clearNotifications}
             />
           } />
           <Route path="/admin" element={
-            user.role === 'admin' ? (
+            checkPermission('view_admin') ? (
               <AdminDashboard 
                 news={news}
                 setNews={setNews}
                 users={users}
                 setUsers={setUsers}
+                permissionProfiles={permissionProfiles}
+                onUpdateProfile={handleUpdateProfile}
+                onCreateProfile={handleCreateProfile}
+                onDeleteProfile={handleDeleteProfile}
                 auditLogs={auditLogs}
                 labels={labels}
                 setLabels={setLabels}
@@ -543,11 +693,14 @@ function App() {
                 setAgencyConfig={setAgencyConfig}
                 currentUser={user}
                 setSelectedNewsId={setSelectedNewsId}
+                notifications={notifications}
+                onMarkNotifAsRead={markNotificationAsRead}
+                onClearNotifs={clearNotifications}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="/curator" element={
-            (user.role === 'curator' || user.role === 'admin' || user.role === 'editor') ? (
+            checkPermission('view_curator') ? (
               <CuratorDashboard 
                 news={news}
                 setNews={setNews}
@@ -563,6 +716,9 @@ function App() {
                 receivedNews={receivedNews}
                 onForwardToTriage={handleForwardToTriage}
                 onDeleteReceivedNews={handleDeleteReceivedNews}
+                notifications={notifications}
+                onMarkNotifAsRead={markNotificationAsRead}
+                onClearNotifs={clearNotifications}
               />
             ) : <Navigate to="/dashboard" replace />
           } />

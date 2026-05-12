@@ -147,7 +147,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 <div className="relative group w-32 h-32 mx-auto md:mx-0">
                   <div className="w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 group-hover:bg-slate-100 transition-colors">
                     {agency.logoUrl ? (
-                      <img src={agency.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                      <img src={agency.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                     ) : (
                       <ImageIcon size={32} className="text-slate-300" />
                     )}
@@ -253,11 +253,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <div className="rounded-2xl border border-slate-200 p-6 space-y-6 bg-white shadow-sm">
               <div className="flex items-center gap-4">
                 <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm overflow-hidden"
                   style={{ backgroundColor: theme.general.accent, color: '#fff' }}
                 >
                   {agency.logoUrl ? (
-                    <img src={agency.logoUrl} alt="" className="w-8 h-8 object-contain" />
+                    <img src={agency.logoUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <ShieldCheck size={24} />
                   )}

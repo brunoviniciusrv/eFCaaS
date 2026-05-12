@@ -159,47 +159,6 @@ export const ProfileView = ({
           </div>
         </section>
 
-        {/* Simular Perfil / Troca de Perfil */}
-        <section 
-          className="rounded-3xl border shadow-sm overflow-hidden"
-          style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
-        >
-          <div className="p-6 border-b flex items-center gap-2" style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
-            <User size={18} style={{ color: themeConfig.general.accent }} />
-            <h2 className="font-bold" style={{ color: themeConfig.dashboard.text }}>Simular Perfil de Acesso</h2>
-          </div>
-          <div className="p-6">
-            <p className="text-xs opacity-60 mb-6">Selecione um perfil para simular diferentes permissões e fluxos no sistema.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {MOCK_USERS.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => {
-                    setUser(u);
-                    setProfileForm(u);
-                    navigate('/dashboard');
-                  }}
-                  className="flex items-center gap-3 p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ 
-                    backgroundColor: user.id === u.id ? `${themeConfig.general.accent}10` : 'transparent',
-                    borderColor: user.id === u.id ? themeConfig.general.accent : themeConfig.general.border,
-                    color: themeConfig.dashboard.text
-                  }}
-                >
-                  <img src={u.avatarUrl} alt="" className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-bold">{u.name}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{u.role}</p>
-                  </div>
-                  {user.id === u.id && (
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: themeConfig.general.accent }} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Segurança */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <section 
