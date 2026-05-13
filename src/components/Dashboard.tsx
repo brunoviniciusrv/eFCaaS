@@ -16,7 +16,8 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { 
   DragDropContext, 
@@ -39,7 +40,6 @@ interface DashboardProps {
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
-  checkPermission: (permId: string) => boolean;
 }
 
 export const Dashboard = ({ 
@@ -51,8 +51,7 @@ export const Dashboard = ({
   themeConfig,
   notifications,
   onMarkNotifAsRead,
-  onClearNotifs,
-  checkPermission
+  onClearNotifs
 }: DashboardProps) => {
   const navigate = useNavigate();
   const stats = [
@@ -78,12 +77,10 @@ export const Dashboard = ({
   };
 
   const handleExploreCuration = () => {
-    if (checkPermission('view_admin')) {
+    if (user.role === 'admin') {
       navigate('/admin');
-    } else if (checkPermission('view_curator')) {
+    } else if (['curator', 'editor'].includes(user.role)) {
       navigate('/curator');
-    } else if (checkPermission('view_newsroom')) {
-      navigate('/newsroom');
     }
   };
 
@@ -159,7 +156,8 @@ export const Dashboard = ({
           ))}
         </section>
 
-        {checkPermission('perform_check') && (
+        {/* Performance & Queue */}
+        {user.role === 'checker' && (
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               
@@ -419,8 +417,98 @@ export const Dashboard = ({
           </DragDropContext>
         )}
 
-        {/* Executive focus - If not checker, show summary stats or welcome only */}
-        {!checkPermission('perform_check') && (
+        {(user.role === 'editor' || user.role === 'admin') && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            {/* Editor Sidebar or list */}
+            <div className="lg:col-span-7 flex flex-col space-y-6">
+               <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+                     <FileText size={20} />
+                  </div>
+                  <div>
+                     <h2 className="text-xl font-black uppercase tracking-tight">Fila de Redação</h2>
+                     <p className="text-xs opacity-40 font-medium">Checagens aprovadas prontas para redação</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => navigate('/editorial-archive')}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm"
+                >
+                  Ver Acervo Editorial
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {news.filter(n => n.status === 'completed').map((item) => (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={() => navigate(`/editor/${item.id}`)}
+                    className="p-6 rounded-[2rem] border bg-white hover:shadow-xl transition-all cursor-pointer group"
+                    style={{ borderColor: themeConfig.general.border }}
+                  >
+                     <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={item.status} themeConfig={themeConfig} />
+                        {item.reportStructure?.label && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-slate-900">
+                            {item.reportStructure.label}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-widest opacity-20">{item.date}</span>
+                    </div>
+                    <h3 className="text-lg font-bold leading-tight mb-2 group-hover:text-blue-600 transition-colors">
+                      {item.title}
+                    </h3>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">{item.source}</span>
+                      <button className="flex items-center gap-1 text-[9px] font-black text-blue-600 uppercase tracking-widest group-hover:gap-2 transition-all">
+                         Escrever Matéria <ArrowRight size={12} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 space-y-8">
+               <div className="p-8 rounded-[2.5rem] bg-slate-950 text-white shadow-2xl relative overflow-hidden group">
+                 <div className="absolute -top-10 -right-10 opacity-5 group-hover:rotate-12 group-hover:scale-110 transition-all duration-1000 grayscale select-none">
+                    <Sparkles size={250} />
+                 </div>
+                 <div className="relative z-10 space-y-8">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-6">
+                       <div>
+                          <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                            Histórico Editorial
+                          </h3>
+                          <p className="text-[10px] opacity-40 font-medium uppercase tracking-widest">Publicações recentes</p>
+                       </div>
+                       <History size={20} className="text-white/20" />
+                    </div>
+                    <div className="space-y-6">
+                       {[1, 2, 3].map(i => (
+                         <div key={i} className="flex gap-4 group/item cursor-pointer">
+                            <div className="w-1 h-8 bg-blue-500/20 group-hover/item:bg-blue-500 transition-colors rounded-full" />
+                            <div className="flex-1">
+                               <p className="text-xs font-bold leading-tight mb-1 group-hover/item:text-blue-400 transition-colors">Artigo #{Math.floor(Math.random() * 1000)} Publicado</p>
+                               <p className="text-[10px] opacity-30 font-bold uppercase tracking-tighter">Há {i * 15} min • Redator {user.name.split(' ')[0]}</p>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Executive focus - If not checker/editor, show summary stats or welcome only */}
+        {user.role === 'curator' && (
           <div className="py-20 flex flex-col items-center opacity-30">
             <LayoutDashboard size={48} className="mb-4" />
             <p className="text-sm font-black uppercase tracking-widest leading-none">Console Administrativo</p>
