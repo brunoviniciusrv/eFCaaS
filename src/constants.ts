@@ -28,6 +28,7 @@ export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'admin_permissions', name: 'Gerenciar Permissões', description: 'Criar e editar perfis de acesso e permissões', category: 'settings' },
   { id: 'admin_settings', name: 'Configurações da Agência', description: 'Alterar branding, temas e regras do sistema', category: 'settings' },
   { id: 'view_audit_logs', name: 'Logs de Auditoria', description: 'Visualizar histórico de atividades de todos os usuários', category: 'settings' },
+  { id: 'view_newsroom', name: 'Painel de Redação', description: 'Acesso à redação final e edição de pareceres', category: 'navigation' },
 ];
 
 export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
@@ -57,7 +58,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Editor',
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
-    permissions: ['view_dashboard', 'create_news', 'review_and_approve']
+    permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_newsroom']
   }
 ];
 
