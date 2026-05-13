@@ -28,7 +28,10 @@ export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'admin_permissions', name: 'Gerenciar Permissões', description: 'Criar e editar perfis de acesso e permissões', category: 'settings' },
   { id: 'admin_settings', name: 'Configurações da Agência', description: 'Alterar branding, temas e regras do sistema', category: 'settings' },
   { id: 'view_audit_logs', name: 'Logs de Auditoria', description: 'Visualizar histórico de atividades de todos os usuários', category: 'settings' },
-  { id: 'view_newsroom', name: 'Painel de Redação', description: 'Acesso à redação final e edição de pareceres', category: 'navigation' },
+  { id: 'view_editor', name: 'Painel de Redação', description: 'Acesso à redação e edição de matérias e checagens', category: 'navigation' },
+  { id: 'view_archive', name: 'Acervo Editorial', description: 'Acesso ao arquivo de matérias publicadas e exportação', category: 'navigation' },
+  { id: 'publish_article', name: 'Publicar Matérias', description: 'Capacidade de oficializar a publicação de uma checagem no CMS', category: 'actions' },
+  { id: 'export_article', name: 'Exportar Conteúdo', description: 'Exportar matérias em formatos HTML, JSON ou TXT', category: 'actions' },
 ];
 
 export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
@@ -58,7 +61,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Editor',
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
-    permissions: ['view_dashboard', 'view_curator', 'create_news', 'review_and_approve', 'view_newsroom']
+    permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_editor', 'view_archive', 'publish_article', 'export_article']
   }
 ];
 
