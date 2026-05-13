@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Briefcase as Toolbox, 
@@ -61,7 +62,6 @@ interface AnalysisViewProps {
   reportConfig: ReportStructureConfig;
   themeConfig: ThemeConfig;
   currentUser: UserProfile;
-  checkPermission: (permId: string) => boolean;
 }
 
 export const AnalysisView = ({
@@ -83,12 +83,16 @@ export const AnalysisView = ({
   labels,
   reportConfig,
   themeConfig,
-  currentUser,
-  checkPermission
+  currentUser
 }: AnalysisViewProps) => {
   if (!selectedNews) return null;
 
-  const canEdit = checkPermission('perform_analysis');
+  const isEditor = currentUser.role === 'editor';
+  const isChecker = currentUser.role === 'checker';
+  const isReadOnly = isEditor && selectedNews.status !== 'in_progress'; // Wait, let's be safe: if editor, always read-only in this view.
+  // Actually, if editor is accessing from list, it should be read-only.
+  // Full curators/admins can edit.
+  const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
@@ -242,7 +246,16 @@ export const AnalysisView = ({
                 </button>
               </>
             )}
-            {!canEdit && (
+            {selectedNews.status === 'completed' && (
+              <button 
+                onClick={() => navigate(`/editor/${selectedNews.id}`)}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition-all bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <FileText size={18} />
+                Ir para Redação
+              </button>
+            )}
+            {!canEdit && selectedNews.status !== 'completed' && (
               <span className="text-xs font-bold opacity-50 px-3 py-1 bg-slate-100 rounded-full">Modo de Visualização</span>
             )}
           </div>

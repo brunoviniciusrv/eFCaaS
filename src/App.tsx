@@ -31,7 +31,8 @@ import {
   AgencyConfig,
   ReceivedNewsItem,
   Notification,
-  PermissionProfile
+  PermissionProfile,
+  EditorialArticle
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
 
@@ -44,7 +45,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { CuratorDashboard } from './components/CuratorDashboard';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
-import { NewsroomView } from './components/NewsroomView';
+import { EditorView } from './components/EditorView';
+import { EditorialArchive } from './components/EditorialArchive';
 
 function App() {
   const navigate = useNavigate();
@@ -56,15 +58,7 @@ function App() {
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
   const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
     const saved = localStorage.getItem('platform_permission_profiles');
-    const profiles = saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
-    
-    // Safety check: Ensure view_newsroom is present in admin and editor profiles
-    return profiles.map((p: PermissionProfile) => {
-      if ((p.id === 'p-admin' || p.id === 'p-editor') && !p.permissions.includes('view_newsroom')) {
-        return { ...p, permissions: [...p.permissions, 'view_newsroom'] };
-      }
-      return p;
-    });
+    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
   });
 
   useEffect(() => {
@@ -95,6 +89,36 @@ function App() {
     setPermissionProfiles(prev => prev.filter(p => p.id !== id));
     addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
   };
+  const [articles, setArticles] = useState<EditorialArticle[]>(() => {
+    const saved = localStorage.getItem('platform_editorial_articles');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('platform_editorial_articles', JSON.stringify(articles));
+  }, [articles]);
+
+  const handleSaveArticle = (article: EditorialArticle) => {
+    setArticles(prev => {
+      const exists = prev.find(a => a.id === article.id);
+      if (exists) {
+        return prev.map(a => a.id === article.id ? article : a);
+      }
+      return [article, ...prev];
+    });
+    addAuditLog('save_article', `Matéria #${article.id}`, `Matéria salva com status: ${article.status}`);
+  };
+
+  const handleDeleteArticle = (id: string) => {
+    setArticles(prev => prev.filter(a => a.id !== id));
+    addAuditLog('delete_article', `Matéria #${id}`, `Matéria removida do acervo`);
+  };
+
+  const handleUpdateArticleStatus = (id: string, status: ArticleStatus) => {
+    setArticles(prev => prev.map(a => a.id === id ? { ...a, status, updatedAt: new Date().toISOString() } : a));
+    addAuditLog('publish_article', `Matéria #${id}`, `Status atualizado para: ${status}`);
+  };
+
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [labels, setLabels] = useState<LabelConfig[]>(OFFICIAL_LABELS);
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
@@ -691,7 +715,6 @@ function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
-        checkPermission={checkPermission}
       />
 
       <main className="flex-1 relative overflow-y-auto">
@@ -708,7 +731,6 @@ function App() {
               notifications={notifications}
               onMarkNotifAsRead={markNotificationAsRead}
               onClearNotifs={clearNotifications}
-              checkPermission={checkPermission}
             />
           } />
           <Route path="/admin" element={
@@ -736,7 +758,6 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
-                checkPermission={checkPermission}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -760,7 +781,6 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
-                checkPermission={checkPermission}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -784,18 +804,25 @@ function App() {
               reportConfig={reportConfig}
               themeConfig={themeConfig}
               currentUser={user}
-              checkPermission={checkPermission}
             />
           } />
-          <Route path="/newsroom" element={
-            checkPermission('view_newsroom') ? (
-              <NewsroomView 
-                news={news}
-                themeConfig={themeConfig}
-                user={user}
-                labels={labels}
-              />
-            ) : <Navigate to="/dashboard" replace />
+          <Route path="/editor/:id" element={
+            <EditorView 
+              user={user}
+              news={news}
+              labels={labels}
+              articles={articles}
+              onSaveArticle={handleSaveArticle}
+            />
+          } />
+          <Route path="/editorial-archive" element={
+            <EditorialArchive 
+              user={user}
+              news={news}
+              articles={articles}
+              onDeleteArticle={handleDeleteArticle}
+              onUpdateStatus={handleUpdateArticleStatus}
+            />
           } />
           <Route path="/profile" element={
             <ProfileView 

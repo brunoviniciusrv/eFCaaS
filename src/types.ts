@@ -141,6 +141,44 @@ export interface ReceivedNewsItem {
 
 export type FactLabel = 'Falso' | 'Verdadeiro' | 'Distorcido' | 'Falta Contexto' | 'Exagerado' | 'Subestimado';
 
+export type ArticleStatus = 'draft' | 'in_editing' | 'review' | 'approved' | 'published';
+
+export type ArticleTemplateType = 'short' | 'breaking' | 'complete' | 'quick_check';
+
+export interface EditorialComment {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
+  resolved: boolean;
+}
+
+export interface ArticleVersion {
+  id: string;
+  content: string;
+  title: string;
+  timestamp: string;
+  authorId: string;
+  authorName: string;
+}
+
+export interface EditorialArticle {
+  id: string;
+  newsId: string; // Ref to news item
+  title: string;
+  excerpt: string;
+  content: string; // HTML/Rich text
+  status: ArticleStatus;
+  template: ArticleTemplateType;
+  coverImageUrl?: string;
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
+  comments: EditorialComment[];
+  versions: ArticleVersion[];
+}
+
 export interface AssignmentHistory {
   id: string;
   assignedTo: string;
