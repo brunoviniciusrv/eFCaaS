@@ -44,6 +44,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { CuratorDashboard } from './components/CuratorDashboard';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
+import { NewsroomView } from './components/NewsroomView';
 
 function App() {
   const navigate = useNavigate();
@@ -64,8 +65,6 @@ function App() {
       }
       return p;
     });
-  });
-
   });
 
   useEffect(() => {
@@ -692,6 +691,7 @@ function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
+        checkPermission={checkPermission}
       />
 
       <main className="flex-1 relative overflow-y-auto">
@@ -708,6 +708,7 @@ function App() {
               notifications={notifications}
               onMarkNotifAsRead={markNotificationAsRead}
               onClearNotifs={clearNotifications}
+              checkPermission={checkPermission}
             />
           } />
           <Route path="/admin" element={
@@ -735,6 +736,7 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
+                checkPermission={checkPermission}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -758,6 +760,7 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
+                checkPermission={checkPermission}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -781,7 +784,18 @@ function App() {
               reportConfig={reportConfig}
               themeConfig={themeConfig}
               currentUser={user}
+              checkPermission={checkPermission}
             />
+          } />
+          <Route path="/newsroom" element={
+            checkPermission('view_newsroom') ? (
+              <NewsroomView 
+                news={news}
+                themeConfig={themeConfig}
+                user={user}
+                labels={labels}
+              />
+            ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="/profile" element={
             <ProfileView 

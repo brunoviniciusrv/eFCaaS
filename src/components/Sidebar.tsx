@@ -26,6 +26,7 @@ interface SidebarProps {
   setIsSidebarOpen: (open: boolean) => void;
   themeConfig: ThemeConfig;
   agencyConfig: AgencyConfig;
+  checkPermission: (permId: string) => boolean;
 }
 
 export const Sidebar = ({ 
@@ -35,7 +36,8 @@ export const Sidebar = ({
   isSidebarOpen, 
   setIsSidebarOpen,
   themeConfig,
-  agencyConfig
+  agencyConfig,
+  checkPermission
 }: SidebarProps) => {
   const sidebarWidth = isSidebarOpen ? 260 : 80;
 
@@ -122,15 +124,13 @@ export const Sidebar = ({
       
       <nav className={cn("flex-1 p-3 space-y-2", !isSidebarOpen && "flex flex-col items-center")}>
         {[
-          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-          { id: 'curator', label: 'Curadoria', icon: Eye, curatorOnly: true, path: '/curator' },
-          { id: 'newsroom', label: 'Redação', icon: FileText, editorOnly: true, path: '/newsroom' },
-          { id: 'admin', label: 'Administração', icon: ShieldAlert, adminOnly: true, path: '/admin' },
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', permission: 'view_dashboard' },
+          { id: 'curator', label: 'Curadoria', icon: Eye, path: '/curator', permission: 'view_curator' },
+          { id: 'newsroom', label: 'Redação', icon: FileText, path: '/newsroom', permission: 'view_newsroom' },
+          { id: 'admin', label: 'Administração', icon: ShieldAlert, path: '/admin', permission: 'view_admin' },
           { id: 'profile', label: 'Meu Perfil', icon: User, path: '/profile' },
         ].map((item) => {
-          if (item.adminOnly && user.role !== 'admin') return null;
-          if (item.curatorOnly && user.role !== 'curator' && user.role !== 'admin' && user.role !== 'editor') return null;
-          if (item.editorOnly && user.role !== 'editor' && user.role !== 'admin') return null;
+          if (item.permission && !checkPermission(item.permission)) return null;
           
           return (
             <NavLink 

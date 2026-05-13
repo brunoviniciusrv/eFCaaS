@@ -61,6 +61,7 @@ interface AnalysisViewProps {
   reportConfig: ReportStructureConfig;
   themeConfig: ThemeConfig;
   currentUser: UserProfile;
+  checkPermission: (permId: string) => boolean;
 }
 
 export const AnalysisView = ({
@@ -82,16 +83,12 @@ export const AnalysisView = ({
   labels,
   reportConfig,
   themeConfig,
-  currentUser
+  currentUser,
+  checkPermission
 }: AnalysisViewProps) => {
   if (!selectedNews) return null;
 
-  const isEditor = currentUser.role === 'editor';
-  const isChecker = currentUser.role === 'checker';
-  const isReadOnly = isEditor && selectedNews.status !== 'in_progress'; // Wait, let's be safe: if editor, always read-only in this view.
-  // Actually, if editor is accessing from list, it should be read-only.
-  // Full curators/admins can edit.
-  const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
+  const canEdit = checkPermission('perform_analysis');
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);

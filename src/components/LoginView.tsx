@@ -62,7 +62,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
               style={{ backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}30` }}
             >
               {agencyConfig?.logoUrl ? (
-                <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-fill" />
               ) : (
                 <Shield className="text-white" size={32} />
               )}

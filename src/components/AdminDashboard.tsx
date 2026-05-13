@@ -677,7 +677,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="relative group w-24 h-24">
                         <div className="w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
                           {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-fill" />
                           ) : (
                             <ImageIcon size={32} className="text-slate-300" />
                           )}

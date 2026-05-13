@@ -84,6 +84,7 @@ interface CuratorDashboardProps {
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
+  checkPermission: (permId: string) => boolean;
 }
 
 type CuratorTab = 'triage' | 'received' | 'list' | 'kanban' | 'workload' | 'reviews';
@@ -105,11 +106,14 @@ export const CuratorDashboard = ({
   onDeleteReceivedNews,
   notifications,
   onMarkNotifAsRead,
-  onClearNotifs
+  onClearNotifs,
+  checkPermission
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
-  const isEditor = currentUser.role === 'editor';
-  const [activeTab, setActiveTab] = useState<CuratorTab>(isEditor ? 'list' : 'received');
+  const [activeTab, setActiveTab] = useState<CuratorTab>(
+    checkPermission('manage_received') ? 'received' : 
+    checkPermission('review_and_approve') ? 'reviews' : 'list'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [receivedSearchQuery, setReceivedSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -336,13 +340,13 @@ export const CuratorDashboard = ({
       {/* Tabs */}
       <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
         {[
-          { id: 'received', label: 'Notícias Recebidas', icon: Inbox, hideForEditor: true },
-          { id: 'triage', label: 'Triagem', icon: List, hideForEditor: true },
+          { id: 'received', label: 'Notícias Recebidas', icon: Inbox, permission: 'manage_received' },
+          { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
           { id: 'list', label: 'Notícias', icon: Activity },
-          { id: 'kanban', label: 'Fluxo', icon: Kanban, hideForEditor: true },
-          { id: 'workload', label: 'Equipe', icon: Users, hideForEditor: true },
-          { id: 'reviews', label: 'Revisões', icon: CheckCircle }
-          ].filter(tab => !isEditor || !(tab as any).hideForEditor).map(tab => {
+          { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
+          { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
+          { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
+          ].filter(tab => !tab.permission || checkPermission(tab.permission)).map(tab => {
             return (
               <button
                 key={tab.id}
@@ -610,7 +614,7 @@ export const CuratorDashboard = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <p className="text-sm font-medium opacity-60">{filteredNews.length} notícias pendentes de triagem</p>
-              {!isEditor && (
+              {checkPermission('create_news') && (
                 <button 
                   onClick={() => setIsRegisterModalOpen(true)}
                   className="px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2"
@@ -916,7 +920,7 @@ export const CuratorDashboard = ({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
-                          {!isEditor && (
+                          {checkPermission('assign_tasks') && (
                             <button 
                               onClick={() => handleOpenAssign(item.id)}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -925,7 +929,7 @@ export const CuratorDashboard = ({
                               <UserPlus size={18} />
                             </button>
                           )}
-                          {item.status === 'completed' && !isEditor && (
+                          {item.status === 'completed' && checkPermission('review_and_approve') && (
                             <button 
                               onClick={() => setReopeningNewsId(item.id)}
                               className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"

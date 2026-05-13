@@ -58,7 +58,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Editor',
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
-    permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_newsroom']
+    permissions: ['view_dashboard', 'view_curator', 'create_news', 'review_and_approve', 'view_newsroom']
   }
 ];
 

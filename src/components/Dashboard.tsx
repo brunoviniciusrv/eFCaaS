@@ -39,6 +39,7 @@ interface DashboardProps {
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
+  checkPermission: (permId: string) => boolean;
 }
 
 export const Dashboard = ({ 
@@ -50,7 +51,8 @@ export const Dashboard = ({
   themeConfig,
   notifications,
   onMarkNotifAsRead,
-  onClearNotifs
+  onClearNotifs,
+  checkPermission
 }: DashboardProps) => {
   const navigate = useNavigate();
   const stats = [
@@ -76,10 +78,12 @@ export const Dashboard = ({
   };
 
   const handleExploreCuration = () => {
-    if (user.role === 'admin') {
+    if (checkPermission('view_admin')) {
       navigate('/admin');
-    } else if (['curator', 'editor'].includes(user.role)) {
+    } else if (checkPermission('view_curator')) {
       navigate('/curator');
+    } else if (checkPermission('view_newsroom')) {
+      navigate('/newsroom');
     }
   };
 
@@ -155,7 +159,7 @@ export const Dashboard = ({
           ))}
         </section>
 
-        {user.role === 'checker' && (
+        {checkPermission('perform_check') && (
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               
@@ -416,7 +420,7 @@ export const Dashboard = ({
         )}
 
         {/* Executive focus - If not checker, show summary stats or welcome only */}
-        {user.role !== 'checker' && (
+        {!checkPermission('perform_check') && (
           <div className="py-20 flex flex-col items-center opacity-30">
             <LayoutDashboard size={48} className="mb-4" />
             <p className="text-sm font-black uppercase tracking-widest leading-none">Console Administrativo</p>
