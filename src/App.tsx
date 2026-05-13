@@ -55,7 +55,17 @@ function App() {
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
   const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
     const saved = localStorage.getItem('platform_permission_profiles');
-    return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
+    const profiles = saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
+    
+    // Safety check: Ensure view_newsroom is present in admin and editor profiles
+    return profiles.map((p: PermissionProfile) => {
+      if ((p.id === 'p-admin' || p.id === 'p-editor') && !p.permissions.includes('view_newsroom')) {
+        return { ...p, permissions: [...p.permissions, 'view_newsroom'] };
+      }
+      return p;
+    });
+  });
+
   });
 
   useEffect(() => {
