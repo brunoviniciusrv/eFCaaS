@@ -59,6 +59,43 @@ export async function generateArticleSuggestions(news: NewsItem, currentContent:
   return response.text;
 }
 
+export async function generateArticleSuggestions(title: string, content: string) {
+  const model = "gemini-3-flash-preview";
+  const prompt = `
+    Você é um editor sênior de uma agência de checagem.
+    Com base no título e conteúdo de uma checagem abaixo, gere 3 sugestões de títulos alternativos atraentes e 1 resumo (lead) de 2 parágrafos para uma matéria jornalística.
+    
+    Título: ${title}
+    Conteúdo: ${content}
+    
+    Retorne o resultado em formato JSON com o seguinte schema:
+    {
+      "titles": ["Sugestão 1", "Sugestão 2", "Sugestão 3"],
+      "excerpt": "Texto do lead aqui..."
+    }
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+  });
+
+  try {
+    const text = response.text;
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}') + 1;
+    if (jsonStart === -1 || jsonEnd === 0) throw new Error("JSON not found in response");
+    const jsonStr = text.substring(jsonStart, jsonEnd);
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error("Error parsing Gemini response:", error);
+    return {
+      titles: [title],
+      excerpt: content.substring(0, 200) + "..."
+    };
+  }
+}
+
 export async function reviewReport(text: string) {
   const model = "gemini-3-flash-preview";
   const prompt = `
