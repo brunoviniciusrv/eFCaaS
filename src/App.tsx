@@ -758,6 +758,7 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
+                checkPermission={checkPermission}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
