@@ -125,7 +125,7 @@ export interface ReceivedNewsItem {
   title: string;
   content: string;
   excerpt: string;
-  sourceType: 'WhatsApp' | 'Facebook' | 'Instagram' | 'Telegram' | 'E-mail' | 'Other';
+  sourceType: 'WhatsApp' | 'Facebook' | 'Instagram' | 'Telegram' | 'E-mail' | 'YouTube' | 'Reddit' | 'TikTok' | 'Other';
   senderName?: string;
   senderAddress?: string; // Phone number, email, handle
   receivedAt: string;
@@ -280,4 +280,47 @@ export interface Notification {
   targetRole?: UserProfile['role'] | UserProfile['role'][];
   relatedNewsId?: string;
   category: 'assignment' | 'queue' | 'received_news' | 'system';
+}
+
+export type ArticleStatus = 'draft' | 'review' | 'published' | 'archived' | 'approved' | 'in_editing';
+export type ArticleTemplateType = 'classic' | 'modern' | 'minimal' | 'longform' | 'complete';
+
+export interface EditorialComment {
+  id: string;
+  userId: string;
+  userName: string;
+  content?: string;
+  text?: string;
+  timestamp: string;
+  resolved?: boolean;
+}
+
+export interface ArticleVersion {
+  id: string;
+  version: number;
+  content: string;
+  updatedBy: string;
+  authorName?: string;
+  timestamp: string;
+}
+
+export interface EditorialArticle {
+  id: string;
+  title: string;
+  subtitle?: string;
+  content: string;
+  excerpt?: string;
+  authorId: string;
+  status: ArticleStatus;
+  templateType?: ArticleTemplateType;
+  template?: ArticleTemplateType;
+  coverImage?: string;
+  tags?: string[];
+  newsId?: string; // Reference to original NewsItem
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  comments: EditorialComment[];
+  versions: ArticleVersion[];
+  factLabels?: FactLabel[];
 }

@@ -110,10 +110,10 @@ export function EditorView({ user, news, labels, onSaveArticle, articles }: Edit
     if (!newsItem) return;
     setIsAISuggesting(true);
     try {
-      const result = await generateArticleSuggestions(newsItem, content, action);
-      if (action === 'title') setTitle(result);
-      if (action === 'lead') setContent(prev => result + '<br><br>' + prev);
-      if (action === 'summarize') setContent(result);
+      const result = await generateArticleSuggestions(newsItem.title, content);
+      if (action === 'title') setTitle(result.titles[0]);
+      if (action === 'lead') setContent(prev => result.excerpt + '<br><br>' + prev);
+      if (action === 'summarize') setContent(result.excerpt);
     } catch (error) {
       console.error('AI Error:', error);
     } finally {
