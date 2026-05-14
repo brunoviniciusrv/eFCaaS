@@ -153,11 +153,21 @@ export const CuratorDashboard = ({
   const [reopenReason, setReopenReason] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
-  const [extractionQueries, setExtractionQueries] = useState({
-    youtube: '',
-    reddit: '',
-    facebook: '',
-    telegram: ''
+  const [extractionResults, setExtractionResults] = useState<ReceivedNewsItem[]>([]);
+  const [showExtractionResults, setShowExtractionResults] = useState(false);
+  const [extractionSearchQuery, setExtractionSearchQuery] = useState('');
+  const [extractionParams, setExtractionParams] = useState({
+    query: '',
+    userLimit: 100,
+    comments: '',
+    startDate: '',
+    endDate: '',
+    platforms: {
+      youtube: true,
+      reddit: true,
+      facebook: true,
+      telegram: true
+    }
   });
   const [isExtracting, setIsExtracting] = useState(false);
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
@@ -212,6 +222,14 @@ export const CuratorDashboard = ({
       return sortOrder === 'asc' ? comparison : -comparison;
     });
   }, [news, searchQuery, gravityFilter, urgencyFilter, trendFilter, activeTab, selectedStatus, sortBy, sortOrder, users]);
+
+  const filteredExtractionResults = useMemo(() => {
+    return extractionResults.filter(item => {
+      const matchesSearch = item.title.toLowerCase().includes(extractionSearchQuery.toLowerCase()) || 
+                           item.content.toLowerCase().includes(extractionSearchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [extractionResults, extractionSearchQuery]);
 
   const filteredReceivedNews = useMemo(() => {
     return receivedNews.filter(item => {
@@ -306,14 +324,65 @@ export const CuratorDashboard = ({
       briefing: '' 
     });
   };
+
   const handleExecuteExtraction = () => {
     setIsExtracting(true);
     // Simulate extraction
     setTimeout(() => {
+      const mockResults: ReceivedNewsItem[] = [
+        {
+          id: 'ext-' + Math.random().toString(36).substr(2, 9),
+          title: 'Suposto vídeo mostra irregularidade em contagem de votos',
+          content: 'Conteúdo extraído do YouTube com base na busca por eleições 2024. O vídeo apresenta sinais de manipulação digital.',
+          excerpt: 'Vídeo viralizado em grupos de discussão sobre o processo eleitoral.',
+          sourceType: 'YouTube',
+          receivedAt: new Date().toISOString(),
+          status: 'received',
+          senderName: 'Monitor de Busca',
+          media: [{ type: 'video', url: '#' }]
+        },
+        {
+          id: 'ext-' + Math.random().toString(36).substr(2, 9),
+          title: 'Novos efeitos colaterais de vacina X relatados no Reddit',
+          content: 'Discussão capturada no r/SaudePublica sobre relatos não confirmados de novos efeitos colaterais.',
+          excerpt: 'Thread com alto engajamento nas últimas 24 horas.',
+          sourceType: 'Reddit',
+          receivedAt: new Date().toISOString(),
+          status: 'received',
+          senderName: 'Monitor de Busca',
+          media: [{ type: 'document', url: '#' }]
+        },
+        {
+          id: 'ext-' + Math.random().toString(36).substr(2, 9),
+          title: 'Mensagem encaminhada sobre novo golpe do Pix',
+          content: 'Alerta sobre modalidade de fraude circulando em canais do Telegram.',
+          excerpt: 'Texto padrão circulando em massa em canais abertos.',
+          sourceType: 'Telegram',
+          receivedAt: new Date().toISOString(),
+          status: 'received',
+          senderName: 'Monitor de Busca',
+          media: [{ type: 'image', url: '#' }]
+        }
+      ];
+
+      setExtractionResults(mockResults);
       setIsExtracting(false);
       setIsExtractionModalOpen(false);
-      alert("Busca e extração iniciada. Os resultados aparecerão em breve na sua caixa de conteúdos recebidos.");
-      setExtractionQueries({ youtube: '', reddit: '', facebook: '', telegram: '' });
+      setShowExtractionResults(true);
+      
+      setExtractionParams({
+        query: '',
+        userLimit: 100,
+        comments: '',
+        startDate: '',
+        endDate: '',
+        platforms: {
+          youtube: true,
+          reddit: true,
+          facebook: true,
+          telegram: true
+        }
+      });
     }, 2000);
   };
 
@@ -393,135 +462,240 @@ export const CuratorDashboard = ({
       {/* Triage View */}
       {activeTab === 'received' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar nos Recebidos</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
-                <input 
-                  type="text"
-                  value={receivedSearchQuery}
-                  onChange={(e) => setReceivedSearchQuery(e.target.value)}
-                  placeholder="Título, conteúdo ou remetente..."
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
-                  style={{ 
-                    backgroundColor: themeConfig.general.inputBackground, 
-                    borderColor: themeConfig.general.inputBorder,
-                    color: themeConfig.general.inputText,
-                    '--tw-ring-color': themeConfig.general.accent
-                  } as any}
-                />
-              </div>
-            </div>
-            <div className="w-full md:w-auto flex gap-2">
-              <button 
-                onClick={() => setIsExtractionModalOpen(true)}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
-                style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
-              >
-                <Zap size={16} />
-                Extração de Busca
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium opacity-60">
-              {filteredReceivedNews.length} conteúdos recebidos externos
-            </p>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setSortReceivedOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors hover:bg-slate-50"
-                style={{ borderColor: themeConfig.general.border }}
-              >
-                {sortReceivedOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigas'}
-                <ArrowUpDown size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredReceivedNews.map(item => (
-              <div 
-                key={item.id}
-                className="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 group relative"
-                style={{ 
-                  backgroundColor: themeConfig.general.cardBackground, 
-                  borderColor: themeConfig.general.border
-                }}
-              >
-                {item.status === 'received' && (
-                  <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                )}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
-                      {getSourceIcon(item.sourceType)}
-                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{item.sourceType}</span>
-                    </div>
-                    <span className="text-[10px] opacity-40 font-medium">{new Date(item.receivedAt).toLocaleString()}</span>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                    <p className="text-sm opacity-60 line-clamp-2">{item.excerpt}</p>
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <div className="flex -space-x-1">
-                      {item.media?.map((m, i) => (
-                        <div key={i} className="w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center">
-                          {m.type === 'image' && <Upload size={10} className="text-blue-500" />}
-                          {m.type === 'video' && <TrendingUp size={10} className="text-red-500" />}
-                          {m.type === 'audio' && <Bell size={10} className="text-green-500" />}
-                          {m.type === 'document' && <FileText size={10} className="text-slate-500" />}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Remetente</span>
-                      <span className="text-xs font-medium">{item.senderName || 'Desconhecido'}</span>
-                    </div>
+          {!showExtractionResults ? (
+            <>
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar nos Recebidos</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+                    <input 
+                      type="text"
+                      value={receivedSearchQuery}
+                      onChange={(e) => setReceivedSearchQuery(e.target.value)}
+                      placeholder="Título, conteúdo ou remetente..."
+                      className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+                <div className="w-full md:w-auto flex gap-2">
                   <button 
-                    onClick={() => {
-                      setSelectedReceivedItem(item);
-                      setIsReceivedDetailOpen(true);
+                    onClick={() => setIsExtractionModalOpen(true)}
+                    className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
+                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                  >
+                    <Zap size={16} />
+                    Busca e Extração
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium opacity-60">
+                  {filteredReceivedNews.length} conteúdos recebidos externos
+                </p>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setSortReceivedOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors hover:bg-slate-50"
+                    style={{ borderColor: themeConfig.general.border }}
+                  >
+                    {sortReceivedOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigas'}
+                    <ArrowUpDown size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredReceivedNews.map(item => (
+                  <div 
+                    key={item.id}
+                    className="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 group relative"
+                    style={{ 
+                      backgroundColor: themeConfig.general.cardBackground, 
+                      borderColor: themeConfig.general.border
                     }}
-                    className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Eye size={14} />
-                    Visualizar
-                  </button>
-                  <button 
-                    onClick={() => onForwardToTriage(item)}
-                    className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                    style={{ backgroundColor: `${themeConfig.general.accent}15`, color: themeConfig.general.accent }}
-                  >
-                    <ArrowUpRight size={14} />
-                    Triagem
-                  </button>
-                  <button 
-                    onClick={() => onDeleteReceivedNews(item.id)}
-                    className="p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                    {item.status === 'received' && (
+                      <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    )}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
+                          {getSourceIcon(item.sourceType)}
+                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{item.sourceType}</span>
+                        </div>
+                        <span className="text-[10px] opacity-40 font-medium">{new Date(item.receivedAt).toLocaleString()}</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
+                        <p className="text-sm opacity-60 line-clamp-2">{item.excerpt}</p>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <div className="flex -space-x-1">
+                          {item.media?.map((m, i) => (
+                            <div key={i} className="w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center">
+                              {m.type === 'image' && <Upload size={10} className="text-blue-500" />}
+                              {m.type === 'video' && <TrendingUp size={10} className="text-red-500" />}
+                              {m.type === 'audio' && <Bell size={10} className="text-green-500" />}
+                              {m.type === 'document' && <FileText size={10} className="text-slate-500" />}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Remetente</span>
+                          <span className="text-xs font-medium">{item.senderName || 'Desconhecido'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+                      <button 
+                        onClick={() => {
+                          setSelectedReceivedItem(item);
+                          setIsReceivedDetailOpen(true);
+                        }}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Eye size={14} />
+                        Visualizar
+                      </button>
+                      <button 
+                        onClick={() => onForwardToTriage(item)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                        style={{ backgroundColor: `${themeConfig.general.accent}15`, color: themeConfig.general.accent }}
+                      >
+                        <ArrowUpRight size={14} />
+                        Triagem
+                      </button>
+                      <button 
+                        onClick={() => onDeleteReceivedNews(item.id)}
+                        className="p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {filteredReceivedNews.length === 0 && (
+                <div className="text-center py-20 opacity-40">
+                  <Inbox size={48} className="mx-auto mb-4" />
+                  <p className="text-lg font-bold">Nenhum conteúdo recebido</p>
+                  <p className="text-sm">Não há conteúdo externo correspondente aos filtros.</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <button 
+                  onClick={() => setShowExtractionResults(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 hover:bg-slate-50 transition-all"
+                  style={{ borderColor: themeConfig.general.border }}
+                >
+                  <ArrowLeft size={16} />
+                  Voltar
+                </button>
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Localizar Publicações Encontradas</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+                    <input 
+                      type="text"
+                      value={extractionSearchQuery}
+                      onChange={(e) => setExtractionSearchQuery(e.target.value)}
+                      placeholder="Filtrar resultados da busca..."
+                      className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {filteredReceivedNews.length === 0 && (
-            <div className="text-center py-20 opacity-40">
-              <Inbox size={48} className="mx-auto mb-4" />
-              <p className="text-lg font-bold">Nenhum conteúdo recebido</p>
-              <p className="text-sm">Não há conteúdo externo correspondente aos filtros.</p>
-            </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-md">
+                    <Zap size={14} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">Resultados da Busca Automática</p>
+                    <p className="text-[10px] opacity-50 uppercase font-black tracking-widest">{filteredExtractionResults.length} Encontrados</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredExtractionResults.map(item => (
+                  <div 
+                    key={item.id}
+                    className="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 group relative bg-blue-50/20"
+                    style={{ 
+                      borderColor: themeConfig.general.border
+                    }}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white border" style={{ borderColor: themeConfig.general.border }}>
+                          {getSourceIcon(item.sourceType)}
+                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{item.sourceType}</span>
+                        </div>
+                        <span className="text-[10px] opacity-40 font-medium">Extraído às {new Date(item.receivedAt).toLocaleTimeString()}</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.title}</h3>
+                        <p className="text-sm opacity-60 line-clamp-3 leading-relaxed">{item.content}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+                      <button 
+                        onClick={() => {
+                          setSelectedReceivedItem(item);
+                          setIsReceivedDetailOpen(true);
+                        }}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-white border hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        style={{ borderColor: themeConfig.general.border }}
+                      >
+                        <Eye size={14} />
+                        Detalhes
+                      </button>
+                      <button 
+                        onClick={() => onForwardToTriage(item)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                      >
+                        <ArrowUpRight size={14} />
+                        Triagem
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {filteredExtractionResults.length === 0 && (
+                <div className="text-center py-20 opacity-40">
+                  <SearchIcon size={48} className="mx-auto mb-4" />
+                  <p className="text-lg font-bold">Nenhum resultado corresponde ao filtro</p>
+                  <p className="text-sm">Tente outro termo de busca.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -1173,7 +1347,7 @@ export const CuratorDashboard = ({
         </div>
       )}
 
-       {/* Extraction Modal */}
+      {/* Extraction Modal */}
       <AnimatePresence>
         {isExtractionModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1189,7 +1363,7 @@ export const CuratorDashboard = ({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden"
+              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
               <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
@@ -1198,30 +1372,25 @@ export const CuratorDashboard = ({
                     <Zap size={24} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight">Extração de Busca e Conteúdos</h2>
+                    <h2 className="text-2xl font-black tracking-tight">Busca e Extração de Conteúdos</h2>
                     <p className="text-xs opacity-50 font-bold uppercase tracking-wider">Monitoramento Multi-Plataforma em Tempo Real</p>
                   </div>
                 </div>
                 <button onClick={() => setIsExtractionModalOpen(false)} className="p-2 opacity-40 hover:opacity-100"><X size={24} /></button>
               </div>
 
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[60vh] overflow-y-auto">
-                {/* YouTube */}
-                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-red-100 text-red-600">
-                      <YoutubeIcon size={20} />
-                    </div>
-                    <span className="font-bold">YouTube Search</span>
-                  </div>
+              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Unified Search Field */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Termo de Busca / Palavras-chave</label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" size={18} />
                     <input 
                       type="text"
-                      placeholder="Palavras-chave ou Canal..."
-                      value={extractionQueries.youtube}
-                      onChange={(e) => setExtractionQueries({...extractionQueries, youtube: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      placeholder="Ex: vacinas, eleições 2024, fraude pix..."
+                      value={extractionParams.query}
+                      onChange={(e) => setExtractionParams({...extractionParams, query: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1230,25 +1399,21 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <p className="text-[10px] opacity-40">Extrai títulos, descrições e links de vídeos recentes.</p>
                 </div>
 
-                {/* Reddit */}
-                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
-                      <Globe size={20} />
-                    </div>
-                    <span className="font-bold">Reddit Monitor</span>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* User Limit */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50 flex items-center gap-2">
+                      <Users size={14} /> Limite de Registros
+                    </label>
                     <input 
-                      type="text"
-                      placeholder="Subreddit ou Termo..."
-                      value={extractionQueries.reddit}
-                      onChange={(e) => setExtractionQueries({...extractionQueries, reddit: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      type="number"
+                      min="10"
+                      max="1000"
+                      value={extractionParams.userLimit}
+                      onChange={(e) => setExtractionParams({...extractionParams, userLimit: parseInt(e.target.value)})}
+                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1256,26 +1421,52 @@ export const CuratorDashboard = ({
                         '--tw-ring-color': themeConfig.general.accent
                       } as any}
                     />
+                    <p className="text-[10px] opacity-40 italic">Máximo sugerido: 1000 registros por extração.</p>
                   </div>
-                  <p className="text-[10px] opacity-40">Captura posts virais e tendências de discussões.</p>
+
+                  {/* Platform Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Onde Buscar</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
+                        { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
+                        { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
+                        { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' }
+                      ].map(platform => (
+                        <button
+                          key={platform.id}
+                          onClick={() => setExtractionParams({
+                            ...extractionParams,
+                            platforms: {
+                              ...extractionParams.platforms,
+                              [platform.id as any]: !extractionParams.platforms[platform.id as keyof typeof extractionParams.platforms]
+                            }
+                          })}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold transition-all",
+                            extractionParams.platforms[platform.id as keyof typeof extractionParams.platforms] 
+                              ? `${platform.color} border-current` 
+                              : "opacity-40 hover:opacity-100"
+                          )}
+                        >
+                          <platform.icon size={14} />
+                          {platform.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Facebook */}
-                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
-                      <FacebookIcon size={20} />
-                    </div>
-                    <span className="font-bold">Facebook Groups</span>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Data Inicial</label>
                     <input 
-                      type="text"
-                      placeholder="Páginas ou Tópico..."
-                      value={extractionQueries.facebook}
-                      onChange={(e) => setExtractionQueries({...extractionQueries, facebook: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      type="date"
+                      value={extractionParams.startDate}
+                      onChange={(e) => setExtractionParams({...extractionParams, startDate: e.target.value})}
+                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1284,34 +1475,39 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <p className="text-[10px] opacity-40">Analisa posts públicos e compartilhamentos em massa.</p>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Data Final</label>
+                    <input 
+                      type="date"
+                      value={extractionParams.endDate}
+                      onChange={(e) => setExtractionParams({...extractionParams, endDate: e.target.value})}
+                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
                 </div>
 
-                {/* Telegram */}
-                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
-                      <Send size={20} />
-                    </div>
-                    <span className="font-bold">Telegram Channels</span>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
-                    <input 
-                      type="text"
-                      placeholder="Invite Links ou Key-words..."
-                      value={extractionQueries.telegram}
-                      onChange={(e) => setExtractionQueries({...extractionQueries, telegram: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
-                      style={{ 
-                        backgroundColor: themeConfig.general.inputBackground, 
-                        borderColor: themeConfig.general.inputBorder,
-                        color: themeConfig.general.inputText,
-                        '--tw-ring-color': themeConfig.general.accent
-                      } as any}
-                    />
-                  </div>
-                  <p className="text-[10px] opacity-40">Rastreia transmissões e arquivos em canais abertos.</p>
+                {/* Comments */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Observações de Contexto (Opcional)</label>
+                  <textarea 
+                    placeholder="Instruções adicionais para a IA de extração..."
+                    value={extractionParams.comments}
+                    onChange={(e) => setExtractionParams({...extractionParams, comments: e.target.value})}
+                    rows={3}
+                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    style={{ 
+                      backgroundColor: themeConfig.general.inputBackground, 
+                      borderColor: themeConfig.general.inputBorder,
+                      color: themeConfig.general.inputText,
+                      '--tw-ring-color': themeConfig.general.accent
+                    } as any}
+                  />
                 </div>
               </div>
 
@@ -1326,7 +1522,7 @@ export const CuratorDashboard = ({
                   </button>
                   <button 
                     onClick={handleExecuteExtraction}
-                    disabled={isExtracting || !Object.values(extractionQueries).some(v => v.trim())}
+                    disabled={isExtracting || !extractionParams.query.trim() || !Object.values(extractionParams.platforms).some(v => v)}
                     className="px-10 py-3 rounded-2xl text-sm font-bold shadow-xl transition-all disabled:opacity-50 flex items-center gap-2"
                     style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                   >
@@ -1338,7 +1534,7 @@ export const CuratorDashboard = ({
                     ) : (
                       <>
                         <Download size={18} />
-                        Iniciar Extração Agora
+                        Iniciar Busca Completa
                       </>
                     )}
                   </button>
@@ -1348,7 +1544,7 @@ export const CuratorDashboard = ({
           </div>
         )}
       </AnimatePresence>
-      
+
       {/* Detailed Tasks Modal */}
       <AnimatePresence>
         {detailedCheckerId && (
