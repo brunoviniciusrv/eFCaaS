@@ -125,7 +125,7 @@ export interface ReceivedNewsItem {
   title: string;
   content: string;
   excerpt: string;
-  sourceType: 'WhatsApp' | 'Facebook' | 'Instagram' | 'Telegram' | 'E-mail' | 'Other';
+  sourceType: 'WhatsApp' | 'Facebook' | 'Instagram' | 'Telegram' | 'E-mail' | 'YouTube' | 'Reddit' | 'TikTok' | 'Other';
   senderName?: string;
   senderAddress?: string; // Phone number, email, handle
   receivedAt: string;
