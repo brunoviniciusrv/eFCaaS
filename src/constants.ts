@@ -16,7 +16,7 @@ import {
 export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'view_dashboard', name: 'Visualizar Dashboard', description: 'Acesso às estatísticas gerais na página inicial', category: 'navigation' },
   { id: 'view_analysis', name: 'Fluxo de Checagem', description: 'Acesso à tela de análise e verificação de fatos', category: 'navigation' },
-  { id: 'view_curator', name: 'Painel de Curadoria', description: 'Acesso à triagem e notícias recebidas', category: 'navigation' },
+  { id: 'view_curator', name: 'Painel de Curadoria', description: 'Acesso à triagem e conteúdos recebidos', category: 'navigation' },
   { id: 'view_admin', name: 'Painel Administrativo', description: 'Acesso às configurações globais do sistema', category: 'navigation' },
   { id: 'create_news', name: 'Cadastrar Notícias', description: 'Capacidade de adicionar manualmente novas notícias para triagem', category: 'actions' },
   { id: 'manage_received', name: 'Gerenciar Recebidos', description: 'Encaminhar ou excluir sugestões externas', category: 'actions' },
