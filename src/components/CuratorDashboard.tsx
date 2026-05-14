@@ -42,7 +42,12 @@ import {
   Info,
   TrendingUp,
   UserPlus,
-  Box
+  Box,
+  Youtube as YoutubeIcon,
+  Globe,
+  Search as SearchIcon,
+  Zap,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -147,6 +152,14 @@ export const CuratorDashboard = ({
   const [reopeningNewsId, setReopeningNewsId] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
+  const [extractionQueries, setExtractionQueries] = useState({
+    youtube: '',
+    reddit: '',
+    facebook: '',
+    telegram: ''
+  });
+  const [isExtracting, setIsExtracting] = useState(false);
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
   const [newNews, setNewNews] = useState({
     title: '',
@@ -293,6 +306,16 @@ export const CuratorDashboard = ({
       briefing: '' 
     });
   };
+  const handleExecuteExtraction = () => {
+    setIsExtracting(true);
+    // Simulate extraction
+    setTimeout(() => {
+      setIsExtracting(false);
+      setIsExtractionModalOpen(false);
+      alert("Busca e extração iniciada. Os resultados aparecerão em breve na sua caixa de conteúdos recebidos.");
+      setExtractionQueries({ youtube: '', reddit: '', facebook: '', telegram: '' });
+    }, 2000);
+  };
 
   const getSLAStatus = (startTime?: string) => {
     if (!startTime) return null;
@@ -340,9 +363,9 @@ export const CuratorDashboard = ({
       {/* Tabs */}
       <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
         {[
-          { id: 'received', label: 'Notícias Recebidas', icon: Inbox, permission: 'manage_received' },
+          { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
           { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
-          { id: 'list', label: 'Notícias', icon: Activity },
+          { id: 'list', label: 'Publicações', icon: Activity },
           { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
           { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
           { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
@@ -390,47 +413,21 @@ export const CuratorDashboard = ({
                 />
               </div>
             </div>
-            <div className="w-full md:w-48 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte</label>
-              <select 
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
-                style={{ 
-                  backgroundColor: themeConfig.general.inputBackground, 
-                  borderColor: themeConfig.general.inputBorder,
-                  color: themeConfig.general.inputText,
-                  '--tw-ring-color': themeConfig.general.accent
-                } as any}
+            <div className="w-full md:w-auto flex gap-2">
+              <button 
+                onClick={() => setIsExtractionModalOpen(true)}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
+                style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
-                <option value="all">Todas as Fontes</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Instagram">Instagram</option>
-                <option value="Telegram">Telegram</option>
-                <option value="E-mail">E-mail</option>
-              </select>
-            </div>
-            <div className="w-full md:w-48 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Data</label>
-              <input 
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
-                style={{ 
-                  backgroundColor: themeConfig.general.inputBackground, 
-                  borderColor: themeConfig.general.inputBorder,
-                  color: themeConfig.general.inputText,
-                  '--tw-ring-color': themeConfig.general.accent
-                } as any}
-              />
+                <Zap size={16} />
+                Extração de Busca
+              </button>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium opacity-60">
-              {filteredReceivedNews.length} notícias recebidas externas
+              {filteredReceivedNews.length} conteúdos recebidos externos
             </p>
             <div className="flex items-center gap-2">
               <button 
@@ -522,7 +519,7 @@ export const CuratorDashboard = ({
           {filteredReceivedNews.length === 0 && (
             <div className="text-center py-20 opacity-40">
               <Inbox size={48} className="mx-auto mb-4" />
-              <p className="text-lg font-bold">Nenhuma notícia recebida</p>
+              <p className="text-lg font-bold">Nenhum conteúdo recebido</p>
               <p className="text-sm">Não há conteúdo externo correspondente aos filtros.</p>
             </div>
           )}
@@ -791,12 +788,12 @@ export const CuratorDashboard = ({
         </div>
       )}
 
-      {/* Listagem de Notícias View */}
+      {/* Listagem de Publicações View */}
       {activeTab === 'list' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar Notícias</label>
+              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar Publicações</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
                 <input 
@@ -841,7 +838,7 @@ export const CuratorDashboard = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Notícia</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Publicação</th>
                   <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>
                     <button onClick={() => {
                       setSortBy('priority');
@@ -958,7 +955,7 @@ export const CuratorDashboard = ({
             {filteredNews.length === 0 && (
               <div className="text-center py-20 opacity-40">
                 <Search size={48} className="mx-auto mb-4" />
-                <p className="text-lg font-bold">Nenhuma notícia encontrada</p>
+                <p className="text-lg font-bold">Nenhuma publicação encontrada</p>
                 <p className="text-sm">Tente ajustar seus filtros de busca.</p>
               </div>
             )}
@@ -1176,6 +1173,182 @@ export const CuratorDashboard = ({
         </div>
       )}
 
+       {/* Extraction Modal */}
+      <AnimatePresence>
+        {isExtractionModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsExtractionModalOpen(false)}
+              className="absolute inset-0 backdrop-blur-sm"
+              style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden"
+              style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
+            >
+              <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg">
+                    <Zap size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black tracking-tight">Extração de Busca e Conteúdos</h2>
+                    <p className="text-xs opacity-50 font-bold uppercase tracking-wider">Monitoramento Multi-Plataforma em Tempo Real</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsExtractionModalOpen(false)} className="p-2 opacity-40 hover:opacity-100"><X size={24} /></button>
+              </div>
+
+              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[60vh] overflow-y-auto">
+                {/* YouTube */}
+                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-red-100 text-red-600">
+                      <YoutubeIcon size={20} />
+                    </div>
+                    <span className="font-bold">YouTube Search</span>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                    <input 
+                      type="text"
+                      placeholder="Palavras-chave ou Canal..."
+                      value={extractionQueries.youtube}
+                      onChange={(e) => setExtractionQueries({...extractionQueries, youtube: e.target.value})}
+                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
+                  <p className="text-[10px] opacity-40">Extrai títulos, descrições e links de vídeos recentes.</p>
+                </div>
+
+                {/* Reddit */}
+                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
+                      <Globe size={20} />
+                    </div>
+                    <span className="font-bold">Reddit Monitor</span>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                    <input 
+                      type="text"
+                      placeholder="Subreddit ou Termo..."
+                      value={extractionQueries.reddit}
+                      onChange={(e) => setExtractionQueries({...extractionQueries, reddit: e.target.value})}
+                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
+                  <p className="text-[10px] opacity-40">Captura posts virais e tendências de discussões.</p>
+                </div>
+
+                {/* Facebook */}
+                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+                      <FacebookIcon size={20} />
+                    </div>
+                    <span className="font-bold">Facebook Groups</span>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                    <input 
+                      type="text"
+                      placeholder="Páginas ou Tópico..."
+                      value={extractionQueries.facebook}
+                      onChange={(e) => setExtractionQueries({...extractionQueries, facebook: e.target.value})}
+                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
+                  <p className="text-[10px] opacity-40">Analisa posts públicos e compartilhamentos em massa.</p>
+                </div>
+
+                {/* Telegram */}
+                <div className="space-y-4 p-6 rounded-3xl border border-dashed transition-all hover:bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
+                      <Send size={20} />
+                    </div>
+                    <span className="font-bold">Telegram Channels</span>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={16} />
+                    <input 
+                      type="text"
+                      placeholder="Invite Links ou Key-words..."
+                      value={extractionQueries.telegram}
+                      onChange={(e) => setExtractionQueries({...extractionQueries, telegram: e.target.value})}
+                      className="w-full pl-10 pr-4 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
+                  <p className="text-[10px] opacity-40">Rastreia transmissões e arquivos em canais abertos.</p>
+                </div>
+              </div>
+
+              <div className="p-8 flex items-center justify-between border-t" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
+                <p className="text-xs opacity-50 max-w-sm font-medium">A extração utiliza IA para filtrar ruídos e identificar padrões de desinformação automaticamente.</p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setIsExtractionModalOpen(false)}
+                    className="px-6 py-3 text-sm font-bold opacity-60 hover:opacity-100"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleExecuteExtraction}
+                    disabled={isExtracting || !Object.values(extractionQueries).some(v => v.trim())}
+                    className="px-10 py-3 rounded-2xl text-sm font-bold shadow-xl transition-all disabled:opacity-50 flex items-center gap-2"
+                    style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                  >
+                    {isExtracting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={18} />
+                        Iniciar Extração Agora
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
       {/* Detailed Tasks Modal */}
       <AnimatePresence>
         {detailedCheckerId && (
