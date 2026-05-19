@@ -39,26 +39,6 @@ export async function generateDraftReport(news: NewsItem, reportStructure: Repor
   return response.text;
 }
 
-export async function generateArticleSuggestions(news: NewsItem, currentContent: string, type: string) {
-  const model = "gemini-3-flash-preview";
-  let prompt = "";
-
-  if (type === 'title') {
-    prompt = `Gerer 5 sugestões de títulos jornalísticos impactantes e neutros para uma checagem de fatos baseada na notícia: "${news.title}". A etiqueta de checagem é: "${news.reportStructure?.label}". Retorne apenas a melhor sugestão única.`;
-  } else if (type === 'lead') {
-    prompt = `Escreva um lead jornalístico (primeiro parágrafo) para uma matéria de checagem de fatos sobre: "${news.title}". Use o conteúdo atual se houver: "${currentContent}". Seja direto, use a pirâmide invertida. Retorne apenas o texto do lead.`;
-  } else if (type === 'summarize') {
-    prompt = `Resuma o parecer de checagem da notícia "${news.title}" em um formato narrativo para um artigo. O resultado da checagem foi: "${news.reportStructure?.label}". O resumo atual é: "${news.reportStructure?.summary}". Retorne um texto estruturado para publicação.`;
-  }
-
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-  });
-
-  return response.text;
-}
-
 export async function generateArticleSuggestions(title: string, content: string) {
   const model = "gemini-3-flash-preview";
   const prompt = `
@@ -119,4 +99,50 @@ export async function reviewReport(text: string) {
   });
 
   return response.text;
+}
+
+export async function analyzeTrends(topic: string, dateRange: string) {
+  const model = "gemini-3-flash-preview";
+  const prompt = `
+    Você é um especialista em monitoramento de mídias sociais e tendências de informação. 
+    Sua tarefa é simular a análise de tendências emergentes relacionadas ao tema "${topic}" no período de "${dateRange}".
+    
+    Por favor, gere 5 tendências realistas que poderiam estar circulando no momento. 
+    Para cada tendência, forneça:
+    1. Um título impactante.
+    2. Uma breve descrição do que está sendo dito (2-3 frases).
+    3. A plataforma principal onde está viralizando (Ex: WhatsApp, Telegram, TikTok, Twitter).
+    4. Uma "Pontuação de Risco de Desinformação" (0 a 100).
+    5. Por que isso é uma tendência agora.
+
+    Retorne os dados estritamente em formato JSON com o seguinte schema:
+    [
+      {
+        "id": "string único",
+        "title": "string",
+        "description": "string",
+        "platform": "string",
+        "misinformationRisk": number,
+        "reason": "string",
+        "topic": "${topic}"
+      }
+    ]
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+  });
+
+  try {
+    const text = response.text;
+    const jsonStart = text.indexOf('[');
+    const jsonEnd = text.lastIndexOf(']') + 1;
+    if (jsonStart === -1 || jsonEnd === 0) throw new Error("JSON array not found in response");
+    const jsonStr = text.substring(jsonStart, jsonEnd);
+    return JSON.parse(jsonStr);
+  } catch (error) {
+    console.error("Error parsing trends response:", error);
+    return [];
+  }
 }

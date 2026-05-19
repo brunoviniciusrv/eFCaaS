@@ -126,7 +126,7 @@ export const Sidebar = ({
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', permission: 'view_dashboard' },
           { id: 'curator', label: 'Curadoria', icon: Eye, path: '/curator', permission: 'view_curator' },
-          { id: 'newsroom', label: 'Redação', icon: FileText, path: '/newsroom', permission: 'view_newsroom' },
+          { id: 'archive', label: 'Acervo Editorial', icon: FileText, path: '/editorial-archive', permission: 'view_archive' },
           { id: 'admin', label: 'Administração', icon: ShieldAlert, path: '/admin', permission: 'view_admin' },
           { id: 'profile', label: 'Meu Perfil', icon: User, path: '/profile' },
         ].map((item) => {

@@ -613,7 +613,18 @@ export const OFFICIAL_LABELS: LabelConfig[] = [
 export const INITIAL_AGENCY_CONFIG: AgencyConfig = {
   name: 'Agência eFCaaS',
   logoUrl: '',
-  isOnboardingCompleted: false
+  isOnboardingCompleted: false,
+  language: 'pt-BR',
+  country: 'Brasil',
+  timezone: 'America/Sao_Paulo',
+  enableAI: true,
+  enableSpecializedNetwork: true,
+  enableSocialSearch: true,
+  enableTrendAnalyzer: true,
+  enableMisinfoRisk: true,
+  enableIllicitRisk: true,
+  useDefaultProfiles: true,
+  templateId: 'default'
 };
 
 export const INITIAL_THEME_CONFIG: ThemeConfig = {

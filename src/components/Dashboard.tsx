@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -17,7 +17,12 @@ import {
   ArrowRight,
   CheckCircle2,
   Sparkles,
-  FileText
+  FileText,
+  Users as UsersIcon,
+  Lock,
+  Layout,
+  Info,
+  Calendar
 } from 'lucide-react';
 import { 
   DragDropContext, 
@@ -27,8 +32,20 @@ import {
 } from '@hello-pangea/dnd';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
-import { NewsItem, UserProfile, ThemeConfig } from '../types';
+import { NewsItem, UserProfile, ThemeConfig, PermissionProfile, AuditLog, LabelConfig } from '../types';
 import { cn } from '../lib/utils';
+import { 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  LineChart, 
+  Line,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 interface DashboardProps {
   news: NewsItem[];
@@ -40,6 +57,11 @@ interface DashboardProps {
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
+  checkPermission: (permId: string) => boolean;
+  users?: UserProfile[];
+  permissionProfiles?: PermissionProfile[];
+  auditLogs?: AuditLog[];
+  labels?: LabelConfig[];
 }
 
 export const Dashboard = ({ 
@@ -51,9 +73,71 @@ export const Dashboard = ({
   themeConfig,
   notifications,
   onMarkNotifAsRead,
-  onClearNotifs
+  onClearNotifs,
+  checkPermission,
+  users = [],
+  permissionProfiles = [],
+  auditLogs = [],
+  labels = []
 }: DashboardProps) => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'checagem' | 'redacao' | 'metricas'>(
+    checkPermission('perform_analysis') || checkPermission('view_analysis') ? 'checagem' : 
+    checkPermission('view_editor') || checkPermission('view_archive') ? 'redacao' :
+    'metricas'
+  );
+  
+  const [dateRange, setDateRange] = useState<'all' | '7d' | '30d' | '90d'>('30d');
+
+  const metricsData = useMemo(() => {
+    const now = new Date();
+    const rangeMap = {
+      'all': 0,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+      '90d': 90 * 24 * 60 * 60 * 1000
+    };
+    
+    const startTime = dateRange === 'all' ? 0 : now.getTime() - rangeMap[dateRange];
+    
+    // Filter audit logs based on the date range
+    const filteredLogsForMetrics = auditLogs.filter(l => {
+      const logDate = new Date(l.timestamp).getTime();
+      return logDate >= startTime;
+    });
+    
+    const totalLogs = filteredLogsForMetrics.length;
+    
+    // Daily audit volume for chart
+    const dailyVolume: { date: string, count: number }[] = [];
+    const lastN = dateRange === 'all' ? 30 : (dateRange === '7d' ? 7 : (dateRange === '30d' ? 30 : 90));
+    
+    for (let i = lastN - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const count = filteredLogsForMetrics.filter(l => l.timestamp.startsWith(dateStr)).length;
+      dailyVolume.push({ date: dateStr, count });
+    }
+
+    // Status distribution
+    const statusDist = [
+      { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: themeConfig.status.info },
+      { name: 'Editores', value: users.filter(u => u.role === 'editor').length, color: themeConfig.status.warning },
+      { name: 'Checadores', value: users.filter(u => u.role === 'checker').length, color: themeConfig.status.success },
+      { name: 'Curadores', value: users.filter(u => u.role === 'curator').length, color: themeConfig.status.error },
+    ];
+
+    return {
+      activeUsers: users.filter(u => u.status === 'active').length,
+      totalProfiles: permissionProfiles.length,
+      totalLogs,
+      totalLabels: labels.length,
+      dailyVolume,
+      statusDist,
+    };
+  }, [dateRange, themeConfig, users, permissionProfiles, auditLogs, labels]);
+
   const stats = [
     { name: 'Em Aberto', value: news.filter(n => n.status === 'pending').length, color: themeConfig.status.info, icon: Clock },
     { name: 'Minhas Tarefas', value: news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && n.assignedTo === user.id).length, color: themeConfig.status.warning, icon: Activity },
@@ -77,9 +161,9 @@ export const Dashboard = ({
   };
 
   const handleExploreCuration = () => {
-    if (user.role === 'admin') {
+    if (checkPermission('view_admin')) {
       navigate('/admin');
-    } else if (['curator', 'editor'].includes(user.role)) {
+    } else if (checkPermission('view_curator')) {
       navigate('/curator');
     }
   };
@@ -117,48 +201,78 @@ export const Dashboard = ({
                 Monitorando a integridade da informação em tempo real.
               </motion.p>
            </div>
-           <div className="flex items-center gap-4">
-              <NotificationBell 
-                notifications={notifications}
-                onMarkAsRead={onMarkNotifAsRead}
-                onClearAll={onClearNotifs}
-                themeConfig={themeConfig}
-                currentUser={user}
-              />
+           
+           <div className="flex flex-col items-end gap-6">
+              <div className="flex items-center gap-4">
+                <NotificationBell 
+                  notifications={notifications}
+                  onMarkAsRead={onMarkNotifAsRead}
+                  onClearAll={onClearNotifs}
+                  themeConfig={themeConfig}
+                  currentUser={user}
+                />
+              </div>
+              
+              {/* Tabs Dropdown/Menu for switching contexts */}
+              <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+                {[
+                  { id: 'checagem', label: 'Checagem', icon: Activity, permission: ['perform_analysis', 'view_analysis'] },
+                  { id: 'redacao', label: 'Redação', icon: FileText, permission: ['view_editor', 'view_archive'] },
+                  { id: 'metricas', label: 'Métricas', icon: TrendingUp, permission: ['view_admin'] },
+                ].filter(tab => tab.permission.some(p => checkPermission(p))).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={cn(
+                      "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                      activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
+                    )}
+                    style={{ 
+                      backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
+                      color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
+                    }}
+                  >
+                    <tab.icon size={16} />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
            </div>
         </section>
 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-          {stats.map((stat, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
-              className="relative p-6 rounded-[2rem] border bg-white/50 backdrop-blur-sm shadow-sm hover:shadow-2xl hover:bg-white hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
-              style={{ borderColor: themeConfig.general.border }}
-            >
-              <div className="flex items-start justify-between">
-                 <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{stat.name}</p>
-                    <h3 className="text-4xl font-black tracking-tighter">{stat.value}</h3>
-                 </div>
-                 <div className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110" style={{ backgroundColor: `${stat.color}10`, color: stat.color }}>
-                    <stat.icon size={22} />
-                 </div>
-              </div>
-              <div 
-                className="absolute bottom-0 left-0 h-1 transition-all duration-700 w-0 group-hover:w-full opacity-60"
-                style={{ backgroundColor: stat.color }}
-              />
-            </motion.div>
-          ))}
-        </section>
+        {activeTab === 'checagem' && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
+            {/* Stats Grid */}
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+              {stats.map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                  className="relative p-6 rounded-[2rem] border bg-white/50 backdrop-blur-sm shadow-sm hover:shadow-2xl hover:bg-white hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
+                  style={{ borderColor: themeConfig.general.border }}
+                >
+                  <div className="flex items-start justify-between">
+                     <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{stat.name}</p>
+                        <h3 className="text-4xl font-black tracking-tighter">{stat.value}</h3>
+                     </div>
+                     <div className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110" style={{ backgroundColor: `${stat.color}10`, color: stat.color }}>
+                        <stat.icon size={22} />
+                     </div>
+                  </div>
+                  <div 
+                    className="absolute bottom-0 left-0 h-1 transition-all duration-700 w-0 group-hover:w-full opacity-60"
+                    style={{ backgroundColor: stat.color }}
+                  />
+                </motion.div>
+              ))}
+            </section>
 
-        {/* Performance & Queue */}
-        {user.role === 'checker' && (
-          <DragDropContext onDragEnd={onDragEnd}>
+            {/* Performance & Queue */}
+            <DragDropContext onDragEnd={onDragEnd}>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               
               {/* My Tasks */}
@@ -415,9 +529,11 @@ export const Dashboard = ({
               </div>
             </div>
           </DragDropContext>
+          </div>
         )}
 
-        {(user.role === 'editor' || user.role === 'admin') && (
+        {activeTab === 'redacao' && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Editor Sidebar or list */}
             <div className="lg:col-span-7 flex flex-col space-y-6">
@@ -505,15 +621,188 @@ export const Dashboard = ({
               </div>
             </div>
           </div>
-        )}
-
-        {/* Executive focus - If not checker/editor, show summary stats or welcome only */}
-        {user.role === 'curator' && (
-          <div className="py-20 flex flex-col items-center opacity-30">
-            <LayoutDashboard size={48} className="mb-4" />
-            <p className="text-sm font-black uppercase tracking-widest leading-none">Console Administrativo</p>
           </div>
         )}
+
+        {activeTab === 'metricas' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 p-8 rounded-3xl" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Métricas de Desempenho</h2>
+                <p className="text-xs opacity-70">Acompanhamento estratégico da plataforma</p>
+              </div>
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                {[
+                  { id: '7d', label: '7 Dias' },
+                  { id: '30d', label: '30 Dias' },
+                  { id: '90d', label: '90 Dias' },
+                  { id: 'all', label: 'Tudo' },
+                ].map((range) => (
+                  <button
+                    key={range.id}
+                    onClick={() => setDateRange(range.id as any)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                      dateRange === range.id ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                    <UsersIcon size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuários Ativos</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{metricsData.activeUsers}</span>
+                  <span className="text-xs opacity-50">na plataforma</span>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-green-600 text-xs font-bold">
+                  <TrendingUp size={14} />
+                  <span>Crescimento estável</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                    <Lock size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Perfis de Acesso</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{metricsData.totalProfiles}</span>
+                  <span className="text-xs opacity-50">criados</span>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-blue-600 text-xs font-bold">
+                  <Activity size={14} />
+                  <span>Sistemas Seguros</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-orange-50 text-orange-600 rounded-xl">
+                    <Layout size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Módulos</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{metricsData.totalLabels}</span>
+                  <span className="text-xs opacity-50">etiquetas</span>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-slate-400 text-xs font-bold">
+                  <Info size={14} />
+                  <span>Pronto para uso</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-slate-50 text-slate-600 rounded-xl">
+                    <History size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Audições Resolvidas</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{metricsData.totalLogs}</span>
+                  <span className="text-xs opacity-50">logs de atividade</span>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-slate-400 text-xs font-bold">
+                  <Calendar size={14} />
+                  <span>No período selecionado</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="font-bold text-slate-900">Volume de Auditoria</h3>
+                    <p className="text-xs text-slate-500">Histórico diário de logs no sistema</p>
+                  </div>
+                </div>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={metricsData.dailyVolume}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#94a3b8' }}
+                        tickFormatter={(val) => val.split('-').slice(1).reverse().join('/')}
+                      />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="count" 
+                        stroke={themeConfig.dashboard.chartColors[0] || "#3b82f6"} 
+                        strokeWidth={3} 
+                        dot={{ r: 4, fill: themeConfig.dashboard.chartColors[0] || '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
+                        name="Ações (Logs)"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="mb-8">
+                  <h3 className="font-bold text-slate-900">Distribuição por Funções</h3>
+                  <p className="text-xs text-slate-500">Membros ativos em cada papel no sistema</p>
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={metricsData.statusDist}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {metricsData.statusDist.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {metricsData.statusDist.map((s) => (
+                    <div key={s.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                        <span className="text-slate-600 font-medium">{s.name}</span>
+                      </div>
+                      <span className="font-bold text-slate-900">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

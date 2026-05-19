@@ -17,6 +17,17 @@ export interface AgencyConfig {
   name: string;
   logoUrl: string;
   isOnboardingCompleted: boolean;
+  language?: string;
+  country?: string;
+  timezone?: string;
+  enableAI?: boolean;
+  enableSpecializedNetwork?: boolean;
+  enableSocialSearch?: boolean;
+  enableTrendAnalyzer?: boolean;
+  enableMisinfoRisk?: boolean;
+  enableIllicitRisk?: boolean;
+  useDefaultProfiles?: boolean;
+  templateId?: string;
 }
 
 export interface ThemeConfig {
@@ -224,6 +235,29 @@ export interface AIEvaluation {
   dates: string[];
 }
 
+export interface SpecializedCheckerResponse {
+  checkerId: string;
+  checkerName: string;
+  checkerAvatar?: string;
+  sources: string[];
+  attachments: { name: string; url: string; type: string }[];
+  conclusiveOpinion: string;
+  guidingQuestions: string[];
+  fullProcess: string;
+  timestamp: string;
+}
+
+export interface SpecializedNetworkCheck {
+  id: string;
+  newsId: string;
+  status: 'pending' | 'completed';
+  sentAt: string;
+  completedAt?: string;
+  consensusSummary: string;
+  aiAnalysisSummary: string;
+  checkerResponses: SpecializedCheckerResponse[];
+}
+
 export interface NewsItem {
   id: string;
   title: string;
@@ -240,6 +274,8 @@ export interface NewsItem {
   completedAt?: string; // ISO string
   isRectified?: boolean;
   isAIProcessing?: boolean;
+  sentToSpecializedNetwork?: boolean;
+  specializedCheckId?: string;
   media?: {
     type: 'image' | 'video' | 'audio' | 'document';
     url: string;
@@ -282,45 +318,4 @@ export interface Notification {
   category: 'assignment' | 'queue' | 'received_news' | 'system';
 }
 
-export type ArticleStatus = 'draft' | 'review' | 'published' | 'archived' | 'approved' | 'in_editing';
-export type ArticleTemplateType = 'classic' | 'modern' | 'minimal' | 'longform' | 'complete';
 
-export interface EditorialComment {
-  id: string;
-  userId: string;
-  userName: string;
-  content?: string;
-  text?: string;
-  timestamp: string;
-  resolved?: boolean;
-}
-
-export interface ArticleVersion {
-  id: string;
-  version: number;
-  content: string;
-  updatedBy: string;
-  authorName?: string;
-  timestamp: string;
-}
-
-export interface EditorialArticle {
-  id: string;
-  title: string;
-  subtitle?: string;
-  content: string;
-  excerpt?: string;
-  authorId: string;
-  status: ArticleStatus;
-  templateType?: ArticleTemplateType;
-  template?: ArticleTemplateType;
-  coverImage?: string;
-  tags?: string[];
-  newsId?: string; // Reference to original NewsItem
-  createdAt: string;
-  updatedAt: string;
-  publishedAt?: string;
-  comments: EditorialComment[];
-  versions: ArticleVersion[];
-  factLabels?: FactLabel[];
-}

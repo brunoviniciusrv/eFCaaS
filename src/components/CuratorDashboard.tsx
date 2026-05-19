@@ -63,6 +63,8 @@ import {
 } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
+import { TrendAnalyzer } from './TrendAnalyzer';
+import { SpecializedNetworkView } from './SpecializedNetworkView';
 
 import { 
   DragDropContext, 
@@ -90,9 +92,11 @@ interface CuratorDashboardProps {
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
   checkPermission: (permId: string) => boolean;
+  onSendToSpecializedNetwork: (newsId: string) => void;
+  specializedNetworkChecks: any[];
 }
 
-type CuratorTab = 'triage' | 'received' | 'list' | 'kanban' | 'workload' | 'reviews';
+type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
 
 export const CuratorDashboard = ({
   news,
@@ -112,7 +116,9 @@ export const CuratorDashboard = ({
   notifications,
   onMarkNotifAsRead,
   onClearNotifs,
-  checkPermission
+  checkPermission,
+  onSendToSpecializedNetwork,
+  specializedNetworkChecks
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CuratorTab>(
@@ -127,6 +133,11 @@ export const CuratorDashboard = ({
   const [sortReceivedOrder, setSortReceivedOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedReceivedItem, setSelectedReceivedItem] = useState<ReceivedNewsItem | null>(null);
   const [isReceivedDetailOpen, setIsReceivedDetailOpen] = useState(false);
+  const [selectedTriageItemId, setSelectedTriageItemId] = useState<string | null>(null);
+  const [isTriagePreviewOpen, setIsTriagePreviewOpen] = useState(false);
+  const currentTriageItem = useMemo(() => 
+    news.find(n => n.id === selectedTriageItemId), 
+  [news, selectedTriageItemId]);
   const [gravityFilter, setGravityFilter] = useState<number>(0);
   const [urgencyFilter, setUrgencyFilter] = useState<number>(0);
   const [trendFilter, setTrendFilter] = useState<number>(0);
@@ -406,6 +417,23 @@ export const CuratorDashboard = ({
     setNews(prev => prev.map(n => n.id === draggableId ? { ...n, status: newStatus } : n));
   };
 
+  const handlePromoteTrend = (trend: any) => {
+    const newsData = {
+      title: `[TENDÊNCIA] ${trend.title}`,
+      source: trend.platform,
+      content: `${trend.description}\n\nMotivo da Tendência: ${trend.reason}\n\nAssunto: ${trend.topic}`,
+      priority: trend.misinformationRisk > 70 ? 'high' : trend.misinformationRisk > 40 ? 'medium' : 'low',
+      aiScores: {
+        gravity: trend.misinformationRisk,
+        urgency: Math.min(100, trend.misinformationRisk + 10),
+        trend: 90
+      }
+    };
+    onAddNews(newsData);
+    setActiveTab('triage');
+    alert("Tendência promovida para triagem com sucesso!");
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8" style={{ color: themeConfig.dashboard.text }}>
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
@@ -433,6 +461,8 @@ export const CuratorDashboard = ({
       <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
         {[
           { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
+          { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+          { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
           { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
           { id: 'list', label: 'Publicações', icon: Activity },
           { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
@@ -700,6 +730,14 @@ export const CuratorDashboard = ({
         </div>
       )}
 
+      {/* Trend Analyzer View */}
+      {activeTab === 'trends' && (
+        <TrendAnalyzer 
+          themeConfig={themeConfig} 
+          onPromoteToFactCheck={handlePromoteTrend} 
+        />
+      )}
+
       {/* Triage View */}
       {activeTab === 'triage' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -824,7 +862,10 @@ export const CuratorDashboard = ({
                   borderColor: selectedNewsIds.includes(item.id) ? themeConfig.general.accent : themeConfig.general.border,
                   '--tw-ring-color': themeConfig.general.accent
                 } as any}
-                onClick={() => setSelectedNewsId(item.id)}
+                onClick={() => {
+                  setSelectedTriageItemId(item.id);
+                  setIsTriagePreviewOpen(true);
+                }}
               >
                 <div className="flex items-start gap-4 flex-1 overflow-hidden">
                   <input 
@@ -950,16 +991,41 @@ export const CuratorDashboard = ({
                       handleOpenAssign(item.id);
                     }}
                     className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2"
-                    style={{ borderColor: themeConfig.general.border, hover: { backgroundColor: `${themeConfig.general.accent}10` } } as any}
+                    style={{ borderColor: themeConfig.general.border } as any}
                   >
                     <UserPlus size={14} />
-                    Atribuir
+                    Atribuir Checador
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSendToSpecializedNetwork(item.id);
+                    }}
+                    disabled={item.sentToSpecializedNetwork}
+                    className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2"
+                    style={{ 
+                      borderColor: themeConfig.general.border, 
+                      backgroundColor: item.sentToSpecializedNetwork ? '#f1f5f9' : 'transparent',
+                      color: item.sentToSpecializedNetwork ? '#94a3b8' : 'inherit'
+                    }}
+                  >
+                    <Globe size={14} />
+                    {item.sentToSpecializedNetwork ? 'Encaminhado pra Rede' : 'Rede Especializada'}
                   </button>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Specialized Network View */}
+      {activeTab === 'specialized_network' && (
+        <SpecializedNetworkView 
+          checks={specializedNetworkChecks} 
+          news={news} 
+          themeConfig={themeConfig} 
+        />
       )}
 
       {/* Listagem de Publicações View */}
@@ -2210,6 +2276,135 @@ export const CuratorDashboard = ({
                 >
                   Voltar para Lista
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Triage Preview Modal */}
+      <AnimatePresence>
+        {isTriagePreviewOpen && currentTriageItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTriagePreviewOpen(false)}
+              className="absolute inset-0 backdrop-blur-sm"
+              style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+              style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
+            >
+              <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
+                 <div className="flex items-center gap-4">
+                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                      <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                      <h2 className="text-xl font-black tracking-tight">Pré-visualização da Notícia</h2>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Status: {currentTriageItem.status}</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        handleOpenAssign(currentTriageItem.id);
+                        setIsTriagePreviewOpen(false);
+                      }}
+                      className="px-6 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2"
+                      style={{ borderColor: themeConfig.general.border }}
+                    >
+                      <UserPlus size={16} />
+                      Atribuir Checador
+                    </button>
+                    <button 
+                      onClick={() => {
+                        onSendToSpecializedNetwork(currentTriageItem.id);
+                        setIsTriagePreviewOpen(false);
+                      }}
+                      disabled={currentTriageItem.sentToSpecializedNetwork}
+                      className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2"
+                      style={{ 
+                        backgroundColor: currentTriageItem.sentToSpecializedNetwork ? '#f1f5f9' : themeConfig.general.accent, 
+                        color: currentTriageItem.sentToSpecializedNetwork ? '#94a3b8' : '#fff' 
+                      }}
+                    >
+                      <Globe size={16} />
+                      {currentTriageItem.sentToSpecializedNetwork ? 'Encaminhado' : 'Rede Especializada'}
+                    </button>
+                 </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-10 flex flex-col md:flex-row gap-10">
+                <div className="flex-1 space-y-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                       {getSourceIcon(currentTriageItem.source)}
+                       <span className="text-sm font-black uppercase tracking-widest opacity-40">{currentTriageItem.source}</span>
+                       <span className="text-sm opacity-30">•</span>
+                       <span className="text-sm opacity-40 font-medium">{currentTriageItem.date}</span>
+                    </div>
+                    <h1 className="text-3xl font-black tracking-tight leading-tight">{currentTriageItem.title}</h1>
+                  </div>
+
+                  <div className="prose prose-slate max-w-none">
+                    <p className="text-lg leading-relaxed text-slate-600 font-medium whitespace-pre-wrap">{currentTriageItem.content}</p>
+                  </div>
+
+                  {currentTriageItem.media && currentTriageItem.media.length > 0 && (
+                    <div className="space-y-4 pt-8 border-t" style={{ borderColor: themeConfig.general.border }}>
+                      <h3 className="text-sm font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
+                        <Upload size={16} />
+                        Arquivos e Mídias ({currentTriageItem.media.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {currentTriageItem.media.map((m, i) => (
+                          <div key={i} className="group relative rounded-2xl overflow-hidden border aspect-video bg-slate-50 flex items-center justify-center" style={{ borderColor: themeConfig.general.border }}>
+                            {m.type === 'image' && <img src={m.url} alt="" className="w-full h-full object-cover" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                               <a href={m.url} target="_blank" rel="noopener noreferrer" className="p-3 bg-white rounded-2xl text-black shadow-xl">
+                                 <ExternalLink size={18} />
+                               </a>
+                            </div>
+                            <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-white/90 text-[8px] font-black uppercase tracking-widest border border-slate-100">{m.type}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full md:w-80 space-y-8">
+                  <div className="p-8 rounded-[2rem] border bg-slate-50 space-y-6" style={{ borderColor: themeConfig.general.border }}>
+                    <h3 className="text-sm font-black uppercase tracking-widest opacity-40">Indicadores AI</h3>
+                    <div className="space-y-4">
+                       <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span>Gravidade</span>
+                            <span>{currentTriageItem.aiScores?.gravity}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500" style={{ width: `${currentTriageItem.aiScores?.gravity}%` }} />
+                          </div>
+                       </div>
+                       <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span>Urgência</span>
+                            <span>{currentTriageItem.aiScores?.urgency}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500" style={{ width: `${currentTriageItem.aiScores?.urgency}%` }} />
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>

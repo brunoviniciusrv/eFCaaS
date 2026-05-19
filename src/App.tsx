@@ -32,7 +32,9 @@ import {
   ReceivedNewsItem,
   Notification,
   PermissionProfile,
-  EditorialArticle
+  EditorialArticle,
+  ArticleStatus,
+  SpecializedNetworkCheck
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
 
@@ -47,6 +49,14 @@ import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
 import { EditorView } from './components/EditorView';
 import { EditorialArchive } from './components/EditorialArchive';
+
+function RootRedirect({ checkPermission }: { checkPermission: (permId: string) => boolean }) {
+  if (checkPermission('view_dashboard')) return <Navigate to="/dashboard" replace />;
+  if (checkPermission('view_curator')) return <Navigate to="/curator" replace />;
+  if (checkPermission('view_archive')) return <Navigate to="/editorial-archive" replace />;
+  if (checkPermission('view_admin')) return <Navigate to="/admin" replace />;
+  return <Navigate to="/profile" replace />;
+}
 
 function App() {
   const navigate = useNavigate();
@@ -89,6 +99,15 @@ function App() {
     setPermissionProfiles(prev => prev.filter(p => p.id !== id));
     addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
   };
+  const [specializedNetworkChecks, setSpecializedNetworkChecks] = useState<SpecializedNetworkCheck[]>(() => {
+    const saved = localStorage.getItem('platform_specialized_checks');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('platform_specialized_checks', JSON.stringify(specializedNetworkChecks));
+  }, [specializedNetworkChecks]);
+
   const [articles, setArticles] = useState<EditorialArticle[]>(() => {
     const saved = localStorage.getItem('platform_editorial_articles');
     return saved ? JSON.parse(saved) : [];
@@ -417,7 +436,7 @@ function App() {
       date: new Date().toISOString().split('T')[0],
       status: newsData.assignedTo ? 'in_progress' : 'pending',
       evidence: [],
-      aiScores: {
+      aiScores: newsData.aiScores || {
         gravity: Math.floor(Math.random() * 50) + 10,
         urgency: Math.floor(Math.random() * 50) + 10,
         trend: Math.floor(Math.random() * 50) + 10
@@ -578,6 +597,96 @@ function App() {
     }
   };
 
+  const handleSendToSpecializedNetwork = (newsId: string) => {
+    const checkId = 'sn-' + Math.random().toString(36).substr(2, 9);
+    const newCheck: SpecializedNetworkCheck = {
+      id: checkId,
+      newsId,
+      status: 'pending',
+      sentAt: new Date().toISOString(),
+      consensusSummary: 'Aguardando parecer da rede...',
+      aiAnalysisSummary: 'Em processamento pela IA de Consenso...',
+      checkerResponses: []
+    };
+
+    setSpecializedNetworkChecks(prev => [...prev, newCheck]);
+    setNews(prev => prev.map(n => n.id === newsId ? { ...n, sentToSpecializedNetwork: true, specializedCheckId: checkId } : n));
+    
+    addNotification({
+      title: 'Enviado para Rede Especializada',
+      message: `A notícia #${newsId} foi encaminhada para a rede de checadores especializados.`,
+      type: 'success',
+      category: 'system'
+    });
+
+    addAuditLog('send_to_specialized_network', `Notícia #${newsId}`, `Notícia encaminhada para rede de checadores especializados`);
+
+    // Simulate checker responses after some time (for demo purposes)
+    setTimeout(() => {
+      const completedCheck: SpecializedNetworkCheck = {
+        ...newCheck,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        consensusSummary: 'A rede de checadores chegou ao consenso de que a informação é DISTORCIDA. Embora existam elementos reais, a narrativa foi manipulada para favorecer um grupo específico para causar pânico.',
+        aiAnalysisSummary: 'A IA de Consenso identificou uma concordância de 82% entre os checadores humanos. Os pontos de divergência residem na escala da distorção, mas todos os 5 especialistas convergem para a classificação de "Distorcido".',
+        checkerResponses: [
+          {
+            checkerId: 'sc-1',
+            checkerName: 'Carlos Mendonça',
+            sources: ['https://link-oficial-1.gov.br', 'https://estatisticas-reais.org'],
+            attachments: [{ name: 'Dados-Brutos.pdf', url: '#', type: 'document' }],
+            conclusiveOpinion: 'Parece haver uma distorção intencional nos números apresentados. Os dados da fonte oficial desmentem a manchete sensacionalista.',
+            guidingQuestions: ['Qual a origem dos dados citados?', 'Quem se beneficia com essa versão distorcida?'],
+            fullProcess: 'Iniciei pesquisando os dados brutos no portal da transparência. Comparei com a versão viral e encontrei erros grosseiros de cálculo propositais.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            checkerId: 'sc-2',
+            checkerName: 'Ana Paula Silva',
+            sources: ['https://arquivo.org/midia', 'https://checagem-independente.com'],
+            attachments: [{ name: 'Captura-de-Tela.png', url: '#', type: 'image' }],
+            conclusiveOpinion: 'A foto utilizada está fora de contexto. Ela pertence a um evento de 2019 e não ao fato atual mencionado.',
+            guidingQuestions: ['A imagem é autêntica?', 'Onde foi publicada pela primeira vez?'],
+            fullProcess: 'Realizei busca reversa de imagens e identifiquei a fonte original de 4 anos atrás em outro país.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            checkerId: 'sc-3',
+            checkerName: 'Ricardo Oliveira',
+            sources: ['https://expert-opinion.edu'],
+            attachments: [],
+            conclusiveOpinion: 'O especialista citado na postagem não existe na instituição mencionada. É um caso claro de apelo à autoridade falsa.',
+            guidingQuestions: ['A autoridade citada existe?', 'O que ela realmente disse?'],
+            fullProcess: 'Entrei em contato com a universidade citada e confirmei que não há registro desse pesquisador.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            checkerId: 'sc-4',
+            checkerName: 'Juliana Torres',
+            sources: ['https://news-archive.com'],
+            attachments: [],
+            conclusiveOpinion: 'A notícia mistura fatos verdadeiros de pequenos incidentes com uma conclusão catastrófica sem fundamento.',
+            guidingQuestions: ['A conexão entre os fatos é lógica?'],
+            fullProcess: 'Fiz a cronologia dos eventos citados e percebi que eles ocorreram em locais diferentes, sem relação entre si.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            checkerId: 'sc-5',
+            checkerName: 'Daniel Costa',
+            sources: ['https://tech-verify.io'],
+            attachments: [],
+            conclusiveOpinion: 'O vídeo foi editado para remover o contexto original da fala da autoridade.',
+            guidingQuestions: ['O vídeo está completo?', 'O que foi dito antes e depois do corte?'],
+            fullProcess: 'Localizei o vídeo original da transmissão ao vivo e comprovei que o corte altera totalmente o sentido da frase.',
+            timestamp: new Date().toISOString()
+          }
+        ]
+      };
+      
+      setSpecializedNetworkChecks(prev => prev.map(c => c.id === checkId ? completedCheck : c));
+    }, 15000); // 15 seconds for simulation
+  };
+
   const handleMoveTask = (newsId: string, targetStatus: 'pending' | 'in_progress') => {
     setNews(prev => prev.map(n => {
       if (n.id === newsId) {
@@ -715,23 +824,31 @@ function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
+        checkPermission={checkPermission}
       />
 
       <main className="flex-1 relative overflow-y-auto">
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<RootRedirect checkPermission={checkPermission} />} />
           <Route path="/dashboard" element={
-            <Dashboard 
-              news={news}
-              user={user}
-              setSelectedNewsId={setSelectedNewsId}
-              handleStartAnalysis={handleStartAnalysis}
-              handleMoveTask={handleMoveTask}
-              themeConfig={themeConfig}
-              notifications={notifications}
-              onMarkNotifAsRead={markNotificationAsRead}
-              onClearNotifs={clearNotifications}
-            />
+            checkPermission('view_dashboard') ? (
+              <Dashboard 
+                news={news}
+                user={user}
+                setSelectedNewsId={setSelectedNewsId}
+                handleStartAnalysis={handleStartAnalysis}
+                handleMoveTask={handleMoveTask}
+                themeConfig={themeConfig}
+                notifications={notifications}
+                onMarkNotifAsRead={markNotificationAsRead}
+                onClearNotifs={clearNotifications}
+                checkPermission={checkPermission}
+                users={users}
+                permissionProfiles={permissionProfiles}
+                auditLogs={auditLogs}
+                labels={labels}
+              />
+            ) : <Navigate to="/" replace />
           } />
           <Route path="/admin" element={
             checkPermission('view_admin') ? (
@@ -782,6 +899,9 @@ function App() {
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
+                checkPermission={checkPermission}
+                onSendToSpecializedNetwork={handleSendToSpecializedNetwork}
+                specializedNetworkChecks={specializedNetworkChecks}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -808,22 +928,27 @@ function App() {
             />
           } />
           <Route path="/editor/:id" element={
-            <EditorView 
-              user={user}
-              news={news}
-              labels={labels}
-              articles={articles}
-              onSaveArticle={handleSaveArticle}
-            />
+            checkPermission('view_editor') ? (
+              <EditorView 
+                user={user}
+                news={news}
+                labels={labels}
+                articles={articles}
+                onSaveArticle={handleSaveArticle}
+                checkPermission={checkPermission}
+              />
+            ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="/editorial-archive" element={
-            <EditorialArchive 
-              user={user}
-              news={news}
-              articles={articles}
-              onDeleteArticle={handleDeleteArticle}
-              onUpdateStatus={handleUpdateArticleStatus}
-            />
+            checkPermission('view_archive') ? (
+              <EditorialArchive 
+                user={user}
+                news={news}
+                articles={articles}
+                onDeleteArticle={handleDeleteArticle}
+                onUpdateStatus={handleUpdateArticleStatus}
+              />
+            ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="/profile" element={
             <ProfileView 

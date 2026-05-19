@@ -56,9 +56,10 @@ interface EditorViewProps {
   labels: LabelConfig[];
   onSaveArticle: (article: EditorialArticle) => void;
   articles: EditorialArticle[];
+  checkPermission: (permId: string) => boolean;
 }
 
-export function EditorView({ user, news, labels, onSaveArticle, articles }: EditorViewProps) {
+export function EditorView({ user, news, labels, onSaveArticle, articles, checkPermission }: EditorViewProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
@@ -323,7 +324,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles }: Edit
                 <option value="draft">Rascunho</option>
                 <option value="review">Para Revisão</option>
                 <option value="approved">Aprovado</option>
-                <option value="published" disabled={user.role !== 'editor' && user.role !== 'admin'}>Publicado</option>
+                <option value="published" disabled={!checkPermission('publish_article')}>Publicado</option>
               </select>
               <button 
                 onClick={handleSave}

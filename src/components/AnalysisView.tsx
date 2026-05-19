@@ -85,6 +85,7 @@ export const AnalysisView = ({
   themeConfig,
   currentUser
 }: AnalysisViewProps) => {
+  const navigate = useNavigate();
   if (!selectedNews) return null;
 
   const isEditor = currentUser.role === 'editor';
@@ -248,11 +249,11 @@ export const AnalysisView = ({
             )}
             {selectedNews.status === 'completed' && (
               <button 
-                onClick={() => navigate(`/editor/${selectedNews.id}`)}
+                onClick={() => navigate(`/editorial-archive`)}
                 className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition-all bg-blue-600 text-white hover:bg-blue-700"
               >
                 <FileText size={18} />
-                Ir para Redação
+                Ver no Acervo
               </button>
             )}
             {!canEdit && selectedNews.status !== 'completed' && (

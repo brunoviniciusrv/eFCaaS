@@ -80,9 +80,10 @@ interface AdminDashboardProps {
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
+  checkPermission: (permId: string) => boolean;
 }
 
-type AdminTab = 'dashboard' | 'users' | 'audit' | 'settings' | 'permissions';
+type AdminTab = 'users' | 'audit' | 'settings' | 'permissions';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   news, 
@@ -106,10 +107,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   setSelectedNewsId,
   notifications,
   onMarkNotifAsRead,
-  onClearNotifs
+  onClearNotifs,
+  checkPermission
 }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<'all' | '7d' | '30d' | '90d'>('30d');
   
@@ -136,28 +138,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return itemDate >= startTime;
     });
 
-    const completedNews = filteredNewsForMetrics.filter(n => n.status === 'completed');
-    const totalChecks = completedNews.length;
+    // General admin metrics
+    const activeUsers = users.filter(u => u.status === 'active').length;
+    const totalProfiles = permissionProfiles.length;
     
-    // Average check time in hours
-    const checkTimes = completedNews
-      .filter(n => n.startTime && n.completedAt)
-      .map(n => {
-        const start = new Date(n.startTime!).getTime();
-        const end = new Date(n.completedAt!).getTime();
-        return (end - start) / (1000 * 60 * 60);
-      });
+    // Filter audit logs based on the date range
+    const filteredLogsForMetrics = auditLogs.filter(l => {
+      const logDate = new Date(l.timestamp).getTime();
+      return logDate >= startTime;
+    });
     
-    const avgCheckTime = checkTimes.length > 0 
-      ? checkTimes.reduce((a, b) => a + b, 0) / checkTimes.length 
-      : 0;
-      
-    const rectificationCount = filteredNewsForMetrics.filter(n => n.isRectified).length;
-    const rectificationRate = filteredNewsForMetrics.length > 0 
-      ? (rectificationCount / filteredNewsForMetrics.length) * 100 
-      : 0;
+    const totalLogs = filteredLogsForMetrics.length;
+    const totalLabels = labels.length;
 
-    // Daily volume for chart
+    // Daily audit volume for chart
     const dailyVolume: { date: string, count: number }[] = [];
     const lastN = dateRange === 'all' ? 30 : (dateRange === '7d' ? 7 : (dateRange === '30d' ? 30 : 90));
     
@@ -165,27 +159,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      const count = completedNews.filter(n => n.completedAt?.startsWith(dateStr)).length;
+      const count = filteredLogsForMetrics.filter(l => l.timestamp.startsWith(dateStr)).length;
       dailyVolume.push({ date: dateStr, count });
     }
 
     // Status distribution
     const statusDist = [
-      { name: 'Pendente', value: filteredNewsForMetrics.filter(n => n.status === 'pending').length, color: themeConfig.status.info },
-      { name: 'Em Análise', value: filteredNewsForMetrics.filter(n => n.status === 'in_progress').length, color: themeConfig.status.warning },
-      { name: 'Concluída', value: filteredNewsForMetrics.filter(n => n.status === 'completed').length, color: themeConfig.status.success },
-      { name: 'Retificação', value: filteredNewsForMetrics.filter(n => n.status === 'to_rectify').length, color: themeConfig.status.error },
+      { name: 'Admins', value: users.filter(u => u.role === 'admin').length, color: themeConfig.status.info },
+      { name: 'Editores', value: users.filter(u => u.role === 'editor').length, color: themeConfig.status.warning },
+      { name: 'Checadores', value: users.filter(u => u.role === 'checker').length, color: themeConfig.status.success },
+      { name: 'Curadores', value: users.filter(u => u.role === 'curator').length, color: themeConfig.status.error },
     ];
 
     return {
-      totalChecks,
-      avgCheckTime,
-      rectificationRate,
+      activeUsers,
+      totalProfiles,
+      totalLogs,
+      totalLabels,
       dailyVolume,
       statusDist,
       totalInPeriod: filteredNewsForMetrics.length
     };
-  }, [news, dateRange, themeConfig]);
+  }, [news, dateRange, themeConfig, users, permissionProfiles, auditLogs, labels]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
@@ -344,12 +339,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Tabs - Pill style */}
       <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
         {[
-          { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
-          { id: 'users', label: 'Equipe', icon: UsersIcon },
-          { id: 'audit', label: 'Logs', icon: FileText },
-          { id: 'permissions', label: 'Permissões', icon: Lock },
-          { id: 'settings', label: 'Ajustes', icon: SettingsIcon },
-        ].map((tab) => (
+          { id: 'users', label: 'Equipe', icon: UsersIcon, permission: 'admin_users' },
+          { id: 'audit', label: 'Logs', icon: FileText, permission: 'view_audit_logs' },
+          { id: 'permissions', label: 'Permissões', icon: Lock, permission: 'admin_permissions' },
+          { id: 'settings', label: 'Ajustes', icon: SettingsIcon, permission: 'admin_settings' },
+        ].filter(tab => !tab.permission || checkPermission(tab.permission)).map((tab) => (
           <button
             key={tab.id}
             onClick={() => { setActiveTab(tab.id as AdminTab); setSearchTerm(''); }}
@@ -370,187 +364,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Main Content Area */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {activeTab === 'dashboard' && (
-          <div 
-            className="space-y-8 animate-in fade-in slide-in-from-bottom-4 p-8 rounded-3xl"
-            style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold" style={{ color: themeConfig.dashboard.text }}>Métricas de Desempenho</h2>
-                <p className="text-xs opacity-70">Acompanhamento estratégico da plataforma</p>
-              </div>
-              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                {[
-                  { id: '7d', label: '7 Dias' },
-                  { id: '30d', label: '30 Dias' },
-                  { id: '90d', label: '90 Dias' },
-                  { id: 'all', label: 'Tudo' },
-                ].map((range) => (
-                  <button
-                    key={range.id}
-                    onClick={() => setDateRange(range.id as any)}
-                    className={cn(
-                      "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                      dateRange === range.id ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                    )}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                    <CheckCircle2 size={20} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Checagens Realizadas</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: themeConfig.dashboard.text }}>{metricsData.totalChecks}</span>
-                  <span className="text-xs opacity-50">concluídas</span>
-                </div>
-                <div className="mt-4 flex items-center gap-1 text-green-600 text-xs font-bold">
-                  <TrendingUp size={14} />
-                  <span>+12% vs período anterior</span>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
-                    <Clock size={20} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tempo Médio</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: themeConfig.dashboard.text }}>{metricsData.avgCheckTime.toFixed(1)}h</span>
-                  <span className="text-xs opacity-50">por checagem</span>
-                </div>
-                <div className="mt-4 flex items-center gap-1 text-blue-600 text-xs font-bold">
-                  <Activity size={14} />
-                  <span>Dentro do SLA (24h)</span>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-orange-50 text-orange-600 rounded-xl">
-                    <RotateCcw size={20} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Taxa de Retificação</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: themeConfig.dashboard.text }}>{metricsData.rectificationRate.toFixed(1)}%</span>
-                  <span className="text-xs opacity-50">das análises</span>
-                </div>
-                <div className="mt-4 flex items-center gap-1 text-slate-400 text-xs font-bold">
-                  <Info size={14} />
-                  <span>Meta: abaixo de 5%</span>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-slate-50 text-slate-600 rounded-xl">
-                    <FileText size={20} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Volume Total</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: themeConfig.dashboard.text }}>{metricsData.totalInPeriod}</span>
-                  <span className="text-xs opacity-50">notícias recebidas</span>
-                </div>
-                <div className="mt-4 flex items-center gap-1 text-slate-400 text-xs font-bold">
-                  <Calendar size={14} />
-                  <span>No período selecionado</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="font-bold text-slate-900">Volume de Checagens Concluídas</h3>
-                    <p className="text-xs text-slate-500">Histórico diário de finalizações</p>
-                  </div>
-                </div>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={metricsData.dailyVolume}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#94a3b8' }}
-                        tickFormatter={(val) => val.split('-').slice(1).reverse().join('/')}
-                      />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                        labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="count" 
-                        stroke={themeConfig.dashboard.chartColors[0] || "#3b82f6"} 
-                        strokeWidth={3} 
-                        dot={{ r: 4, fill: themeConfig.dashboard.chartColors[0] || '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                        activeDot={{ r: 6, strokeWidth: 0 }}
-                        name="Checagens"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="mb-8">
-                  <h3 className="font-bold text-slate-900">Distribuição por Status</h3>
-                  <p className="text-xs text-slate-500">Status atual das notícias no período</p>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={metricsData.statusDist}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {metricsData.statusDist.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 mt-4">
-                  {metricsData.statusDist.map((s) => (
-                    <div key={s.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        <span className="text-slate-600 font-medium">{s.name}</span>
-                      </div>
-                      <span className="font-bold text-slate-900">{s.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
 
         {activeTab === 'users' && (
