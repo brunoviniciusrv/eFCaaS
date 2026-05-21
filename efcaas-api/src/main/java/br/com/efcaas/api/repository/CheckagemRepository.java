@@ -1,0 +1,11 @@
+package br.com.efcaas.api.repository;
+
+import br.com.efcaas.api.domain.Checagem;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface CheckagemRepository extends JpaRepository<Checagem, Long> {
+
+    Optional<Checagem> findByConteudoId(Long conteudoId);
+}
