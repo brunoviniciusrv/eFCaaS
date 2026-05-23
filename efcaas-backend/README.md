@@ -1,4 +1,4 @@
-# efcaas-api
+# efcaas-backend
 
 Back-end REST da plataforma **eFCaaS** (Checagem de Fatos como Serviço).
 
@@ -28,10 +28,12 @@ Back-end REST da plataforma **eFCaaS** (Checagem de Fatos como Serviço).
 ## Executar com Docker Compose (recomendado)
 
 ```bash
-# Na raiz do projeto (Efcaas/)
+# Na raiz do repositório (eFCaaS/)
 cp .env.example .env          # ajuste as variáveis se necessário
 docker compose up --build     # sobe postgres + api
 ```
+
+Na primeira execução o Flyway cria automaticamente todas as tabelas e insere os dados iniciais (permissões, perfis e admin padrão).
 
 A API ficará disponível em <http://localhost:8080>.
 
@@ -45,15 +47,7 @@ docker compose --profile full up --build
 
 ## Executar localmente (sem Docker)
 
-### 1. Configure o banco
-
-Execute o script base no seu PostgreSQL:
-
-```bash
-psql -U postgres -d efcaas -f ../scripts-criacao-banco-efcaas.sql
-```
-
-### 2. Configure as variáveis de ambiente
+### 1. Configure as variáveis de ambiente
 
 ```bash
 export DB_HOST=localhost
@@ -64,7 +58,7 @@ export DB_PASSWORD=efcaas
 export JWT_SECRET=meu-secret-local-com-pelo-menos-32-caracteres
 ```
 
-### 3. Compile e execute
+### 2. Compile e execute
 
 ```bash
 mvn package -DskipTests
@@ -77,13 +71,15 @@ Ou no modo de desenvolvimento com hot-reload:
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
+O Flyway aplica as migrações automaticamente ao subir a aplicação — não é necessário rodar nenhum script SQL manualmente.
+
 ---
 
 ## Flyway — migrações
 
 | Versão | Arquivo | Conteúdo |
 |---|---|---|
-| V1 | `V1__baseline.sql` | Marker de baseline (schema já existente) |
+| V1 | `V1__baseline.sql` | Cria todas as 14 tabelas do schema base |
 | V2 | `V2__ajustes_schema.sql` | Ampliar senha, adicionar colunas de status/prioridade |
 | V3 | `V3__seed_dados_iniciais.sql` | 18 permissões, 6 etiquetas, 4 perfis, 1 admin padrão |
 
@@ -133,7 +129,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ## Estrutura do projeto
 
 ```
-efcaas-api/
+efcaas-backend/
 ├── pom.xml
 ├── Dockerfile
 └── src/main/java/br/com/efcaas/api/

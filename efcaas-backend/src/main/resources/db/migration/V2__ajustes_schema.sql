@@ -25,6 +25,10 @@ ALTER TABLE relatorio_publicacao
 -- Garantir que checagem pode ter checador nulo (atribuição acontece depois)
 ALTER TABLE checagem ALTER COLUMN id_checador DROP NOT NULL;
 
+-- Normalizar colunas CHAR(1) para VARCHAR(1) (compatibilidade com Hibernate)
+ALTER TABLE usuario       ALTER COLUMN status TYPE VARCHAR(1);
+ALTER TABLE ferramenta_hub ALTER COLUMN status TYPE VARCHAR(1);
+
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_conteudo_suspeito_status ON conteudo_suspeito(status);
 CREATE INDEX IF NOT EXISTS idx_conteudo_suspeito_data_entrada ON conteudo_suspeito(data_entrada);

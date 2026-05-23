@@ -13,10 +13,10 @@
     </parent>
 
     <groupId>br.com.efcaas</groupId>
-    <artifactId>efcaas-api</artifactId>
+    <artifactId>efcaas-backend</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>efcaas-api</name>
+    <name>efcaas-backend</name>
     <description>Back-end REST da plataforma eFCaaS — Checagem de Fatos como Serviço</description>
 
     <properties>

@@ -20,7 +20,7 @@ WORKDIR /app
 RUN addgroup --system efcaas && adduser --system --ingroup efcaas efcaas
 USER efcaas
 
-COPY --from=build /app/target/efcaas-api-*.jar app.jar
+COPY --from=build /app/target/efcaas-backend-*.jar app.jar
 
 EXPOSE 8080
 
