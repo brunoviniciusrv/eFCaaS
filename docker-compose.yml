@@ -1,0 +1,76 @@
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # PostgreSQL
+  # ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: efcaas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-efcaas}
+      POSTGRES_USER: ${DB_USER:-efcaas}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-efcaas}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-efcaas} -d ${DB_NAME:-efcaas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # API Spring Boot
+  # ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./efcaas-backend
+      dockerfile: Dockerfile
+    container_name: efcaas-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-efcaas}
+      DB_USER: ${DB_USER:-efcaas}
+      DB_PASSWORD: ${DB_PASSWORD:-efcaas}
+      JWT_SECRET: ${JWT_SECRET:-troque-este-secret-em-producao-use-256-bits}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ──────────────────────────────────────────────────────────
+  # Front-end (desenvolvimento)
+  # ──────────────────────────────────────────────────────────
+  frontend:
+    image: node:22-alpine
+    container_name: efcaas-frontend
+    working_dir: /app
+    volumes:
+      - ./efcaas-frontend:/app
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:8081/api/v1
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - api
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
