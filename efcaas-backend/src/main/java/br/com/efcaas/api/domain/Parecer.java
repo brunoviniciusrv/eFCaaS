@@ -19,7 +19,7 @@ public class Parecer {
     private Checagem checagem;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_etiqueta", nullable = false)
+    @JoinColumn(name = "id_etiqueta")
     private Etiqueta etiqueta;
 
     @Column(columnDefinition = "TEXT")
@@ -33,4 +33,13 @@ public class Parecer {
 
     @Column(name = "texto_parecer", columnDefinition = "TEXT")
     private String textoParecer;
+
+    @Column(columnDefinition = "TEXT")
+    private String perguntas;
+
+    @Column(nullable = false)
+    private boolean inverificavel = false;
+
+    @Column(name = "contato_autor", columnDefinition = "TEXT")
+    private String contatoAutor;
 }
