@@ -1,0 +1,4 @@
+-- Baseline V1: schema base já existente no banco (scripts-criacao-banco-efcaas.sql).
+-- Este arquivo existe apenas para registrar o baseline no histórico do Flyway.
+-- O schema real foi criado fora do controle do Flyway e é marcado como baseline.
+-- NÃO execute este script manualmente: o Flyway usará baseline-on-migrate=true.
