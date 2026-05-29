@@ -72,6 +72,7 @@ public class ConteudoSuspeitoService {
         c.setTitulo(req.titulo());
         c.setAlegacao(req.alegacao());
         c.setLink(req.link() != null ? req.link() : "");
+        c.setFonte(req.fonte());
         c.setDescricao(req.descricao());
         c.setPrioridade(req.prioridade());
         c.setStatus("pending");
@@ -79,6 +80,22 @@ public class ConteudoSuspeitoService {
 
         auditoria.registrar(curadorId, "conteudo_criado", "conteudo:" + c.getId(), req.titulo());
         return mapper.toDtoSimples(c, null);
+    }
+
+    @Transactional
+    public ConteudoSuspeitoDto atualizar(Long id, AtualizarConteudoRequest req, Long usuarioId) {
+        ConteudoSuspeito c = conteudoRepo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        c.setTitulo(req.titulo());
+        if (req.alegacao()   != null) c.setAlegacao(req.alegacao());
+        if (req.link()       != null) c.setLink(req.link());
+        if (req.fonte()      != null) c.setFonte(req.fonte());
+        if (req.descricao()  != null) c.setDescricao(req.descricao());
+        if (req.prioridade() != null) c.setPrioridade(req.prioridade());
+        conteudoRepo.save(c);
+        auditoria.registrar(usuarioId, "conteudo_editado", "conteudo:" + id, req.titulo());
+        Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
+        return mapper.toDtoSimples(c, ch);
     }
 
     @Transactional

@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, LogIn, Settings, HelpCircle, X, Shield, User, Search, CheckCircle } from 'lucide-react';
-import { UserProfile, ThemeConfig } from '../types';
-import { MOCK_USERS } from '../constants';
+import { ThemeConfig } from '../types';
 import { cn } from '../lib/utils';
 
 interface LoginViewProps {
-  onLogin: (user: UserProfile) => void;
+  onLogin: (email: string, password: string) => Promise<void>;
   onOpenOnboarding: () => void;
   themeConfig: ThemeConfig;
   agencyConfig: any;
 }
+
+const TEST_ACCOUNTS = [
+  { role: 'admin',   email: 'admin@efcaas.com' },
+  { role: 'checker', email: 'beatriz.santos@factcheck.org' },
+  { role: 'editor',  email: 'cadu.editor@ais-news.com' },
+  { role: 'curator', email: 'juliana.mendes@curadoria.com' },
+] as const;
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding, themeConfig, agencyConfig }) => {
   const [email, setEmail] = useState('');
@@ -19,26 +25,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
   const [showHelp, setShowHelp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Simulate network delay
-    setTimeout(() => {
-      const user = MOCK_USERS.find(u => u.email === email);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError('E-mail ou senha incorretos. Use o "?" para ver os acessos de teste.');
-        setIsLoading(false);
-      }
-    }, 1000);
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'E-mail ou senha incorretos.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const fillCredentials = (user: UserProfile) => {
-    setEmail(user.email);
-    setPassword('senha123'); // Custom mock password
+  const fillCredentials = (testEmail: string) => {
+    setEmail(testEmail);
+    setPassword('Admin@2026!');
     setShowHelp(false);
   };
 
@@ -176,30 +179,32 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                 </button>
               </div>
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {MOCK_USERS.map((user) => (
+                {TEST_ACCOUNTS.map((account) => (
                   <button 
-                    key={user.id}
-                    onClick={() => fillCredentials(user)}
+                    key={account.email}
+                    onClick={() => fillCredentials(account.email)}
                     className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all group"
                   >
                     <div className="flex items-center gap-3 mb-2">
                        <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                          {user.role === 'admin' && <Shield size={16} className="text-red-500" />}
-                          {user.role === 'curator' && <Search size={16} className="text-blue-500" />}
-                          {user.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
-                          {user.role === 'editor' && <User size={16} className="text-slate-500" />}
+                          {account.role === 'admin'   && <Shield      size={16} className="text-red-500" />}
+                          {account.role === 'curator' && <Search      size={16} className="text-blue-500" />}
+                          {account.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
+                          {account.role === 'editor'  && <User        size={16} className="text-slate-500" />}
                        </div>
                        <div className="flex-1">
-                          <p className="text-xs font-black uppercase tracking-tight text-slate-900">{user.role}</p>
+                          <p className="text-xs font-black uppercase tracking-tight text-slate-900">{account.role}</p>
                        </div>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600 truncate">{user.email}</p>
+                    <p className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600 truncate">{account.email}</p>
                     <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Clique para preencher</p>
                   </button>
                 ))}
               </div>
               <div className="p-6 bg-slate-50 text-center">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Senha padrão para todos: <span className="text-slate-900">qualquer senha</span></p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  Senha padrão para todos: <span className="text-slate-900">Admin@2026!</span>
+                </p>
               </div>
             </motion.div>
           </div>

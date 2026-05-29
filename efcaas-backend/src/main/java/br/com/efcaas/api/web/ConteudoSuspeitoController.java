@@ -49,6 +49,17 @@ public class ConteudoSuspeitoController {
         return ResponseEntity.ok(service.obterDetalhe(id));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage_triage')")
+    @Operation(summary = "Editar dados do conteúdo (título, alegação, link, descrição, prioridade)")
+    public ResponseEntity<ConteudoSuspeitoDto> atualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody AtualizarConteudoRequest request,
+            Authentication auth) {
+        Long userId = Long.parseLong(auth.getName());
+        return ResponseEntity.ok(service.atualizar(id, request, userId));
+    }
+
     @PatchMapping("/{id}/status")
     @Operation(summary = "Atualizar status do conteúdo")
     public ResponseEntity<ConteudoSuspeitoDto> atualizarStatus(

@@ -39,6 +39,7 @@ import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from './StatusBadge';
+import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile } from '../types';
 import { TOOLS } from '../constants';
 
@@ -161,15 +162,15 @@ export const AnalysisView = ({
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* Header */}
         <header 
-          className="border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50"
+          className="border-b px-4 sm:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sticky top-0 z-50"
           style={{ 
             backgroundColor: themeConfig.header.background, 
             color: themeConfig.header.text,
             borderColor: themeConfig.header.border
           }}
         >
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full xl:w-auto">
+            <div className="flex items-center gap-4 shrink-0">
               <button 
                 onClick={() => { setSelectedNewsId(null); setCurrentView('dashboard'); }}
                 className="p-2 rounded-full transition-colors hover:bg-black/5"
@@ -185,36 +186,25 @@ export const AnalysisView = ({
               </div>
             </div>
 
-            <div className="h-8 w-px bg-slate-200 mx-2" />
+            <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block" />
 
-            <nav className="flex items-center gap-1">
-              {[
-                { id: 'content', label: '1. Conteúdo', icon: FileIcon },
-                { id: 'metrics', label: '2. Métricas IA', icon: Sparkles },
-                { id: 'investigation', label: '3. Investigação', icon: Search },
-                { id: 'result', label: '4. Parecer', icon: FileText },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                    activeTab === tab.id 
-                      ? "shadow-sm" 
-                      : "opacity-40 hover:opacity-100 hover:bg-black/5"
-                  )}
-                  style={{ 
-                    backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-                    color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.header.text,
-                  }}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
+            <nav className="w-full sm:w-auto overflow-hidden">
+               <ResponsiveTabs
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab as any}
+                  themeConfig={themeConfig}
+                  tabs={[
+                    { id: 'content', label: '1. Conteúdo', icon: FileIcon },
+                    { id: 'metrics', label: '2. Métricas IA', icon: Sparkles },
+                    { id: 'investigation', label: '3. Investigação', icon: Search },
+                    { id: 'result', label: '4. Parecer', icon: FileText },
+                  ]}
+                  buttonClassName="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
+                  inactiveButtonClassName="opacity-40 hover:opacity-100 hover:bg-black/5"
+               />
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
             {canEdit && (
               <>
                 <button 
@@ -608,6 +598,66 @@ export const AnalysisView = ({
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
+                {/* Questions and Methodology */}
+                <section 
+                  className="rounded-3xl border shadow-sm overflow-hidden bg-white"
+                  style={{ borderColor: themeConfig.general.border }}
+                >
+                  <div className="p-6 border-b" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
+                    <div className="flex items-center gap-2">
+                      <List size={18} className="opacity-40" />
+                      <h3 className="text-sm font-black uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Perguntas de Investigação</h3>
+                    </div>
+                  </div>
+                  <div className="p-8 space-y-8">
+                     <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Perguntas Balizadoras</label>
+                        <div className="space-y-3">
+                           {reportStructure.questions.map((q, idx) => (
+                             <div key={idx} className="flex gap-3">
+                                <input 
+                                  value={q}
+                                  onChange={(e) => {
+                                    const newQuestions = [...reportStructure.questions];
+                                    newQuestions[idx] = e.target.value;
+                                    handleUpdateReportStructure({ questions: newQuestions });
+                                  }}
+                                  placeholder="Ex: Qual a origem do vídeo?"
+                                  className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all font-medium"
+                                />
+                                {idx > 0 && (
+                                  <button onClick={() => {
+                                    const newQuestions = [...reportStructure.questions];
+                                    newQuestions.splice(idx, 1);
+                                    handleUpdateReportStructure({ questions: newQuestions });
+                                  }} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
+                                    <Trash2 size={20} />
+                                  </button>
+                                )}
+                             </div>
+                           ))}
+                           <button 
+                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
+                             className="flex items-center gap-2 text-xs font-black px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                           >
+                             <Plus size={14} /> Adicionar Pergunta
+                           </button>
+                        </div>
+                     </div>
+
+                     <div className="pt-8 border-t space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Resumo da Metodologia de Checagem</label>
+                        <textarea 
+                          value={reportStructure.summary || ''}
+                          onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
+                          placeholder="Como este conteúdo foi verificado?"
+                          rows={3}
+                          className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm focus:outline-none transition-all font-medium resize-none shadow-inner"
+                        />
+                     </div>
+                  </div>
+                </section>
+
                  {/* 3. Investigation & Evidence List */}
                 <section 
                   className="rounded-3xl border shadow-sm overflow-hidden"
@@ -742,7 +792,7 @@ export const AnalysisView = ({
                     {/* Contact Step */}
                     <div className="mt-8 pt-8 border-t flex flex-col md:flex-row gap-8 items-start" style={{ borderColor: themeConfig.general.border }}>
                       <div className="w-full md:w-64 space-y-2">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Tentativa de Contato</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Tentativa de contato com o autor da alegação</h4>
                         <p className="text-xs opacity-50 leading-relaxed">Fundamental para o contraditório e clareza editorial.</p>
                       </div>
                       <div className="flex-1 space-y-6">
@@ -780,66 +830,6 @@ export const AnalysisView = ({
                         )}
                       </div>
                     </div>
-                  </div>
-                </section>
-
-                {/* Questions and Methodology */}
-                <section 
-                  className="rounded-3xl border shadow-sm overflow-hidden bg-white"
-                  style={{ borderColor: themeConfig.general.border }}
-                >
-                  <div className="p-6 border-b" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
-                    <div className="flex items-center gap-2">
-                      <List size={18} className="opacity-40" />
-                      <h3 className="text-sm font-black uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Perguntas de Investigação</h3>
-                    </div>
-                  </div>
-                  <div className="p-8 space-y-8">
-                     <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Perguntas Balizadoras</label>
-                        <div className="space-y-3">
-                           {reportStructure.questions.map((q, idx) => (
-                             <div key={idx} className="flex gap-3">
-                                <input 
-                                  value={q}
-                                  onChange={(e) => {
-                                    const newQuestions = [...reportStructure.questions];
-                                    newQuestions[idx] = e.target.value;
-                                    handleUpdateReportStructure({ questions: newQuestions });
-                                  }}
-                                  placeholder="Ex: Qual a origem do vídeo?"
-                                  className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all font-medium"
-                                />
-                                {idx > 0 && (
-                                  <button onClick={() => {
-                                    const newQuestions = [...reportStructure.questions];
-                                    newQuestions.splice(idx, 1);
-                                    handleUpdateReportStructure({ questions: newQuestions });
-                                  }} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
-                                    <Trash2 size={20} />
-                                  </button>
-                                )}
-                             </div>
-                           ))}
-                           <button 
-                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
-                             className="flex items-center gap-2 text-xs font-black px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                           >
-                             <Plus size={14} /> Adicionar Pergunta
-                           </button>
-                        </div>
-                     </div>
-
-                     <div className="pt-8 border-t space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Resumo da Metodologia de Checagem</label>
-                        <textarea 
-                          value={reportStructure.summary || ''}
-                          onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
-                          placeholder="Como este conteúdo foi verificado?"
-                          rows={3}
-                          className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm focus:outline-none transition-all font-medium resize-none shadow-inner"
-                        />
-                     </div>
                   </div>
                 </section>
               </motion.div>
@@ -880,7 +870,7 @@ export const AnalysisView = ({
                           style={{ color: themeConfig.general.accent }}
                         >
                           <Wand2 size={20} className="group-hover/btn:rotate-12 transition-transform" />
-                          {isGeneratingDraft ? 'Criando...' : 'Gerar Draft de Parecer'}
+                          {isGeneratingDraft ? 'Criando...' : 'Gerar Rascunho de Parecer'}
                         </button>
                         <button 
                           onClick={handleReviewReport}

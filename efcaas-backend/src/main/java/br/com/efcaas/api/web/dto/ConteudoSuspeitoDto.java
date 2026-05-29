@@ -5,6 +5,7 @@ public record ConteudoSuspeitoDto(
         String titulo,
         String alegacao,
         String link,
+        String fonte,
         String descricao,
         String dataEntrada,
         String status,

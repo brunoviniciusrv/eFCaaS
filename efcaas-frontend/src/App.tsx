@@ -4,12 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
-  MOCK_USER, 
-  INITIAL_NEWS, 
-  OFFICIAL_LABELS,
-  MOCK_USERS,
+  PLACEHOLDER_USER,
   INITIAL_AUDIT_LOGS,
   INITIAL_REPORT_CONFIG,
   INITIAL_THEME_CONFIG,
@@ -37,6 +34,8 @@ import {
   SpecializedNetworkCheck
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
+import { apiService } from './services/apiService';
+import { clearToken } from './services/apiClient';
 
 // Components
 import { Sidebar } from './components/Sidebar';
@@ -58,14 +57,15 @@ function RootRedirect({ checkPermission }: { checkPermission: (permId: string) =
   return <Navigate to="/profile" replace />;
 }
 
-function App() {
+function AppContent() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [user, setUser] = useState<UserProfile>(MOCK_USER);
-  const [news, setNews] = useState<NewsItem[]>(INITIAL_NEWS);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [user, setUser] = useState<UserProfile>(PLACEHOLDER_USER);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>(INITIAL_RECEIVED_NEWS);
-  const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
     const saved = localStorage.getItem('platform_permission_profiles');
     return saved ? JSON.parse(saved) : INITIAL_PERMISSION_PROFILES;
@@ -139,7 +139,35 @@ function App() {
   };
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
-  const [labels, setLabels] = useState<LabelConfig[]>(OFFICIAL_LABELS);
+  const [labels, setLabels] = useState<LabelConfig[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const loadData = async () => {
+      setIsLoadingData(true);
+      try {
+        const [newsFromApi, labelsFromApi, usersFromApi] = await Promise.all([
+          apiService.listarConteudos(),
+          apiService.listarEtiquetas(),
+          apiService.listarUsuarios(),
+        ]);
+        setNews(newsFromApi);
+        setLabels(labelsFromApi);
+        setUsers(usersFromApi);
+      } catch (err) {
+        console.error('Erro ao carregar dados iniciais:', err);
+        addNotification({
+          title: 'Aviso de Conectividade',
+          message: 'Não foi possível carregar dados do servidor. Verifique a conexão com o backend.',
+          type: 'warning',
+          category: 'system',
+        });
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    loadData();
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('platform_theme_config');
@@ -226,101 +254,133 @@ function App() {
 
   const selectedNews = news.find(n => n.id === selectedNewsId);
 
-  const handleStartAnalysis = (id: string) => {
+  const handleStartAnalysis = async (id: string) => {
     const item = news.find(n => n.id === id);
-    if (item) {
-      // Initialize report structure if it doesn't exist
-      if (!item.reportStructure) {
-        const updatedNews = news.map(n => n.id === id ? {
-          ...n,
-          status: 'in_progress' as const,
-          startTime: new Date().toISOString(),
-          assignedTo: user.id,
-          reportStructure: {
-            summary: '',
-            questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
-            sources: Array(Math.min(1, reportConfig.maxSources)).fill(''),
-            isInverifiable: false,
-            contactWithAuthor: { hadContact: null },
-            label: undefined
-          }
-        } : n);
-        setNews(updatedNews);
+    if (!item) return;
+
+    if (item.checagemId) {
+      try {
+        await apiService.iniciarChecagem(item.checagemId);
+      } catch {
+        // Pode já ter sido iniciada; continua normalmente
       }
-      setSelectedNewsId(id);
-      navigate(`/analysis/${id}`);
     }
+
+    if (!item.reportStructure) {
+      setNews(prev => prev.map(n => n.id === id ? {
+        ...n,
+        status: 'in_progress' as const,
+        startTime: new Date().toISOString(),
+        assignedTo: n.assignedTo ?? user.id,
+        reportStructure: {
+          summary: '',
+          questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
+          sources: Array(Math.min(1, reportConfig.maxSources)).fill(''),
+          isInverifiable: false,
+          contactWithAuthor: { hadContact: null },
+          label: undefined
+        }
+      } : n));
+    }
+
+    setSelectedNewsId(id);
+    navigate(`/analysis/${id}`);
   };
 
-  const handleAssign = (newsId: string, checkerId: string, briefing: string) => {
-    setNews(prev => prev.map(n => n.id === newsId ? {
-      ...n,
-      status: 'in_progress',
-      assignedTo: checkerId,
-      briefing,
-      assignmentHistory: [
-        ...(n.assignmentHistory || []),
-        {
-          id: Math.random().toString(36).substr(2, 9),
-          assignedTo: checkerId,
-          assignedBy: user.id,
-          timestamp: new Date().toISOString(),
-          action: 'assigned',
-          reason: briefing
-        }
-      ]
-    } : n));
-    
-    const newsItem = news.find(n => n.id === newsId);
-    if (newsItem) {
+  const handleAssign = async (newsId: string, checkerId: string, briefing: string) => {
+    try {
+      const checagem = await apiService.atribuirChecagem(newsId, {
+        checadorId: Number(checkerId),
+        briefing,
+      });
+      setNews(prev => prev.map(n => n.id === newsId ? {
+        ...n,
+        status: 'in_progress',
+        assignedTo: checagem.checadorId,
+        briefing: checagem.briefing,
+        checagemId: checagem.id,
+        assignmentHistory: [
+          ...(n.assignmentHistory || []),
+          {
+            id: Math.random().toString(36).substr(2, 9),
+            assignedTo: checagem.checadorId,
+            assignedBy: user.id,
+            timestamp: new Date().toISOString(),
+            action: 'assigned' as const,
+            reason: briefing
+          }
+        ]
+      } : n));
+
+      const newsItem = news.find(n => n.id === newsId);
+      const targetUser = users.find(u => u.id === checkerId);
+      if (newsItem) {
+        addNotification({
+          title: 'Nova Tarefa Atribuída',
+          message: `Você recebeu uma nova tarefa: ${newsItem.title}`,
+          type: 'info',
+          category: 'assignment',
+          targetUserId: checkerId,
+          relatedNewsId: newsId,
+          link: `/analysis/${newsId}`
+        });
+      }
+      addAuditLog('assign_task', `Notícia #${newsId}`, `Atribuiu para ${targetUser?.name ?? checkerId}. Briefing: ${briefing}`);
+    } catch (err) {
+      console.error('Erro ao atribuir checagem:', err);
       addNotification({
-        title: 'Nova Tarefa Atribuída',
-        message: `Você recebeu uma nova tarefa: ${newsItem.title}`,
-        type: 'info',
-        category: 'assignment',
-        targetUserId: checkerId,
-        relatedNewsId: newsId,
-        link: `/analysis/${newsId}`
+        title: 'Erro ao Atribuir',
+        message: err instanceof Error ? err.message : 'Não foi possível atribuir a checagem.',
+        type: 'error',
+        category: 'system',
       });
     }
-
-    const targetNews = news.find(n => n.id === newsId);
-    const targetUser = users.find(u => u.id === checkerId);
-    addAuditLog('assign_task', `Notícia #${newsId}`, `Atribuiu notícia "${targetNews?.title}" para usuário ${targetUser?.name}. Briefing: ${briefing}`);
   };
 
-  const handleApprove = (newsId: string, comments: string) => {
-    setNews(prev => prev.map(n => n.id === newsId ? {
-      ...n,
-      status: 'completed',
-      completedAt: new Date().toISOString(),
-      approvedBy: user.id,
-      reviewComments: comments
-    } : n));
-    const targetNews = news.find(n => n.id === newsId);
-    addAuditLog('approve_news', `Notícia #${newsId}`, `Aprovou notícia "${targetNews?.title}". Comentários: ${comments}`);
+  const handleApprove = async (newsId: string, comments: string) => {
+    try {
+      await apiService.aprovarConteudo(newsId, comments);
+      setNews(prev => prev.map(n => n.id === newsId ? {
+        ...n,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        approvedBy: user.id,
+        reviewComments: comments
+      } : n));
+      const targetNews = news.find(n => n.id === newsId);
+      addAuditLog('approve_news', `Notícia #${newsId}`, `Aprovou "${targetNews?.title}". Comentários: ${comments}`);
+    } catch (err) {
+      console.error('Erro ao aprovar:', err);
+      addNotification({ title: 'Erro ao Aprovar', message: err instanceof Error ? err.message : 'Não foi possível aprovar.', type: 'error', category: 'system' });
+    }
   };
 
-  const handleReject = (newsId: string, comments: string) => {
-    setNews(prev => prev.map(n => n.id === newsId ? {
-      ...n,
-      status: 'in_progress',
-      rejectedBy: user.id,
-      reviewComments: comments,
-      assignmentHistory: [
-        ...(n.assignmentHistory || []),
-        {
-          id: Math.random().toString(36).substr(2, 9),
-          assignedTo: n.assignedTo || '',
-          assignedBy: user.id,
-          timestamp: new Date().toISOString(),
-          action: 'rejected',
-          reason: comments
-        }
-      ]
-    } : n));
-    const targetNews = news.find(n => n.id === newsId);
-    addAuditLog('reject_news', `Notícia #${newsId}`, `Rejeitou notícia "${targetNews?.title}". Motivo: ${comments}`);
+  const handleReject = async (newsId: string, comments: string) => {
+    try {
+      await apiService.rejeitarConteudo(newsId, comments);
+      setNews(prev => prev.map(n => n.id === newsId ? {
+        ...n,
+        status: 'in_progress',
+        rejectedBy: user.id,
+        reviewComments: comments,
+        assignmentHistory: [
+          ...(n.assignmentHistory || []),
+          {
+            id: Math.random().toString(36).substr(2, 9),
+            assignedTo: n.assignedTo || '',
+            assignedBy: user.id,
+            timestamp: new Date().toISOString(),
+            action: 'rejected' as const,
+            reason: comments
+          }
+        ]
+      } : n));
+      const targetNews = news.find(n => n.id === newsId);
+      addAuditLog('reject_news', `Notícia #${newsId}`, `Rejeitou "${targetNews?.title}". Motivo: ${comments}`);
+    } catch (err) {
+      console.error('Erro ao rejeitar:', err);
+      addNotification({ title: 'Erro ao Rejeitar', message: err instanceof Error ? err.message : 'Não foi possível rejeitar.', type: 'error', category: 'system' });
+    }
   };
 
   const handleUpdateReportStructure = (updates: Partial<ReportStructure>) => {
@@ -336,8 +396,35 @@ function App() {
     setNews(prev => prev.map(n => n.id === selectedNewsId ? { ...n, report: text } : n));
   };
 
-  const handleAddEvidence = (evidence: Omit<Evidence, 'id' | 'timestamp'>) => {
+  const handleAddEvidence = async (evidence: Omit<Evidence, 'id' | 'timestamp'>) => {
     if (!selectedNewsId) return;
+    const currentNews = news.find(n => n.id === selectedNewsId);
+
+    if (currentNews?.checagemId) {
+      try {
+        const apiEv = await apiService.adicionarEvidencia(currentNews.checagemId, {
+          tipo: evidence.type,
+          linkArquivo: evidence.url,
+          descricao: evidence.description ?? evidence.title,
+        });
+        const newEvidence: Evidence = {
+          id: apiEv.id,
+          type: (apiEv.tipo as Evidence['type']) ?? 'link',
+          url: apiEv.linkArquivo,
+          title: evidence.title,
+          description: apiEv.descricao ?? undefined,
+          timestamp: new Date().toLocaleString(),
+        };
+        setNews(prev => prev.map(n => n.id === selectedNewsId ? {
+          ...n,
+          evidence: [...n.evidence, newEvidence]
+        } : n));
+        return;
+      } catch (err) {
+        console.error('Erro ao adicionar evidência via API:', err);
+      }
+    }
+
     const newEvidence: Evidence = {
       ...evidence,
       id: Math.random().toString(36).substr(2, 9),
@@ -349,8 +436,18 @@ function App() {
     } : n));
   };
 
-  const handleRemoveEvidence = (id: string) => {
+  const handleRemoveEvidence = async (id: string) => {
     if (!selectedNewsId) return;
+    const currentNews = news.find(n => n.id === selectedNewsId);
+
+    if (currentNews?.checagemId) {
+      try {
+        await apiService.removerEvidencia(currentNews.checagemId, id);
+      } catch (err) {
+        console.error('Erro ao remover evidência via API:', err);
+      }
+    }
+
     setNews(prev => prev.map(n => n.id === selectedNewsId ? {
       ...n,
       evidence: n.evidence.filter(e => e.id !== id)
@@ -383,117 +480,170 @@ function App() {
     }
   };
 
-  const handleSaveFinal = () => {
+  const handleSaveFinal = async () => {
     if (!selectedNews) return;
-    
-    // Validation
+
     if (!selectedNews.reportStructure?.label) {
       alert("Por favor, selecione uma classificação final antes de finalizar.");
       return;
     }
 
     setIsSaving(true);
-    setTimeout(() => {
-      setNews(prev => prev.map(n => n.id === selectedNewsId ? { 
-        ...n, 
-        status: 'completed' as const,
+    try {
+      if (selectedNews.checagemId) {
+        const rs = selectedNews.reportStructure;
+
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
+          resumo: rs.summary ?? '',
+          perguntas: (rs.questions ?? []).filter(Boolean),
+          fontes: (rs.sources ?? []).filter(Boolean),
+          inverificavel: rs.isInverifiable ?? false,
+          contatoAutor: {
+            hadContact: rs.contactWithAuthor?.hadContact ?? null,
+            justificacao: rs.contactWithAuthor?.justification ?? null,
+            response: rs.contactWithAuthor?.response ?? null,
+          },
+        });
+
+        if (selectedNews.report) {
+          await apiService.salvarParecer(selectedNews.checagemId, {
+            textoParecer: selectedNews.report,
+          });
+        }
+
+        const labelId = labels.find(l => l.name === rs.label)?.id;
+        if (!labelId) throw new Error(`Etiqueta "${rs.label}" não encontrada.`);
+
+        await apiService.finalizarParecer(selectedNews.checagemId, {
+          textoParecer: selectedNews.report ?? rs.summary ?? '',
+          etiquetaId: Number(labelId),
+        });
+      }
+
+      setNews(prev => prev.map(n => n.id === selectedNewsId ? {
+        ...n,
+        status: 'final_review' as const,
         completedAt: new Date().toISOString()
       } : n));
-      setIsSaving(false);
       setSelectedNewsId(null);
       navigate('/dashboard');
-    }, 1500);
+    } catch (err) {
+      console.error('Erro ao finalizar parecer:', err);
+      alert(`Erro ao finalizar: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleReopen = (newsId: string, reason: string) => {
-    setNews(prev => prev.map(n => {
-      if (n.id === newsId) {
-        const history = {
-          id: Math.random().toString(36).substr(2, 9),
-          assignedTo: n.assignedTo || '',
-          assignedBy: user.id,
-          timestamp: new Date().toISOString(),
-          action: 'reopened' as const,
-          reason: reason
-        };
-        return {
-          ...n,
-          status: 'to_rectify' as const,
-          isRectified: true,
-          assignmentHistory: [...(n.assignmentHistory || []), history]
-        };
+  const handleReopen = async (newsId: string, reason: string) => {
+    try {
+      const item = news.find(n => n.id === newsId);
+      if (item?.checagemId) {
+        await apiService.reabrirConteudo(newsId, reason);
       }
-      return n;
-    }));
-    const targetNews = news.find(n => n.id === newsId);
-    addAuditLog('reopen_news', `Notícia #${newsId}`, `Reabriu notícia "${targetNews?.title}" para retificação. Motivo: ${reason}`);
+
+      setNews(prev => prev.map(n => {
+        if (n.id === newsId) {
+          const history = {
+            id: Math.random().toString(36).substr(2, 9),
+            assignedTo: n.assignedTo || '',
+            assignedBy: user.id,
+            timestamp: new Date().toISOString(),
+            action: 'reopened' as const,
+            reason
+          };
+          return {
+            ...n,
+            status: 'to_rectify' as const,
+            isRectified: true,
+            assignmentHistory: [...(n.assignmentHistory || []), history]
+          };
+        }
+        return n;
+      }));
+
+      const targetNews = news.find(n => n.id === newsId);
+      addAuditLog('reopen_news', `Notícia #${newsId}`, `Reabriu "${targetNews?.title}". Motivo: ${reason}`);
+    } catch (err) {
+      console.error('Erro ao reabrir:', err);
+      addNotification({ title: 'Erro ao Reabrir', message: err instanceof Error ? err.message : 'Não foi possível reabrir.', type: 'error', category: 'system' });
+    }
   };
 
-  const handleRegisterNews = (newsData: any) => {
-    const newItem: NewsItem = {
-      ...newsData,
-      id: Math.random().toString(36).substr(2, 9),
-      date: new Date().toISOString().split('T')[0],
-      status: newsData.assignedTo ? 'in_progress' : 'pending',
-      evidence: [],
-      aiScores: newsData.aiScores || {
-        gravity: Math.floor(Math.random() * 50) + 10,
-        urgency: Math.floor(Math.random() * 50) + 10,
-        trend: Math.floor(Math.random() * 50) + 10
-      },
-      aiEvaluation: {
-        score: 0.5,
-        explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
-        warningLevel: "nível de alerta moderado / revisão necessária",
-        characteristics: [
-          "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
-          "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
-          "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
-        ],
-        topics: ["Geral", "Não Categorizado", "Simulação"],
-        entities: [
-          { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
-        ],
-        location: "Indefinido",
-        dates: [new Date().toISOString().split('T')[0]]
-      },
-      assignmentHistory: newsData.assignedTo ? [{
-        id: Math.random().toString(36).substr(2, 9),
-        assignedTo: newsData.assignedTo,
-        assignedBy: user.id,
-        timestamp: new Date().toISOString(),
-        action: 'assigned',
-        reason: newsData.briefing
-      }] : []
-    };
-    setNews(prev => [newItem, ...prev]);
+  const handleRegisterNews = async (newsData: any) => {
+    try {
+      const etiquetaId = newsData.labelId
+        ? Number(newsData.labelId)
+        : labels[0]?.id
+        ? Number(labels[0].id)
+        : undefined;
 
-    // Notification logic
-    if (newItem.assignedTo) {
-      // If assigned directly, notify ONLY the checker
-      addNotification({
-        title: 'Nova Tarefa Atribuída',
-        message: `Você recebeu uma nova tarefa: ${newItem.title}`,
-        type: 'info',
-        category: 'assignment',
-        targetUserId: newItem.assignedTo,
-        relatedNewsId: newItem.id,
-        link: `/analysis/${newItem.id}`
+      const created = await apiService.criarConteudo({
+        titulo:    newsData.title,
+        alegacao:  newsData.alegacao  ?? newsData.content  ?? undefined,
+        descricao: newsData.descricao ?? undefined,
+        link:      newsData.url       ?? newsData.link     ?? undefined,
+        fonte:     newsData.source    ?? newsData.fonte    ?? undefined,
+        prioridade: newsData.priority ?? undefined,
       });
-    } else {
-      // Otherwise notify curators/admins about new item in triage queue (Fila Disponível)
+
+      setNews(prev => [created, ...prev]);
+
+      if (created.assignedTo) {
+        addNotification({
+          title: 'Nova Tarefa Atribuída',
+          message: `Você recebeu uma nova tarefa: ${created.title}`,
+          type: 'info',
+          category: 'assignment',
+          targetUserId: created.assignedTo,
+          relatedNewsId: created.id,
+          link: `/analysis/${created.id}`
+        });
+      } else {
+        addNotification({
+          title: 'Nova Notícia na Fila',
+          message: `Nova notícia adicionada à fila disponível: ${created.title}`,
+          type: 'info',
+          category: 'queue',
+          targetRole: ['admin', 'curator'],
+          relatedNewsId: created.id,
+          link: '/curator'
+        });
+      }
+
+      addAuditLog('register_news', `Notícia #${created.id}`, `Registrou: "${created.title}"`);
+    } catch (err) {
+      console.error('Erro ao registrar notícia:', err);
       addNotification({
-        title: 'Nova Notícia na Fila',
-        message: `Uma nova notícia foi adicionada à fila disponível: ${newItem.title}`,
-        type: 'info',
-        category: 'queue',
-        targetRole: ['admin', 'curator'],
-        relatedNewsId: newItem.id,
-        link: '/curator'
+        title: 'Erro ao Registrar',
+        message: err instanceof Error ? err.message : 'Não foi possível registrar a notícia.',
+        type: 'error',
+        category: 'system',
       });
     }
+  };
 
-    addAuditLog('register_news', `Notícia #${newItem.id}`, `Registrou nova notícia: "${newItem.title}"`);
+  const handleEditNews = async (newsId: string, newsData: any) => {
+    try {
+      const updated = await apiService.editarConteudo(newsId, {
+        titulo:     newsData.title,
+        alegacao:   newsData.alegacao  ?? newsData.content  ?? undefined,
+        descricao:  newsData.descricao ?? undefined,
+        link:       newsData.url       ?? newsData.link     ?? undefined,
+        fonte:      newsData.source    ?? newsData.fonte    ?? undefined,
+        prioridade: newsData.priority  ?? undefined,
+      });
+      setNews(prev => prev.map(n => n.id === newsId ? { ...n, ...updated } : n));
+      addAuditLog('edit_news', `Notícia #${newsId}`, `Editou: "${updated.title}"`);
+    } catch (err) {
+      console.error('Erro ao editar notícia:', err);
+      addNotification({
+        title: 'Erro ao Editar',
+        message: err instanceof Error ? err.message : 'Não foi possível salvar as alterações.',
+        type: 'error',
+        category: 'system',
+      });
+    }
   };
 
   const handleForwardToTriage = (receivedItem: ReceivedNewsItem) => {
@@ -687,17 +837,25 @@ function App() {
     }, 15000); // 15 seconds for simulation
   };
 
-  const handleMoveTask = (newsId: string, targetStatus: 'pending' | 'in_progress') => {
+  const handleMoveTask = async (newsId: string, targetStatus: 'pending' | 'in_progress') => {
+    const item = news.find(n => n.id === newsId);
+    if (item?.checagemId && targetStatus === 'in_progress') {
+      try {
+        await apiService.iniciarChecagem(item.checagemId);
+      } catch {
+        // Já iniciada; continua
+      }
+    }
+
     setNews(prev => prev.map(n => {
       if (n.id === newsId) {
         if (targetStatus === 'in_progress') {
-          // Initialize report structure if it doesn't exist (same logic as handleStartAnalysis)
           if (!n.reportStructure) {
             return {
               ...n,
               status: 'in_progress' as const,
               startTime: new Date().toISOString(),
-              assignedTo: user.id,
+              assignedTo: n.assignedTo ?? user.id,
               reportStructure: {
                 summary: '',
                 questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
@@ -708,17 +866,17 @@ function App() {
               }
             };
           }
-          return { ...n, status: 'in_progress' as const, assignedTo: user.id };
+          return { ...n, status: 'in_progress' as const, assignedTo: n.assignedTo ?? user.id };
         } else {
-          // Move back to pending
           return { ...n, status: 'pending' as const, assignedTo: undefined };
         }
       }
       return n;
     }));
+
     const targetNews = news.find(n => n.id === newsId);
     const statusLabel = targetStatus === 'in_progress' ? 'Em Análise' : 'Pendente';
-    addAuditLog('move_task', `Notícia #${newsId}`, `Moveu notícia "${targetNews?.title}" para status ${statusLabel}`);
+    addAuditLog('move_task', `Notícia #${newsId}`, `Moveu "${targetNews?.title}" para ${statusLabel}`);
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -781,14 +939,18 @@ function App() {
   };
 
   const handleLogout = () => {
+    clearToken();
     setIsAuthenticated(false);
-    setUser(MOCK_USER); // Reset to a safe default
+    setUser(PLACEHOLDER_USER);
+    setNews([]);
+    setUsers([]);
     navigate('/');
   };
   (window as any).handleAppLogout = handleLogout;
 
-  const handleLogin = (selectedUser: UserProfile) => {
-    setUser(selectedUser);
+  const handleLogin = async (email: string, password: string) => {
+    const { user: loggedUser } = await apiService.login(email, password);
+    setUser(loggedUser);
     setIsAuthenticated(true);
   };
 
@@ -893,6 +1055,7 @@ function App() {
                 onReopen={handleReopen}
                 setSelectedNewsId={setSelectedNewsId}
                 onAddNews={handleRegisterNews}
+                onEditNews={handleEditNews}
                 receivedNews={receivedNews}
                 onForwardToTriage={handleForwardToTriage}
                 onDeleteReceivedNews={handleDeleteReceivedNews}
@@ -999,4 +1162,6 @@ const AnalysisRouteWrapper = (props: any) => {
   );
 };
 
-export default App;
+export default function App() {
+  return <AppContent />;
+}
