@@ -20,6 +20,7 @@ public class ChecagemService {
 
     private final ChecagemRepository checagemRepo;
     private final ParecerRepository parecerRepo;
+    private final InvestigacaoRepository investigacaoRepo;
     private final EvidenciaRepository evidenciaRepo;
     private final EtiquetaRepository etiquetaRepo;
     private final ChecagemMapper mapper;
@@ -43,27 +44,29 @@ public class ChecagemService {
     }
 
     @Transactional
-    public ParecerDto salvarEstruturaRelatorio(Long checagemId, EstruturaRelatorioRequest req, Long usuarioId) {
+    public InvestigacaoDto salvarInvestigacao(Long checagemId, SalvarInvestigacaoRequest req, Long usuarioId) {
         Checagem ch = buscarChecagem(checagemId);
-        Parecer parecer = parecerRepo.findByChecagemId(checagemId).orElse(new Parecer());
-        parecer.setChecagem(ch);
-        parecer.setResumo(req.resumo());
-        parecer.setInverificavel(req.inverificavel());
+        Investigacao inv = investigacaoRepo.findByChecagemId(checagemId).orElse(new Investigacao());
+        inv.setChecagem(ch);
+        inv.setResumoMetodologia(req.resumo());
+        inv.setInverificavel(req.inverificavel());
+        inv.setAtualizadoEm(LocalDateTime.now());
 
         if (req.perguntas() != null) {
-            parecer.setPerguntas(toJson(req.perguntas()));
+            inv.setPerguntas(toJson(req.perguntas()));
         }
         if (req.fontes() != null) {
-            parecer.setFontes(toJson(req.fontes()));
+            inv.setFontes(toJson(req.fontes()));
         }
         if (req.contatoAutor() != null) {
-            parecer.setContatoAutor(toJson(req.contatoAutor()));
-            parecer.setRespostaAutor(req.contatoAutor().response());
+            inv.setContatoRealizado(req.contatoAutor().hadContact());
+            inv.setRespostaAutor(req.contatoAutor().response());
+            inv.setJustificativaSemContato(req.contatoAutor().justificacao());
         }
 
-        parecerRepo.save(parecer);
-        auditoria.registrar(usuarioId, "estrutura_salva", "checagem:" + checagemId, null);
-        return mapper.toParecerDto(parecer);
+        investigacaoRepo.save(inv);
+        auditoria.registrar(usuarioId, "investigacao_salva", "checagem:" + checagemId, null);
+        return mapper.toInvestigacaoDto(inv);
     }
 
     @Transactional(readOnly = true)
@@ -161,8 +164,9 @@ public class ChecagemService {
 
     private ChecagemDto toDto(Checagem ch) {
         Parecer parecer = parecerRepo.findByChecagemId(ch.getId()).orElse(null);
+        Investigacao investigacao = investigacaoRepo.findByChecagemId(ch.getId()).orElse(null);
         List<Evidencia> evidencias = evidenciaRepo.findByChecagemId(ch.getId());
-        return mapper.toDto(ch, parecer, evidencias);
+        return mapper.toDto(ch, parecer, investigacao, evidencias);
     }
 
     private String toJson(Object obj) {

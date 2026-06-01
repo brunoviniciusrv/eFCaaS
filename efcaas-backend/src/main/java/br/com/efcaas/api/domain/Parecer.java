@@ -22,24 +22,6 @@ public class Parecer {
     @JoinColumn(name = "id_etiqueta")
     private Etiqueta etiqueta;
 
-    @Column(columnDefinition = "TEXT")
-    private String resumo;
-
-    @Column(columnDefinition = "TEXT")
-    private String fontes;
-
-    @Column(name = "resposta_autor", columnDefinition = "TEXT")
-    private String respostaAutor;
-
     @Column(name = "texto_parecer", columnDefinition = "TEXT")
     private String textoParecer;
-
-    @Column(columnDefinition = "TEXT")
-    private String perguntas;
-
-    @Column(nullable = false)
-    private boolean inverificavel = false;
-
-    @Column(name = "contato_autor", columnDefinition = "TEXT")
-    private String contatoAutor;
 }

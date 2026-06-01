@@ -288,53 +288,42 @@ function AppContent() {
   };
 
   const handleAssign = async (newsId: string, checkerId: string, briefing: string) => {
-    try {
-      const checagem = await apiService.atribuirChecagem(newsId, {
-        checadorId: Number(checkerId),
-        briefing,
-      });
-      setNews(prev => prev.map(n => n.id === newsId ? {
-        ...n,
-        status: 'in_progress',
-        assignedTo: checagem.checadorId,
-        briefing: checagem.briefing,
-        checagemId: checagem.id,
-        assignmentHistory: [
-          ...(n.assignmentHistory || []),
-          {
-            id: Math.random().toString(36).substr(2, 9),
-            assignedTo: checagem.checadorId,
-            assignedBy: user.id,
-            timestamp: new Date().toISOString(),
-            action: 'assigned' as const,
-            reason: briefing
-          }
-        ]
-      } : n));
+    const updated = await apiService.atribuirConteudo(newsId, {
+      checadorId: Number(checkerId),
+      briefing,
+    });
 
-      const newsItem = news.find(n => n.id === newsId);
-      const targetUser = users.find(u => u.id === checkerId);
-      if (newsItem) {
-        addNotification({
-          title: 'Nova Tarefa Atribuída',
-          message: `Você recebeu uma nova tarefa: ${newsItem.title}`,
-          type: 'info',
-          category: 'assignment',
-          targetUserId: checkerId,
-          relatedNewsId: newsId,
-          link: `/analysis/${newsId}`
-        });
-      }
-      addAuditLog('assign_task', `Notícia #${newsId}`, `Atribuiu para ${targetUser?.name ?? checkerId}. Briefing: ${briefing}`);
-    } catch (err) {
-      console.error('Erro ao atribuir checagem:', err);
-      addNotification({
-        title: 'Erro ao Atribuir',
-        message: err instanceof Error ? err.message : 'Não foi possível atribuir a checagem.',
-        type: 'error',
-        category: 'system',
-      });
-    }
+    setNews(prev => prev.map(n => n.id === newsId ? {
+      ...n,
+      ...updated,
+      assignmentHistory: [
+        ...(n.assignmentHistory || []),
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          assignedTo: updated.assignedTo ?? checkerId,
+          assignedBy: user.id,
+          timestamp: new Date().toISOString(),
+          action: 'assigned' as const,
+          reason: briefing,
+        },
+      ],
+    } : n));
+
+    const targetUser = users.find(u => u.id === checkerId);
+    addNotification({
+      title: 'Nova Tarefa Atribuída',
+      message: `Você recebeu uma nova tarefa: ${updated.title}`,
+      type: 'info',
+      category: 'assignment',
+      targetUserId: checkerId,
+      relatedNewsId: newsId,
+      link: `/analysis/${newsId}`,
+    });
+    addAuditLog(
+      'assign_task',
+      `Notícia #${newsId}`,
+      `Atribuiu para ${targetUser?.name ?? checkerId}. Briefing: ${briefing}`,
+    );
   };
 
   const handleApprove = async (newsId: string, comments: string) => {
@@ -578,7 +567,7 @@ function AppContent() {
         ? Number(labels[0].id)
         : undefined;
 
-      const created = await apiService.criarConteudo({
+      let created = await apiService.criarConteudo({
         titulo:    newsData.title,
         alegacao:  newsData.alegacao  ?? newsData.content  ?? undefined,
         descricao: newsData.descricao ?? undefined,
@@ -586,6 +575,13 @@ function AppContent() {
         fonte:     newsData.source    ?? newsData.fonte    ?? undefined,
         prioridade: newsData.priority ?? undefined,
       });
+
+      if (newsData.assignedTo) {
+        created = await apiService.atribuirConteudo(created.id, {
+          checadorId: Number(newsData.assignedTo),
+          briefing: newsData.briefing ?? '',
+        });
+      }
 
       setNews(prev => [created, ...prev]);
 
@@ -879,6 +875,13 @@ function AppContent() {
     addAuditLog('move_task', `Notícia #${newsId}`, `Moveu "${targetNews?.title}" para ${statusLabel}`);
   };
 
+  const handleCuratorMoveTask = async (newsId: string, newStatus: string): Promise<void> => {
+    await apiService.atualizarStatusConteudo(newsId, newStatus);
+    setNews(prev => prev.map(n => n.id === newsId ? { ...n, status: newStatus as NewsItem['status'] } : n));
+    const targetNews = news.find(n => n.id === newsId);
+    addAuditLog('move_task', `Notícia #${newsId}`, `Moveu "${targetNews?.title}" para ${newStatus}`);
+  };
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [profileForm, setProfileForm] = useState<UserProfile>(user);
   
@@ -951,6 +954,9 @@ function AppContent() {
   const handleLogin = async (email: string, password: string) => {
     const { user: loggedUser } = await apiService.login(email, password);
     setUser(loggedUser);
+    // Garante que perfis de permissão usem sempre a configuração mais recente,
+    // ignorando qualquer versão antiga que possa estar no localStorage.
+    setPermissionProfiles(INITIAL_PERMISSION_PROFILES);
     setIsAuthenticated(true);
   };
 
@@ -1065,6 +1071,7 @@ function AppContent() {
                 checkPermission={checkPermission}
                 onSendToSpecializedNetwork={handleSendToSpecializedNetwork}
                 specializedNetworkChecks={specializedNetworkChecks}
+                onMoveTask={handleCuratorMoveTask}
               />
             ) : <Navigate to="/dashboard" replace />
           } />

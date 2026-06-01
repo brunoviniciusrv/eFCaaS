@@ -80,7 +80,7 @@ interface CuratorDashboardProps {
   users: UserProfile[];
   currentUser: UserProfile;
   themeConfig: ThemeConfig;
-  onAssign: (newsId: string, checkerId: string, briefing: string) => void;
+  onAssign: (newsId: string, checkerId: string, briefing: string) => Promise<void>;
   onApprove: (newsId: string, comments: string) => void;
   onReject: (newsId: string, comments: string) => void;
   onReopen: (newsId: string, reason: string) => void;
@@ -96,6 +96,7 @@ interface CuratorDashboardProps {
   checkPermission: (permId: string) => boolean;
   onSendToSpecializedNetwork: (newsId: string) => void;
   specializedNetworkChecks: any[];
+  onMoveTask?: (newsId: string, newStatus: NewsStatus) => Promise<void>;
 }
 
 type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
@@ -121,7 +122,8 @@ export const CuratorDashboard = ({
   onClearNotifs,
   checkPermission,
   onSendToSpecializedNetwork,
-  specializedNetworkChecks
+  specializedNetworkChecks,
+  onMoveTask,
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CuratorTab>(
@@ -158,6 +160,8 @@ export const CuratorDashboard = ({
   };
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState('');
   const [assigningNewsId, setAssigningNewsId] = useState<string | null>(null);
   const [selectedCheckerId, setSelectedCheckerId] = useState<string>('');
   const [briefing, setBriefing] = useState('');
@@ -279,6 +283,7 @@ export const CuratorDashboard = ({
   };
 
   const handleOpenAssign = (id?: string) => {
+    setAssignError('');
     if (id) {
       setAssigningNewsId(id);
     } else if (selectedNewsIds.length > 0) {
@@ -289,20 +294,28 @@ export const CuratorDashboard = ({
     setIsAssignModalOpen(true);
   };
 
-  const executeAssign = () => {
-    if (!selectedCheckerId) return;
-    
-    if (assigningNewsId) {
-      onAssign(assigningNewsId, selectedCheckerId, briefing);
-    } else {
-      selectedNewsIds.forEach(id => onAssign(id, selectedCheckerId, briefing));
+  const executeAssign = async () => {
+    if (!selectedCheckerId || isAssigning) return;
+
+    setIsAssigning(true);
+    setAssignError('');
+
+    try {
+      const ids = assigningNewsId ? [assigningNewsId] : selectedNewsIds;
+      await Promise.all(
+        ids.map(id => onAssign(id, selectedCheckerId, briefing)),
+      );
+
+      setIsAssignModalOpen(false);
+      setAssigningNewsId(null);
+      setSelectedNewsIds([]);
+      setSelectedCheckerId('');
+      setBriefing('');
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Não foi possível atribuir a checagem.');
+    } finally {
+      setIsAssigning(false);
     }
-    
-    setIsAssignModalOpen(false);
-    setAssigningNewsId(null);
-    setSelectedNewsIds([]);
-    setSelectedCheckerId('');
-    setBriefing('');
   };
 
   const executeReview = (approved: boolean) => {
@@ -438,11 +451,31 @@ export const CuratorDashboard = ({
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination || !setNews) return;
-    
+
     const { draggableId, destination } = result;
     const newStatus = destination.droppableId as NewsStatus;
-    
+    const item = news.find(n => n.id === draggableId);
+    if (!item || item.status === newStatus) return;
+
+    // completed e to_rectify exigem ação formal (aprovar/rejeitar)
+    if (newStatus === 'completed') {
+      alert('Para concluir, use a aba "Revisões" e clique em "Aprovar e Publicar".\nIsso garante o registro formal da revisão no banco.');
+      return;
+    }
+    if (newStatus === 'to_rectify') {
+      alert('Para rejeitar e retificar, use a aba "Revisões" e clique em "Solicitar Correções".');
+      return;
+    }
+
+    // Para pending, in_progress e final_review: persiste via API
     setNews(prev => prev.map(n => n.id === draggableId ? { ...n, status: newStatus } : n));
+    if (onMoveTask) {
+      onMoveTask(draggableId, newStatus).catch(() => {
+        // Reverte em caso de erro
+        setNews(prev => prev.map(n => n.id === draggableId ? { ...n, status: item.status } : n));
+        alert('Não foi possível atualizar o status. Tente novamente.');
+      });
+    }
   };
 
   const handlePromoteTrend = (trend: any) => {
@@ -1782,21 +1815,32 @@ export const CuratorDashboard = ({
                     } as any}
                   />
                 </div>
+                {assignError && (
+                  <p className="text-xs font-bold text-red-500">{assignError}</p>
+                )}
               </div>
               <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setIsAssignModalOpen(false)}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                  disabled={isAssigning}
+                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100 disabled:opacity-40"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={executeAssign}
-                  disabled={!selectedCheckerId}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+                  disabled={!selectedCheckerId || isAssigning}
+                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
-                  Confirmar Atribuição
+                  {isAssigning ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Atribuindo...
+                    </>
+                  ) : (
+                    'Confirmar Atribuição'
+                  )}
                 </button>
               </div>
             </motion.div>

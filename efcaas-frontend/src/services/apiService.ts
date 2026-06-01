@@ -50,22 +50,24 @@ export interface ApiChecagemDto {
   status: string;
   dataInicio: string;
   dataConclusao: string;
+  investigacao: ApiInvestigacaoDto | null;
   parecer: ApiParecerDto | null;
   evidencias: ApiEvidenciaDto[];
 }
 
-export interface ApiParecerDto {
+export interface ApiInvestigacaoDto {
   id: string;
-  resumo: string;
+  resumoMetodologia: string;
   perguntas: string[];
   fontes: string[];
   inverificavel: boolean;
-  contatoAutor: {
-    hadContact: boolean | null;
-    justificacao: string | null;
-    response: string | null;
-  } | null;
-  respostaAutor: string;
+  contatoRealizado: boolean | null;
+  respostaAutor: string | null;
+  justificativaSemContato: string | null;
+}
+
+export interface ApiParecerDto {
+  id: string;
   textoParecer: string;
   etiqueta: ApiEtiquetaDto | null;
 }
@@ -128,7 +130,6 @@ export interface EstruturaRelatorioBody {
     response: string | null;
   };
 }
-
 export interface SalvarParecerBody {
   textoParecer: string;
 }
@@ -167,6 +168,13 @@ const PROFILE_ID_MAP: Record<string, string> = {
 };
 
 const STATUS_API_TO_FRONT: Record<string, NewsItem['status']> = {
+  // valores persistidos pelo backend
+  pending: 'pending',
+  in_progress: 'in_progress',
+  final_review: 'final_review',
+  completed: 'completed',
+  to_rectify: 'to_rectify',
+  // aliases em português (legado)
   aguardando_checagem: 'pending',
   em_checagem: 'in_progress',
   aguardando_revisao: 'final_review',
@@ -175,11 +183,11 @@ const STATUS_API_TO_FRONT: Record<string, NewsItem['status']> = {
 };
 
 const STATUS_FRONT_TO_API: Record<string, string> = {
-  pending: 'aguardando_checagem',
-  in_progress: 'em_checagem',
-  final_review: 'aguardando_revisao',
-  completed: 'aprovado',
-  to_rectify: 'retificando',
+  pending: 'pending',
+  in_progress: 'in_progress',
+  final_review: 'final_review',
+  completed: 'completed',
+  to_rectify: 'to_rectify',
 };
 
 const PRIORITY_API_TO_FRONT: Record<string, NewsItem['priority']> = {
@@ -210,19 +218,19 @@ function mapUsuario(dto: ApiUsuarioDto): UserProfile {
   };
 }
 
-function mapParecer(parecer: ApiParecerDto | null): ReportStructure | undefined {
-  if (!parecer) return undefined;
+function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string): ReportStructure | undefined {
+  if (!inv && !etiquetaNome) return undefined;
   return {
-    summary: parecer.resumo ?? '',
-    questions: parecer.perguntas?.length ? parecer.perguntas : [''],
-    sources: parecer.fontes?.length ? parecer.fontes : [''],
-    isInverifiable: parecer.inverificavel ?? false,
+    summary: inv?.resumoMetodologia ?? '',
+    questions: inv?.perguntas?.length ? inv.perguntas : [''],
+    sources: inv?.fontes?.length ? inv.fontes : [''],
+    isInverifiable: inv?.inverificavel ?? false,
     contactWithAuthor: {
-      hadContact: parecer.contatoAutor?.hadContact ?? null,
-      justification: parecer.contatoAutor?.justificacao ?? undefined,
-      response: parecer.contatoAutor?.response ?? undefined,
+      hadContact: inv?.contatoRealizado ?? null,
+      response: inv?.respostaAutor ?? undefined,
+      justification: inv?.justificativaSemContato ?? undefined,
     },
-    label: parecer.etiqueta?.nome ?? undefined,
+    label: etiquetaNome,
   };
 }
 
@@ -260,7 +268,10 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
     completedAt: ch?.dataConclusao ?? undefined,
     checagemId: ch?.id ?? undefined,
     evidence: mapEvidencias(ch?.evidencias ?? []),
-    reportStructure: mapParecer(ch?.parecer ?? null),
+    reportStructure: mapInvestigacao(
+      ch?.investigacao ?? null,
+      ch?.parecer?.etiqueta?.nome ?? undefined,
+    ),
     report: ch?.parecer?.textoParecer ?? undefined,
     assignmentHistory: [],
   };
@@ -361,6 +372,12 @@ export const apiService = {
     return api.post<ApiChecagemDto>(`/conteudos/${conteudoId}/atribuir`, body);
   },
 
+  /** Atribui checador e retorna o conteúdo atualizado do banco. */
+  async atribuirConteudo(conteudoId: string, body: AtribuirChecagemBody): Promise<NewsItem> {
+    await api.post<ApiChecagemDto>(`/conteudos/${conteudoId}/atribuir`, body);
+    return this.obterConteudo(conteudoId);
+  },
+
   async aprovarConteudo(conteudoId: string, justificativa?: string): Promise<void> {
     return api.post<void>(`/conteudos/${conteudoId}/revisao/aprovar`, { justificativa });
   },
@@ -381,8 +398,8 @@ export const apiService = {
   async salvarEstruturaRelatorio(
     checagemId: string,
     body: EstruturaRelatorioBody
-  ): Promise<ApiParecerDto> {
-    return api.patch<ApiParecerDto>(`/checagens/${checagemId}/estrutura-relatorio`, body);
+  ): Promise<ApiInvestigacaoDto> {
+    return api.put<ApiInvestigacaoDto>(`/checagens/${checagemId}/investigacao`, body);
   },
 
   async salvarParecer(checagemId: string, body: SalvarParecerBody): Promise<ApiParecerDto> {

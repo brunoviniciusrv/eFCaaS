@@ -37,14 +37,25 @@ public class ChecagemController {
         return ResponseEntity.ok(service.obterDetalhe(id));
     }
 
+    @PutMapping("/{id}/investigacao")
+    @PreAuthorize("hasAuthority('perform_analysis')")
+    @Operation(summary = "Salvar dados de investigação (perguntas, metodologia, contato com autor)")
+    public ResponseEntity<InvestigacaoDto> salvarInvestigacao(
+            @PathVariable Long id,
+            @RequestBody SalvarInvestigacaoRequest request,
+            Authentication auth) {
+        return ResponseEntity.ok(service.salvarInvestigacao(id, request, Long.parseLong(auth.getName())));
+    }
+
+    /** @deprecated Use PUT /{id}/investigacao */
     @PatchMapping("/{id}/estrutura-relatorio")
     @PreAuthorize("hasAuthority('perform_analysis')")
-    @Operation(summary = "Salvar estrutura do relatório (resumo, perguntas, fontes)")
-    public ResponseEntity<ParecerDto> salvarEstrutura(
+    @Operation(summary = "[Deprecated] Alias para PUT /{id}/investigacao")
+    public ResponseEntity<InvestigacaoDto> salvarEstruturaLegado(
             @PathVariable Long id,
-            @RequestBody EstruturaRelatorioRequest request,
+            @RequestBody SalvarInvestigacaoRequest request,
             Authentication auth) {
-        return ResponseEntity.ok(service.salvarEstruturaRelatorio(id, request, Long.parseLong(auth.getName())));
+        return ResponseEntity.ok(service.salvarInvestigacao(id, request, Long.parseLong(auth.getName())));
     }
 
     @GetMapping("/{id}/parecer")

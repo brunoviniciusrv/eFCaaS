@@ -47,7 +47,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Curador',
     description: 'Responsável pela triagem inicial, recebimento de denúncias e distribuição de tarefas.',
     isDefault: true,
-    permissions: ['view_dashboard', 'view_curator', 'create_news', 'manage_received', 'manage_triage', 'assign_tasks']
+    permissions: ['view_dashboard', 'view_curator', 'create_news', 'manage_received', 'manage_triage', 'assign_tasks', 'review_and_approve']
   },
   {
     id: 'p-checker',

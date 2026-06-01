@@ -3,6 +3,7 @@ package br.com.efcaas.api.web.mapper;
 import br.com.efcaas.api.domain.Checagem;
 import br.com.efcaas.api.domain.Etiqueta;
 import br.com.efcaas.api.domain.Evidencia;
+import br.com.efcaas.api.domain.Investigacao;
 import br.com.efcaas.api.domain.Parecer;
 import br.com.efcaas.api.web.dto.*;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,7 +20,7 @@ public class ChecagemMapper {
 
     private final ObjectMapper objectMapper;
 
-    public ChecagemDto toDto(Checagem ch, Parecer parecer, List<Evidencia> evidencias) {
+    public ChecagemDto toDto(Checagem ch, Parecer parecer, Investigacao investigacao, List<Evidencia> evidencias) {
         return new ChecagemDto(
                 str(ch.getId()),
                 str(ch.getConteudo().getId()),
@@ -29,20 +30,33 @@ public class ChecagemMapper {
                 ch.getStatus(),
                 ch.getDataInicio() != null ? ch.getDataInicio().toString() : null,
                 ch.getDataConclusao() != null ? ch.getDataConclusao().toString() : null,
+                investigacao != null ? toInvestigacaoDto(investigacao) : null,
                 parecer != null ? toParecerDto(parecer) : null,
                 evidencias != null ? evidencias.stream().map(this::toEvidenciaDto).toList() : Collections.emptyList()
+        );
+    }
+
+    /** Sobrecarga de compatibilidade para chamadas sem investigacao (ex.: listagens). */
+    public ChecagemDto toDto(Checagem ch, Parecer parecer, List<Evidencia> evidencias) {
+        return toDto(ch, parecer, null, evidencias);
+    }
+
+    public InvestigacaoDto toInvestigacaoDto(Investigacao inv) {
+        return new InvestigacaoDto(
+                str(inv.getId()),
+                inv.getResumoMetodologia(),
+                parseStringList(inv.getPerguntas()),
+                parseStringList(inv.getFontes()),
+                inv.isInverificavel(),
+                inv.getContatoRealizado(),
+                inv.getRespostaAutor(),
+                inv.getJustificativaSemContato()
         );
     }
 
     public ParecerDto toParecerDto(Parecer p) {
         return new ParecerDto(
                 str(p.getId()),
-                p.getResumo(),
-                parseStringList(p.getPerguntas()),
-                parseStringList(p.getFontes()),
-                p.isInverificavel(),
-                parseContatoAutor(p.getContatoAutor()),
-                p.getRespostaAutor(),
                 p.getTextoParecer(),
                 p.getEtiqueta() != null ? toEtiquetaDto(p.getEtiqueta()) : null
         );
@@ -67,15 +81,6 @@ public class ChecagemMapper {
             return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception e) {
             return Collections.emptyList();
-        }
-    }
-
-    private ContatoAutorDto parseContatoAutor(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, ContatoAutorDto.class);
-        } catch (Exception e) {
-            return null;
         }
     }
 

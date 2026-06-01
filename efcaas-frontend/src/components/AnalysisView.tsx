@@ -33,7 +33,9 @@ import {
   RotateCcw,
   ArrowRight,
   Clock,
-  UserPlus
+  UserPlus,
+  Ban,
+  ShieldOff
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -145,6 +147,8 @@ export const AnalysisView = ({
     contactWithAuthor: { hadContact: null },
     label: undefined
   };
+
+  const aiScores = selectedNews.aiScores ?? { gravity: 0, urgency: 0, trend: 0 };
 
   const getToolIcon = (iconName: string) => {
     switch (iconName) {
@@ -457,9 +461,9 @@ export const AnalysisView = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[
-                      { label: 'Gravidade', value: selectedNews.aiScores.gravity, icon: AlertCircle, color: themeConfig.status.error },
-                      { label: 'Urgência', value: selectedNews.aiScores.urgency, icon: Sparkles, color: themeConfig.status.warning },
-                      { label: 'Tendência', value: selectedNews.aiScores.trend, icon: History, color: themeConfig.status.info }
+                      { label: 'Gravidade', value: aiScores.gravity, icon: AlertCircle, color: themeConfig.status.error },
+                      { label: 'Urgência', value: aiScores.urgency, icon: Sparkles, color: themeConfig.status.warning },
+                      { label: 'Tendência', value: aiScores.trend, icon: History, color: themeConfig.status.info }
                     ].map((score, idx) => (
                       <div 
                         key={idx} 
@@ -658,7 +662,59 @@ export const AnalysisView = ({
                   </div>
                 </section>
 
-                 {/* 3. Investigation & Evidence List */}
+                {/* Inverificável toggle */}
+                <section>
+                  {reportStructure.isInverifiable ? (
+                    <div className="rounded-3xl border-2 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5"
+                      style={{ backgroundColor: '#fff7ed', borderColor: '#f97316' }}>
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: '#f97316' }}>
+                        <Ban size={22} className="text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black uppercase tracking-wider" style={{ color: '#9a3412' }}>
+                          Conteúdo marcado como Inverificável
+                        </p>
+                        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#c2410c' }}>
+                          Este conteúdo não pode ser verificado com as ferramentas e fontes disponíveis.
+                          A classificação final deverá refletir essa condição.
+                        </p>
+                      </div>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleUpdateReportStructure({ isInverifiable: false })}
+                          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl border-2 text-xs font-black transition-all"
+                          style={{ borderColor: '#f97316', color: '#9a3412', backgroundColor: 'transparent' }}
+                        >
+                          <ShieldOff size={14} />
+                          Desfazer
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    canEdit && (
+                      <button
+                        onClick={() => handleUpdateReportStructure({ isInverifiable: true })}
+                        className="w-full rounded-3xl border-2 border-dashed p-5 flex items-center gap-4 text-left transition-all group hover:border-orange-400 hover:bg-orange-50/20"
+                        style={{ borderColor: themeConfig.general.border }}
+                      >
+                        <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-orange-500 group-hover:bg-orange-50 transition-colors shrink-0">
+                          <Ban size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700 group-hover:text-orange-700 transition-colors">
+                            Marcar como Inverificável
+                          </p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-orange-400 transition-colors leading-tight mt-0.5">
+                            Não é possível verificar este conteúdo
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  )}
+                </section>
+
+                 {/* Investigação & Verificação */}
                 <section 
                   className="rounded-3xl border shadow-sm overflow-hidden"
                   style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}

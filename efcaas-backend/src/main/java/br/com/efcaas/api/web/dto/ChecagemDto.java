@@ -11,6 +11,7 @@ public record ChecagemDto(
         String status,
         String dataInicio,
         String dataConclusao,
+        InvestigacaoDto investigacao,
         ParecerDto parecer,
         List<EvidenciaDto> evidencias
 ) {}
