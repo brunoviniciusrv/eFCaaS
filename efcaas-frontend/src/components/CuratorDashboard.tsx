@@ -65,6 +65,7 @@ import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
+import { apiService, YoutubeResultadoDto } from '../services/apiService';
 
 import { 
   DragDropContext, 
@@ -336,51 +337,38 @@ export const CuratorDashboard = ({
     });
   };
 
-  const handleExecuteExtraction = () => {
-    setIsExtracting(true);
-    // Simulate extraction
-    setTimeout(() => {
-      const mockResults: ReceivedNewsItem[] = [
-        {
-          id: 'ext-' + Math.random().toString(36).substr(2, 9),
-          title: 'Suposto vídeo mostra irregularidade em contagem de votos',
-          content: 'Conteúdo extraído do YouTube com base na busca por eleições 2024. O vídeo apresenta sinais de manipulação digital.',
-          excerpt: 'Vídeo viralizado em grupos de discussão sobre o processo eleitoral.',
-          sourceType: 'YouTube',
-          receivedAt: new Date().toISOString(),
-          status: 'received',
-          senderName: 'Monitor de Busca',
-          media: [{ type: 'video', url: '#' }]
-        },
-        {
-          id: 'ext-' + Math.random().toString(36).substr(2, 9),
-          title: 'Novos efeitos colaterais de vacina X relatados no Reddit',
-          content: 'Discussão capturada no r/SaudePublica sobre relatos não confirmados de novos efeitos colaterais.',
-          excerpt: 'Thread com alto engajamento nas últimas 24 horas.',
-          sourceType: 'Reddit',
-          receivedAt: new Date().toISOString(),
-          status: 'received',
-          senderName: 'Monitor de Busca',
-          media: [{ type: 'document', url: '#' }]
-        },
-        {
-          id: 'ext-' + Math.random().toString(36).substr(2, 9),
-          title: 'Mensagem encaminhada sobre novo golpe do Pix',
-          content: 'Alerta sobre modalidade de fraude circulando em canais do Telegram.',
-          excerpt: 'Texto padrão circulando em massa em canais abertos.',
-          sourceType: 'Telegram',
-          receivedAt: new Date().toISOString(),
-          status: 'received',
-          senderName: 'Monitor de Busca',
-          media: [{ type: 'image', url: '#' }]
-        }
-      ];
+  const mapYoutubeToReceivedNews = (dto: YoutubeResultadoDto): ReceivedNewsItem => ({
+    id: 'yt-' + Math.random().toString(36).substr(2, 9),
+    title: dto.titulo,
+    content: dto.conteudo ?? dto.descricao ?? '',
+    excerpt: dto.descricao ?? dto.conteudo?.substring(0, 120) ?? '',
+    sourceType: 'YouTube',
+    receivedAt: dto.publishedAt ?? new Date().toISOString(),
+    status: 'received',
+    senderName: dto.channelTitle ?? 'YouTube',
+    originalLink: dto.url,
+    media: dto.thumbnailHigh
+      ? [{ type: 'image' as const, url: dto.thumbnailHigh }]
+      : [],
+  });
 
-      setExtractionResults(mockResults);
-      setIsExtracting(false);
+  const handleExecuteExtraction = async () => {
+    if (!extractionParams.query.trim()) {
+      alert('Informe um termo de busca antes de iniciar.');
+      return;
+    }
+    setIsExtracting(true);
+    try {
+      const results = await apiService.buscarYoutube({
+        query: extractionParams.query,
+        limit: extractionParams.userLimit || 10,
+        startDate: extractionParams.startDate || undefined,
+        endDate: extractionParams.endDate || undefined,
+      });
+
+      setExtractionResults(results.map(mapYoutubeToReceivedNews));
       setIsExtractionModalOpen(false);
       setShowExtractionResults(true);
-      
       setExtractionParams({
         query: '',
         userLimit: 100,
@@ -394,7 +382,11 @@ export const CuratorDashboard = ({
           telegram: true
         }
       });
-    }, 2000);
+    } catch (err) {
+      alert('Erro na busca do YouTube: ' + (err instanceof Error ? err.message : 'Tente novamente.'));
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const getSLAStatus = (startTime?: string) => {
@@ -705,8 +697,18 @@ export const CuratorDashboard = ({
                         <Eye size={14} />
                         Detalhes
                       </button>
-                      <button 
-                        onClick={() => onForwardToTriage(item)}
+                      <button
+                        onClick={() => {
+                          onAddNews({
+                            title: item.title,
+                            alegacao: item.content,
+                            descricao: item.excerpt,
+                            link: item.originalLink,
+                            fonte: item.senderName,
+                            priority: 'medium',
+                          });
+                          setExtractionResults(prev => prev.filter(r => r.id !== item.id));
+                        }}
                         className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
                         style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
                       >

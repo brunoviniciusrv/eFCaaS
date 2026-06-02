@@ -54,6 +54,11 @@ efcaas:
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
 
+denodare:
+  base-url: ${DENODARE_BASE_URL:https://homolog.denodare.inf.ufg.br/api}
+  email: ${DENODARE_EMAIL:}
+  password: ${DENODARE_PASSWORD:}
+
 ---
 spring:
   config:
