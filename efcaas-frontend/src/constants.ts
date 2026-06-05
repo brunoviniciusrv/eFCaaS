@@ -47,7 +47,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Curador',
     description: 'Responsável pela triagem inicial, recebimento de denúncias e distribuição de tarefas.',
     isDefault: true,
-    permissions: ['view_dashboard', 'view_curator', 'create_news', 'manage_received', 'manage_triage', 'assign_tasks']
+    permissions: ['view_dashboard', 'view_curator', 'create_news', 'manage_received', 'manage_triage', 'assign_tasks', 'review_and_approve']
   },
   {
     id: 'p-checker',
@@ -65,50 +65,17 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
   }
 ];
 
-export const MOCK_USER: UserProfile = {
-  id: 'u1',
-  name: 'Ricardo Alencar',
-  email: 'ricardo.alencar@ais-news.com',
-  role: 'admin',
-  profileId: 'p-admin',
+// Usuário vazio usado como estado inicial antes do login.
+// Os dados reais são carregados da API após autenticação.
+export const PLACEHOLDER_USER: UserProfile = {
+  id: '',
+  name: '',
+  email: '',
+  role: 'checker',
+  profileId: 'p-checker',
   status: 'active',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ricardo',
-  bio: 'Arquiteto de sistemas sênior com 15 anos de experiência em segurança da informação e combate a fake news.'
+  avatarUrl: '',
 };
-
-export const MOCK_USERS: UserProfile[] = [
-  MOCK_USER,
-  {
-    id: 'u2',
-    name: 'Beatriz Santos',
-    email: 'beatriz.santos@factcheck.org',
-    role: 'checker',
-    profileId: 'p-checker',
-    status: 'active',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Beatriz',
-    bio: 'Jornalista investigativa apaixonada por transparência pública e análise de dados governamentais.'
-  },
-  {
-    id: 'u3',
-    name: 'Carlos Eduardo',
-    email: 'cadu.editor@ais-news.com',
-    role: 'editor',
-    profileId: 'p-editor',
-    status: 'active',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carlos',
-    bio: 'Editor-chefe especializado em semiótica e discurso político, garantindo neutralidade e precisão editorial.'
-  },
-  {
-    id: 'u4',
-    name: 'Juliana Mendes',
-    email: 'juliana.mendes@curadoria.com',
-    role: 'curator',
-    profileId: 'p-curator',
-    status: 'active',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Juliana',
-    bio: 'Especialista em fluxos de informação e monitoramento de redes sociais em tempo real.'
-  }
-];
 
 const now = new Date();
 const formatDate = (daysAgo: number) => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -33,14 +33,68 @@ import {
   RotateCcw,
   ArrowRight,
   Clock,
-  UserPlus
+  UserPlus,
+  Ban,
+  ShieldOff
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from './StatusBadge';
+import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile } from '../types';
 import { TOOLS } from '../constants';
+import { apiService, ApiAuditoriaDto } from '../services/apiService';
+
+// ─── Auditoria helpers ──────────────────────────────────────────────────────
+
+const NOMES_CAMPOS: Record<string, string> = {
+  resumo_metodologia: 'Metodologia de Checagem',
+  perguntas: 'Perguntas de Investigação',
+  fontes: 'Fontes Consultadas',
+  inverificavel: 'Status Inverificável',
+  contato_autor: 'Contato com Autor',
+  texto_parecer: 'Redação do Parecer',
+};
+
+function formatarCamposAlterados(acao: string, detalhes: string | null): string {
+  if (acao === 'checagem_atribuida' && detalhes?.startsWith('checador:')) {
+    return detalhes.replace('checador:', '');
+  }
+  if (acao === 'parecer_finalizado' && detalhes) {
+    const etiqueta = detalhes.replace('etiqueta:', '');
+    return `com etiqueta "${etiqueta}"`;
+  }
+  if (acao === 'evidencia_adicionada' && detalhes) {
+    return `(${detalhes})`;
+  }
+  if (!detalhes) return '';
+  const campos = detalhes.split(',')
+    .map(c => NOMES_CAMPOS[c.trim()] ?? c.trim())
+    .filter(Boolean);
+  if (campos.length === 0) return '';
+  if (campos.length === 1) return `"${campos[0]}"`;
+  const ultimo = campos.pop();
+  return `"${campos.join('", "')}" e "${ultimo}"`;
+}
+
+function formatarDataAuditoria(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon: React.ReactNode }> = {
+  checagem_atribuida:  { verbo: 'atribuiu tarefa ao checador', color: '#3b82f6', icon: <UserPlus size={12} /> },
+  checagem_iniciada:   { verbo: 'iniciou a checagem',          color: '#3b82f6', icon: <Clock size={12} /> },
+  investigacao_salva:  { verbo: 'alterou',                     color: '#8b5cf6', icon: <Save size={12} /> },
+  parecer_salvo:       { verbo: 'salvou',                      color: '#8b5cf6', icon: <FileText size={12} /> },
+  parecer_finalizado:  { verbo: 'finalizou o Parecer',         color: '#10b981', icon: <CheckCircle size={12} /> },
+  evidencia_adicionada:{ verbo: 'adicionou Evidência',         color: '#f59e0b', icon: <Plus size={12} /> },
+  evidencia_removida:  { verbo: 'removeu uma Evidência',       color: '#ef4444', icon: <Trash2 size={12} /> },
+  _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
+};
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 interface AnalysisViewProps {
   selectedNews: NewsItem | undefined;
@@ -97,6 +151,32 @@ export const AnalysisView = ({
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
+
+  const [auditoriaLogs, setAuditoriaLogs] = useState<ApiAuditoriaDto[]>([]);
+  const [auditoriaLoading, setAuditoriaLoading] = useState(false);
+
+  const checagemId = selectedNews?.checagemId;
+
+  useEffect(() => {
+    if (!checagemId) return;
+    setAuditoriaLoading(true);
+    apiService.listarAuditoria(checagemId)
+      .then(setAuditoriaLogs)
+      .catch(() => setAuditoriaLogs([]))
+      .finally(() => setAuditoriaLoading(false));
+  }, [checagemId]);
+
+  // Para cada par (checador + tipo de ação) exibe apenas a ocorrência mais recente.
+  // Como o backend retorna ordenado por timestamp DESC, basta pegar a primeira ocorrência.
+  const auditoriaLogsUnicos = useMemo(() => {
+    const vistos = new Set<string>();
+    return auditoriaLogs.filter(log => {
+      const chave = `${log.usuarioNome}:${log.acao}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  }, [auditoriaLogs]);
   const [isAddingLink, setIsAddingLink] = React.useState(false);
   const [linkInput, setLinkInput] = React.useState('');
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
@@ -145,6 +225,8 @@ export const AnalysisView = ({
     label: undefined
   };
 
+  const aiScores = selectedNews.aiScores ?? { gravity: 0, urgency: 0, trend: 0 };
+
   const getToolIcon = (iconName: string) => {
     switch (iconName) {
       case 'Search': return Search;
@@ -161,15 +243,15 @@ export const AnalysisView = ({
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* Header */}
         <header 
-          className="border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50"
+          className="border-b px-4 sm:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sticky top-0 z-50"
           style={{ 
             backgroundColor: themeConfig.header.background, 
             color: themeConfig.header.text,
             borderColor: themeConfig.header.border
           }}
         >
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full xl:w-auto">
+            <div className="flex items-center gap-4 shrink-0">
               <button 
                 onClick={() => { setSelectedNewsId(null); setCurrentView('dashboard'); }}
                 className="p-2 rounded-full transition-colors hover:bg-black/5"
@@ -185,36 +267,25 @@ export const AnalysisView = ({
               </div>
             </div>
 
-            <div className="h-8 w-px bg-slate-200 mx-2" />
+            <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block" />
 
-            <nav className="flex items-center gap-1">
-              {[
-                { id: 'content', label: '1. Conteúdo', icon: FileIcon },
-                { id: 'metrics', label: '2. Métricas IA', icon: Sparkles },
-                { id: 'investigation', label: '3. Investigação', icon: Search },
-                { id: 'result', label: '4. Parecer', icon: FileText },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                    activeTab === tab.id 
-                      ? "shadow-sm" 
-                      : "opacity-40 hover:opacity-100 hover:bg-black/5"
-                  )}
-                  style={{ 
-                    backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-                    color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.header.text,
-                  }}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
+            <nav className="w-full sm:w-auto overflow-hidden">
+               <ResponsiveTabs
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab as any}
+                  themeConfig={themeConfig}
+                  tabs={[
+                    { id: 'content', label: '1. Conteúdo', icon: FileIcon },
+                    { id: 'metrics', label: '2. Métricas IA', icon: Sparkles },
+                    { id: 'investigation', label: '3. Investigação', icon: Search },
+                    { id: 'result', label: '4. Parecer', icon: FileText },
+                  ]}
+                  buttonClassName="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
+                  inactiveButtonClassName="opacity-40 hover:opacity-100 hover:bg-black/5"
+               />
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
             {canEdit && (
               <>
                 <button 
@@ -323,8 +394,22 @@ export const AnalysisView = ({
                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                               <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Fonte Original / Veículo</label>
                               <div className="flex items-center gap-2">
-                                <LinkIcon size={14} className="opacity-40" />
-                                <span className="text-sm font-bold text-blue-600 truncate">{selectedNews.source}</span>
+                                <LinkIcon size={14} className="opacity-40 shrink-0" />
+                                {selectedNews.link ? (
+                                  <a
+                                    href={selectedNews.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors"
+                                    title={selectedNews.link}
+                                  >
+                                    {selectedNews.fonte || selectedNews.source || selectedNews.link}
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-blue-600 truncate">
+                                    {selectedNews.fonte || selectedNews.source || '—'}
+                                  </span>
+                                )}
                               </div>
                            </div>
                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
@@ -367,7 +452,7 @@ export const AnalysisView = ({
                     </section>
 
                     {/* Action History section */}
-                    <section 
+                    <section
                       className="rounded-3xl border shadow-sm overflow-hidden mt-8"
                       style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
                     >
@@ -376,75 +461,56 @@ export const AnalysisView = ({
                           <History size={18} className="opacity-60" />
                           <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Histórico de Ações</h3>
                         </div>
+                        {auditoriaLogsUnicos.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 opacity-60">
+                            {auditoriaLogsUnicos.length} {auditoriaLogsUnicos.length === 1 ? 'registro' : 'registros'}
+                          </span>
+                        )}
                       </div>
-                      <div className="p-8">
-                        <div className="space-y-6">
-                          {selectedNews.assignmentHistory?.map((h, i) => (
-                            <div key={h.id} className="relative flex gap-6 pb-2">
-                              {i !== selectedNews.assignmentHistory!.length - 1 && (
-                                <div className="absolute left-[11px] top-[24px] bottom-0 w-px bg-slate-100" />
-                              )}
-                              <div className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10",
-                                h.action === 'assigned' ? "bg-blue-100 text-blue-600" :
-                                h.action === 'reopened' ? "bg-amber-100 text-amber-600" :
-                                h.action === 'rejected' ? "bg-red-100 text-red-600" :
-                                "bg-slate-100 text-slate-600"
-                              )}>
-                                {h.action === 'assigned' && <UserPlus size={12} />}
-                                {h.action === 'reopened' && <RotateCcw size={12} />}
-                                {h.action === 'rejected' && <XCircle size={12} />}
-                                {h.action === 'reassigned' && <Users size={12} />}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p className="text-xs font-bold uppercase tracking-widest">
-                                    {h.action === 'assigned' ? 'Notícia Atribuída' : 
-                                     h.action === 'reopened' ? 'Checagem Reaberta' :
-                                     h.action === 'rejected' ? 'Revisão Rejeitada' :
-                                     'Tarefa Reatribuída'}
-                                  </p>
-                                  <span className="text-[10px] opacity-40 font-medium">
-                                    {new Date(h.timestamp).toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
-                                  <p className="opacity-70 mb-2 leading-relaxed">
-                                    {h.action === 'assigned' && `Responsável definido para o fluxo de triagem.`}
-                                    {h.action === 'reopened' && `A checagem foi recusada e enviada para correções.`}
-                                    {h.action === 'rejected' && `A revisão foi reprovada pelo editor.`}
-                                    {h.action === 'reassigned' && `Tarefa movida para outro responsável.`}
-                                  </p>
-                                  {h.reason && (
-                                    <div className="pt-2 border-t border-slate-200 mt-2 italic opacity-60">
-                                      "{h.reason}"
-                                    </div>
+                      <div className="p-6">
+                        {auditoriaLoading ? (
+                          <div className="text-center py-8 opacity-30 text-xs">Carregando histórico...</div>
+                        ) : auditoriaLogsUnicos.length === 0 ? (
+                          <div className="text-center py-8 opacity-30 italic text-xs">
+                            Nenhuma ação registrada para esta checagem.
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {auditoriaLogsUnicos.map((log, i) => {
+                              const campos = formatarCamposAlterados(log.acao, log.detalhes);
+                              const acaoConfig = AUDITORIA_ACAO_CONFIG[log.acao] ?? AUDITORIA_ACAO_CONFIG['_default'];
+                              return (
+                                <div key={log.id} className="relative flex gap-4">
+                                  {i !== auditoriaLogsUnicos.length - 1 && (
+                                    <div className="absolute left-[11px] top-[24px] bottom-0 w-px bg-slate-100" />
                                   )}
-                                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 opacity-60">
-                                    <div className="flex flex-col">
-                                      <span className="text-[9px] uppercase font-bold tracking-tighter">Por</span>
-                                      <span className="text-[10px] font-bold">{h.assignedBy}</span>
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 mt-0.5"
+                                    style={{ backgroundColor: `${acaoConfig.color}20`, color: acaoConfig.color }}
+                                  >
+                                    {acaoConfig.icon}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                      <p className="text-xs font-bold leading-tight" style={{ color: themeConfig.dashboard.text }}>
+                                        {log.usuarioNome}
+                                        <span className="font-normal opacity-60 ml-1">{acaoConfig.verbo}</span>
+                                        {campos && (
+                                          <span className="font-semibold ml-1">
+                                            {campos}
+                                          </span>
+                                        )}
+                                      </p>
+                                      <span className="text-[10px] opacity-40 font-medium shrink-0">
+                                        {formatarDataAuditoria(log.timestamp)}
+                                      </span>
                                     </div>
-                                    {h.assignedTo && (
-                                      <>
-                                        <ArrowRight size={10} />
-                                        <div className="flex flex-col">
-                                          <span className="text-[9px] uppercase font-bold tracking-tighter">Para</span>
-                                          <span className="text-[10px] font-bold">{h.assignedTo}</span>
-                                        </div>
-                                      </>
-                                    )}
                                   </div>
                                 </div>
-                              </div>
-                            </div>
-                          ))}
-                          {(!selectedNews.assignmentHistory || selectedNews.assignmentHistory.length === 0) && (
-                            <div className="text-center py-6 opacity-30 italic text-xs">
-                              Nenhum histórico registrado para esta notícia.
-                            </div>
-                          )}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </section>
                   </motion.div>
@@ -467,9 +533,9 @@ export const AnalysisView = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {[
-                      { label: 'Gravidade', value: selectedNews.aiScores.gravity, icon: AlertCircle, color: themeConfig.status.error },
-                      { label: 'Urgência', value: selectedNews.aiScores.urgency, icon: Sparkles, color: themeConfig.status.warning },
-                      { label: 'Tendência', value: selectedNews.aiScores.trend, icon: History, color: themeConfig.status.info }
+                      { label: 'Gravidade', value: aiScores.gravity, icon: AlertCircle, color: themeConfig.status.error },
+                      { label: 'Urgência', value: aiScores.urgency, icon: Sparkles, color: themeConfig.status.warning },
+                      { label: 'Tendência', value: aiScores.trend, icon: History, color: themeConfig.status.info }
                     ].map((score, idx) => (
                       <div 
                         key={idx} 
@@ -608,7 +674,119 @@ export const AnalysisView = ({
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                 {/* 3. Investigation & Evidence List */}
+                {/* Questions and Methodology */}
+                <section 
+                  className="rounded-3xl border shadow-sm overflow-hidden bg-white"
+                  style={{ borderColor: themeConfig.general.border }}
+                >
+                  <div className="p-6 border-b" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
+                    <div className="flex items-center gap-2">
+                      <List size={18} className="opacity-40" />
+                      <h3 className="text-sm font-black uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Perguntas de Investigação</h3>
+                    </div>
+                  </div>
+                  <div className="p-8 space-y-8">
+                     <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Perguntas Balizadoras</label>
+                        <div className="space-y-3">
+                           {reportStructure.questions.map((q, idx) => (
+                             <div key={idx} className="flex gap-3">
+                                <input 
+                                  value={q}
+                                  onChange={(e) => {
+                                    const newQuestions = [...reportStructure.questions];
+                                    newQuestions[idx] = e.target.value;
+                                    handleUpdateReportStructure({ questions: newQuestions });
+                                  }}
+                                  placeholder="Ex: Qual a origem do vídeo?"
+                                  className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all font-medium"
+                                />
+                                {idx > 0 && (
+                                  <button onClick={() => {
+                                    const newQuestions = [...reportStructure.questions];
+                                    newQuestions.splice(idx, 1);
+                                    handleUpdateReportStructure({ questions: newQuestions });
+                                  }} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
+                                    <Trash2 size={20} />
+                                  </button>
+                                )}
+                             </div>
+                           ))}
+                           <button 
+                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
+                             className="flex items-center gap-2 text-xs font-black px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                           >
+                             <Plus size={14} /> Adicionar Pergunta
+                           </button>
+                        </div>
+                     </div>
+
+                     <div className="pt-8 border-t space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Resumo da Metodologia de Checagem</label>
+                        <textarea 
+                          value={reportStructure.summary || ''}
+                          onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
+                          placeholder="Como este conteúdo foi verificado?"
+                          rows={3}
+                          className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm focus:outline-none transition-all font-medium resize-none shadow-inner"
+                        />
+                     </div>
+                  </div>
+                </section>
+
+                {/* Inverificável toggle */}
+                <section>
+                  {reportStructure.isInverifiable ? (
+                    <div className="rounded-3xl border-2 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5"
+                      style={{ backgroundColor: '#fff7ed', borderColor: '#f97316' }}>
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: '#f97316' }}>
+                        <Ban size={22} className="text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black uppercase tracking-wider" style={{ color: '#9a3412' }}>
+                          Conteúdo marcado como Inverificável
+                        </p>
+                        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#c2410c' }}>
+                          Este conteúdo não pode ser verificado com as ferramentas e fontes disponíveis.
+                          A classificação final deverá refletir essa condição.
+                        </p>
+                      </div>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleUpdateReportStructure({ isInverifiable: false })}
+                          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl border-2 text-xs font-black transition-all"
+                          style={{ borderColor: '#f97316', color: '#9a3412', backgroundColor: 'transparent' }}
+                        >
+                          <ShieldOff size={14} />
+                          Desfazer
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    canEdit && (
+                      <button
+                        onClick={() => handleUpdateReportStructure({ isInverifiable: true })}
+                        className="w-full rounded-3xl border-2 border-dashed p-5 flex items-center gap-4 text-left transition-all group hover:border-orange-400 hover:bg-orange-50/20"
+                        style={{ borderColor: themeConfig.general.border }}
+                      >
+                        <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-orange-500 group-hover:bg-orange-50 transition-colors shrink-0">
+                          <Ban size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700 group-hover:text-orange-700 transition-colors">
+                            Marcar como Inverificável
+                          </p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-orange-400 transition-colors leading-tight mt-0.5">
+                            Não é possível verificar este conteúdo
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  )}
+                </section>
+
+                 {/* Investigação & Verificação */}
                 <section 
                   className="rounded-3xl border shadow-sm overflow-hidden"
                   style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
@@ -742,7 +920,7 @@ export const AnalysisView = ({
                     {/* Contact Step */}
                     <div className="mt-8 pt-8 border-t flex flex-col md:flex-row gap-8 items-start" style={{ borderColor: themeConfig.general.border }}>
                       <div className="w-full md:w-64 space-y-2">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Tentativa de Contato</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Tentativa de contato com o autor da alegação</h4>
                         <p className="text-xs opacity-50 leading-relaxed">Fundamental para o contraditório e clareza editorial.</p>
                       </div>
                       <div className="flex-1 space-y-6">
@@ -780,66 +958,6 @@ export const AnalysisView = ({
                         )}
                       </div>
                     </div>
-                  </div>
-                </section>
-
-                {/* Questions and Methodology */}
-                <section 
-                  className="rounded-3xl border shadow-sm overflow-hidden bg-white"
-                  style={{ borderColor: themeConfig.general.border }}
-                >
-                  <div className="p-6 border-b" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
-                    <div className="flex items-center gap-2">
-                      <List size={18} className="opacity-40" />
-                      <h3 className="text-sm font-black uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Perguntas de Investigação</h3>
-                    </div>
-                  </div>
-                  <div className="p-8 space-y-8">
-                     <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Perguntas Balizadoras</label>
-                        <div className="space-y-3">
-                           {reportStructure.questions.map((q, idx) => (
-                             <div key={idx} className="flex gap-3">
-                                <input 
-                                  value={q}
-                                  onChange={(e) => {
-                                    const newQuestions = [...reportStructure.questions];
-                                    newQuestions[idx] = e.target.value;
-                                    handleUpdateReportStructure({ questions: newQuestions });
-                                  }}
-                                  placeholder="Ex: Qual a origem do vídeo?"
-                                  className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all font-medium"
-                                />
-                                {idx > 0 && (
-                                  <button onClick={() => {
-                                    const newQuestions = [...reportStructure.questions];
-                                    newQuestions.splice(idx, 1);
-                                    handleUpdateReportStructure({ questions: newQuestions });
-                                  }} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
-                                    <Trash2 size={20} />
-                                  </button>
-                                )}
-                             </div>
-                           ))}
-                           <button 
-                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
-                             className="flex items-center gap-2 text-xs font-black px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                           >
-                             <Plus size={14} /> Adicionar Pergunta
-                           </button>
-                        </div>
-                     </div>
-
-                     <div className="pt-8 border-t space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Resumo da Metodologia de Checagem</label>
-                        <textarea 
-                          value={reportStructure.summary || ''}
-                          onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
-                          placeholder="Como este conteúdo foi verificado?"
-                          rows={3}
-                          className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl text-sm focus:outline-none transition-all font-medium resize-none shadow-inner"
-                        />
-                     </div>
                   </div>
                 </section>
               </motion.div>
@@ -880,7 +998,7 @@ export const AnalysisView = ({
                           style={{ color: themeConfig.general.accent }}
                         >
                           <Wand2 size={20} className="group-hover/btn:rotate-12 transition-transform" />
-                          {isGeneratingDraft ? 'Criando...' : 'Gerar Draft de Parecer'}
+                          {isGeneratingDraft ? 'Criando...' : 'Gerar Rascunho de Parecer'}
                         </button>
                         <button 
                           onClick={handleReviewReport}

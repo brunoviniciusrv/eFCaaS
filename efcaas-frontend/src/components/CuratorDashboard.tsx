@@ -63,6 +63,7 @@ import {
 } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
+import { ResponsiveTabs } from './ResponsiveTabs';
 import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
 
@@ -79,12 +80,13 @@ interface CuratorDashboardProps {
   users: UserProfile[];
   currentUser: UserProfile;
   themeConfig: ThemeConfig;
-  onAssign: (newsId: string, checkerId: string, briefing: string) => void;
+  onAssign: (newsId: string, checkerId: string, briefing: string) => Promise<void>;
   onApprove: (newsId: string, comments: string) => void;
   onReject: (newsId: string, comments: string) => void;
   onReopen: (newsId: string, reason: string) => void;
   setSelectedNewsId: (id: string | null) => void;
   onAddNews: (newsData: any) => void;
+  onEditNews: (newsId: string, newsData: any) => void;
   receivedNews: ReceivedNewsItem[];
   onForwardToTriage: (news: ReceivedNewsItem) => void;
   onDeleteReceivedNews: (id: string) => void;
@@ -94,6 +96,7 @@ interface CuratorDashboardProps {
   checkPermission: (permId: string) => boolean;
   onSendToSpecializedNetwork: (newsId: string) => void;
   specializedNetworkChecks: any[];
+  onMoveTask?: (newsId: string, newStatus: NewsStatus) => Promise<void>;
 }
 
 type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
@@ -110,6 +113,7 @@ export const CuratorDashboard = ({
   onReopen,
   setSelectedNewsId,
   onAddNews,
+  onEditNews,
   receivedNews,
   onForwardToTriage,
   onDeleteReceivedNews,
@@ -118,7 +122,8 @@ export const CuratorDashboard = ({
   onClearNotifs,
   checkPermission,
   onSendToSpecializedNetwork,
-  specializedNetworkChecks
+  specializedNetworkChecks,
+  onMoveTask,
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CuratorTab>(
@@ -155,6 +160,8 @@ export const CuratorDashboard = ({
   };
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState('');
   const [assigningNewsId, setAssigningNewsId] = useState<string | null>(null);
   const [selectedCheckerId, setSelectedCheckerId] = useState<string>('');
   const [briefing, setBriefing] = useState('');
@@ -163,6 +170,8 @@ export const CuratorDashboard = ({
   const [reopeningNewsId, setReopeningNewsId] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', alegacao: '', descricao: '', source: '', url: '', priority: 'medium' as const });
   const [isExtractionModalOpen, setIsExtractionModalOpen] = useState(false);
   const [extractionResults, setExtractionResults] = useState<ReceivedNewsItem[]>([]);
   const [showExtractionResults, setShowExtractionResults] = useState(false);
@@ -184,9 +193,10 @@ export const CuratorDashboard = ({
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
   const [newNews, setNewNews] = useState({
     title: '',
+    alegacao: '',
+    descricao: '',
     source: '',
     url: '',
-    content: '',
     priority: 'medium' as const,
     assignedTo: '',
     briefing: ''
@@ -273,6 +283,7 @@ export const CuratorDashboard = ({
   };
 
   const handleOpenAssign = (id?: string) => {
+    setAssignError('');
     if (id) {
       setAssigningNewsId(id);
     } else if (selectedNewsIds.length > 0) {
@@ -283,20 +294,28 @@ export const CuratorDashboard = ({
     setIsAssignModalOpen(true);
   };
 
-  const executeAssign = () => {
-    if (!selectedCheckerId) return;
-    
-    if (assigningNewsId) {
-      onAssign(assigningNewsId, selectedCheckerId, briefing);
-    } else {
-      selectedNewsIds.forEach(id => onAssign(id, selectedCheckerId, briefing));
+  const executeAssign = async () => {
+    if (!selectedCheckerId || isAssigning) return;
+
+    setIsAssigning(true);
+    setAssignError('');
+
+    try {
+      const ids = assigningNewsId ? [assigningNewsId] : selectedNewsIds;
+      await Promise.all(
+        ids.map(id => onAssign(id, selectedCheckerId, briefing)),
+      );
+
+      setIsAssignModalOpen(false);
+      setAssigningNewsId(null);
+      setSelectedNewsIds([]);
+      setSelectedCheckerId('');
+      setBriefing('');
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Não foi possível atribuir a checagem.');
+    } finally {
+      setIsAssigning(false);
     }
-    
-    setIsAssignModalOpen(false);
-    setAssigningNewsId(null);
-    setSelectedNewsIds([]);
-    setSelectedCheckerId('');
-    setBriefing('');
   };
 
   const executeReview = (approved: boolean) => {
@@ -318,21 +337,43 @@ export const CuratorDashboard = ({
     }
   };
 
+  const handleOpenEdit = (item: NewsItem) => {
+    setEditForm({
+      title:    item.title    ?? '',
+      alegacao: item.alegacao ?? item.content ?? '',
+      descricao: item.descricao ?? '',
+      source:   item.fonte   ?? item.source  ?? '',
+      url:      item.link    ?? '',
+      priority: (item.priority as any) ?? 'medium',
+    });
+    setEditingNews(item);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingNews || !editForm.title) {
+      alert("Título é obrigatório.");
+      return;
+    }
+    onEditNews(editingNews.id, editForm);
+    setEditingNews(null);
+  };
+
   const handleSaveRegister = () => {
-    if (!newNews.title || !newNews.source) {
-      alert("Título e Fonte são obrigatórios.");
+    if (!newNews.title) {
+      alert("Título é obrigatório.");
       return;
     }
     onAddNews(newNews);
     setIsRegisterModalOpen(false);
     setNewNews({ 
-      title: '', 
-      source: '', 
-      url: '', 
-      content: '', 
-      priority: 'medium', 
-      assignedTo: '', 
-      briefing: '' 
+      title: '',
+      alegacao: '',
+      descricao: '',
+      source: '',
+      url: '',
+      priority: 'medium',
+      assignedTo: '',
+      briefing: ''
     });
   };
 
@@ -410,11 +451,31 @@ export const CuratorDashboard = ({
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination || !setNews) return;
-    
+
     const { draggableId, destination } = result;
     const newStatus = destination.droppableId as NewsStatus;
-    
+    const item = news.find(n => n.id === draggableId);
+    if (!item || item.status === newStatus) return;
+
+    // completed e to_rectify exigem ação formal (aprovar/rejeitar)
+    if (newStatus === 'completed') {
+      alert('Para concluir, use a aba "Revisões" e clique em "Aprovar e Publicar".\nIsso garante o registro formal da revisão no banco.');
+      return;
+    }
+    if (newStatus === 'to_rectify') {
+      alert('Para rejeitar e retificar, use a aba "Revisões" e clique em "Solicitar Correções".');
+      return;
+    }
+
+    // Para pending, in_progress e final_review: persiste via API
     setNews(prev => prev.map(n => n.id === draggableId ? { ...n, status: newStatus } : n));
+    if (onMoveTask) {
+      onMoveTask(draggableId, newStatus).catch(() => {
+        // Reverte em caso de erro
+        setNews(prev => prev.map(n => n.id === draggableId ? { ...n, status: item.status } : n));
+        alert('Não foi possível atualizar o status. Tente novamente.');
+      });
+    }
   };
 
   const handlePromoteTrend = (trend: any) => {
@@ -458,35 +519,22 @@ export const CuratorDashboard = ({
       </header>
 
       {/* Tabs */}
-      <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-        {[
-          { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
-          { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
-          { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
-          { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
-          { id: 'list', label: 'Publicações', icon: Activity },
-          { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
-          { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
-          { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
-          ].filter(tab => !tab.permission || checkPermission(tab.permission)).map(tab => {
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as CuratorTab)}
-                className={cn(
-                  "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap relative",
-                  activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
-                )}
-                style={{ 
-                  backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-                  color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
-                }}
-              >
-                <tab.icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
+      <div className="w-full sm:w-fit">
+        <ResponsiveTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab as any}
+          themeConfig={themeConfig}
+          tabs={[
+            { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
+            { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+            { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
+            { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
+            { id: 'list', label: 'Publicações', icon: Activity },
+            { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
+            { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
+            { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
+          ].filter(tab => !tab.permission || checkPermission(tab.permission))}
+        />
       </div>
 
       {/* Triage View */}
@@ -1175,6 +1223,15 @@ export const CuratorDashboard = ({
                               <RotateCcw size={18} />
                             </button>
                           )}
+                          {checkPermission('manage_triage') && item.status === 'pending' && (
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Editar Conteúdo"
+                            >
+                              <FileText size={18} />
+                            </button>
+                          )}
                           <button 
                             onClick={() => {
                               setSelectedNewsId(item.id);
@@ -1758,21 +1815,32 @@ export const CuratorDashboard = ({
                     } as any}
                   />
                 </div>
+                {assignError && (
+                  <p className="text-xs font-bold text-red-500">{assignError}</p>
+                )}
               </div>
               <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setIsAssignModalOpen(false)}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                  disabled={isAssigning}
+                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100 disabled:opacity-40"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={executeAssign}
-                  disabled={!selectedCheckerId}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+                  disabled={!selectedCheckerId || isAssigning}
+                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
-                  Confirmar Atribuição
+                  {isAssigning ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Atribuindo...
+                    </>
+                  ) : (
+                    'Confirmar Atribuição'
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -1947,7 +2015,7 @@ export const CuratorDashboard = ({
               <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Título da Notícia</label>
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Título da Notícia *</label>
                     <input 
                       type="text"
                       value={newNews.title}
@@ -1962,50 +2030,13 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte / Veículo</label>
-                    <input 
-                      type="text"
-                      value={newNews.source}
-                      onChange={(e) => setNewNews({ ...newNews, source: e.target.value })}
-                      placeholder="Ex: Portal de Notícias X"
-                      className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
-                      style={{ 
-                        backgroundColor: themeConfig.general.inputBackground, 
-                        borderColor: themeConfig.general.inputBorder,
-                        color: themeConfig.general.inputText,
-                        '--tw-ring-color': themeConfig.general.accent
-                      } as any}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">URL da Matéria</label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40">
-                        <LinkIcon size={14} />
-                      </div>
-                      <input 
-                        type="url"
-                        value={newNews.url}
-                        onChange={(e) => setNewNews({ ...newNews, url: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
-                        style={{ 
-                          backgroundColor: themeConfig.general.inputBackground, 
-                          borderColor: themeConfig.general.inputBorder,
-                          color: themeConfig.general.inputText,
-                          '--tw-ring-color': themeConfig.general.accent
-                        } as any}
-                      />
-                    </div>
-                  </div>
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Descrição / Resumo</label>
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Alegação Principal</label>
                     <textarea 
-                      value={newNews.content}
-                      onChange={(e) => setNewNews({ ...newNews, content: e.target.value })}
-                      placeholder="Breve descrição sobre o conteúdo da notícia..."
-                      rows={3}
+                      value={newNews.alegacao}
+                      onChange={(e) => setNewNews({ ...newNews, alegacao: e.target.value })}
+                      placeholder="Qual é a afirmação ou alegação que precisa ser verificada?"
+                      rows={2}
                       className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
@@ -2014,6 +2045,51 @@ export const CuratorDashboard = ({
                         '--tw-ring-color': themeConfig.general.accent
                       } as any}
                     />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Descrição / Contexto</label>
+                    <textarea 
+                      value={newNews.descricao}
+                      onChange={(e) => setNewNews({ ...newNews, descricao: e.target.value })}
+                      placeholder="Informações adicionais, contexto ou observações sobre o conteúdo..."
+                      rows={2}
+                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                      style={{ 
+                        backgroundColor: themeConfig.general.inputBackground, 
+                        borderColor: themeConfig.general.inputBorder,
+                        color: themeConfig.general.inputText,
+                        '--tw-ring-color': themeConfig.general.accent
+                      } as any}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte / Veículo</label>
+                      <input
+                        type="text"
+                        value={newNews.source}
+                        onChange={(e) => setNewNews({ ...newNews, source: e.target.value })}
+                        placeholder="Ex: Portal de Notícias X"
+                        className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                        style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider opacity-50">URL da Matéria</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40">
+                          <LinkIcon size={14} />
+                        </div>
+                        <input 
+                          type="url"
+                          value={newNews.url}
+                          onChange={(e) => setNewNews({ ...newNews, url: e.target.value })}
+                          placeholder="https://..."
+                          className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                          style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-bold uppercase tracking-wider opacity-50">Anexos / Mídias</label>
@@ -2087,6 +2163,120 @@ export const CuratorDashboard = ({
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   Salvar Notícia
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {editingNews && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingNews(null)}
+              className="absolute inset-0 backdrop-blur-sm"
+              style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
+            >
+              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
+                <h2 className="text-xl font-bold">Editar Conteúdo</h2>
+                <p className="text-sm opacity-70">Atualize as informações da notícia cadastrada.</p>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[70vh] space-y-5">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Título *</label>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Alegação Principal</label>
+                  <textarea
+                    value={editForm.alegacao}
+                    onChange={(e) => setEditForm({ ...editForm, alegacao: e.target.value })}
+                    placeholder="Qual é a afirmação ou alegação que precisa ser verificada?"
+                    rows={2}
+                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Descrição / Contexto</label>
+                  <textarea
+                    value={editForm.descricao}
+                    onChange={(e) => setEditForm({ ...editForm, descricao: e.target.value })}
+                    placeholder="Informações adicionais, contexto ou observações..."
+                    rows={2}
+                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte / Veículo</label>
+                    <input
+                      type="text"
+                      value={editForm.source}
+                      onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                      placeholder="Ex: Portal de Notícias X"
+                      className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                      style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">URL da Matéria</label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40"><LinkIcon size={14} /></div>
+                      <input
+                        type="url"
+                        value={editForm.url}
+                        onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                        style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Prioridade</label>
+                  <select
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value as any })}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                  >
+                    <option value="low">Baixa</option>
+                    <option value="medium">Média</option>
+                    <option value="high">Alta</option>
+                  </select>
+                </div>
+              </div>
+              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+                <button
+                  onClick={() => setEditingNews(null)}
+                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all"
+                  style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                >
+                  Salvar Alterações
                 </button>
               </div>
             </motion.div>
@@ -2400,6 +2590,15 @@ export const CuratorDashboard = ({
                           </div>
                           <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                             <div className="h-full bg-orange-500" style={{ width: `${currentTriageItem.aiScores?.urgency}%` }} />
+                          </div>
+                       </div>
+                       <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span>Tendência</span>
+                            <span>{currentTriageItem.aiScores?.trend}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500" style={{ width: `${currentTriageItem.aiScores?.trend}%` }} />
                           </div>
                        </div>
                     </div>

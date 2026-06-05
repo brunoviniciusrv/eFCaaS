@@ -90,17 +90,31 @@ WHERE tu.nome = 'Editor'
 ON CONFLICT DO NOTHING;
 
 -- =========================================================
--- USUÁRIO ADMINISTRADOR PADRÃO
--- Senha: Admin@2026! (BCrypt strength 12)
--- ATENÇÃO: troque esta senha imediatamente após o primeiro login em produção.
+-- USUÁRIOS PADRÃO
+-- Senha para todos: Admin@2026! (BCrypt strength 12)
+-- ATENÇÃO: troque as senhas imediatamente após o primeiro login em produção.
 -- =========================================================
+
 INSERT INTO usuario (nome, email, senha, status, id_tipo_usuario)
-SELECT
-    'Administrador eFCaaS',
-    'admin@efcaas.com',
-    '$2a$12$8Q7ZnBjW5xKmL.MnFhVTnuoxf0nA7GjmB9vN3BdUmVlmQNr0sxEHm',
-    'A',
-    tu.id
-FROM tipo_usuario tu
-WHERE tu.nome = 'Administrador'
+SELECT 'Administrador eFCaaS', 'admin@efcaas.com',
+       '$2a$12$G1sSYEED5A4kk8sv6Lby0O75bccaK7IRLXoS3.svR3aroFmwODz/a', 'A', tu.id
+FROM tipo_usuario tu WHERE tu.nome = 'Administrador'
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO usuario (nome, email, senha, status, id_tipo_usuario)
+SELECT 'Beatriz Santos', 'beatriz.santos@factcheck.org',
+       '$2a$12$G1sSYEED5A4kk8sv6Lby0O75bccaK7IRLXoS3.svR3aroFmwODz/a', 'A', tu.id
+FROM tipo_usuario tu WHERE tu.nome = 'Checador'
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO usuario (nome, email, senha, status, id_tipo_usuario)
+SELECT 'Carlos Eduardo', 'cadu.editor@ais-news.com',
+       '$2a$12$G1sSYEED5A4kk8sv6Lby0O75bccaK7IRLXoS3.svR3aroFmwODz/a', 'A', tu.id
+FROM tipo_usuario tu WHERE tu.nome = 'Editor'
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO usuario (nome, email, senha, status, id_tipo_usuario)
+SELECT 'Juliana Mendes', 'juliana.mendes@curadoria.com',
+       '$2a$12$G1sSYEED5A4kk8sv6Lby0O75bccaK7IRLXoS3.svR3aroFmwODz/a', 'A', tu.id
+FROM tipo_usuario tu WHERE tu.nome = 'Curador'
 ON CONFLICT (email) DO NOTHING;

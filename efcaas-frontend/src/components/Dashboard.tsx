@@ -32,6 +32,7 @@ import {
 } from '@hello-pangea/dnd';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
+import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, UserProfile, ThemeConfig, PermissionProfile, AuditLog, LabelConfig } from '../types';
 import { cn } from '../lib/utils';
 import { 
@@ -214,28 +215,17 @@ export const Dashboard = ({
               </div>
               
               {/* Tabs Dropdown/Menu for switching contexts */}
-              <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-                {[
-                  { id: 'checagem', label: 'Checagem', icon: Activity, permission: ['perform_analysis', 'view_analysis'] },
-                  { id: 'redacao', label: 'Redação', icon: FileText, permission: ['view_editor', 'view_archive'] },
-                  { id: 'metricas', label: 'Métricas', icon: TrendingUp, permission: ['view_admin'] },
-                ].filter(tab => tab.permission.some(p => checkPermission(p))).map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={cn(
-                      "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                      activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
-                    )}
-                    style={{ 
-                      backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-                      color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
-                    }}
-                  >
-                    <tab.icon size={16} />
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="w-full sm:w-fit">
+                <ResponsiveTabs
+                   activeTab={activeTab}
+                   setActiveTab={setActiveTab as any}
+                   themeConfig={themeConfig}
+                   tabs={[
+                     { id: 'checagem', label: 'Checagem', icon: Activity, permission: ['perform_analysis', 'view_analysis'] },
+                     { id: 'redacao', label: 'Redação', icon: FileText, permission: ['view_editor', 'view_archive'] },
+                     { id: 'metricas', label: 'Métricas', icon: TrendingUp, permission: ['view_admin'] },
+                   ].filter(tab => tab.permission.some(p => checkPermission(p)))}
+                />
               </div>
            </div>
         </section>

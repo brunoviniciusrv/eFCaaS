@@ -261,8 +261,12 @@ export interface SpecializedNetworkCheck {
 export interface NewsItem {
   id: string;
   title: string;
-  content: string;
-  source: string;
+  content: string;   // legado / display (mapeado de alegacao)
+  alegacao?: string;  // alegação principal (campo do banco)
+  descricao?: string; // descrição complementar (campo do banco)
+  link?: string;      // URL da matéria original
+  fonte?: string;     // fonte/veículo de origem
+  source: string;     // legado / display (mantido para compatibilidade)
   date: string;
   receivedAt?: string;
   senderName?: string;
@@ -294,6 +298,7 @@ export interface NewsItem {
   reviewComments?: string;
   approvedBy?: string;
   rejectedBy?: string;
+  checagemId?: string;
 }
 
 export interface FactCheckTool {
