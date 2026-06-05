@@ -79,6 +79,38 @@ export interface ApiEtiquetaDto {
   cor: string;
 }
 
+export interface YoutubeResultadoDto {
+  titulo: string;
+  url: string;
+  conteudo: string | null;
+  descricao: string | null;
+  channelTitle: string | null;
+  channelId: string | null;
+  publishedAt: string | null;
+  viewCount: number | null;
+  commentCount: number | null;
+  duration: string | null;
+  thumbnailDefault: string | null;
+  thumbnailHigh: string | null;
+  tags: string[];
+}
+
+export interface BuscarYoutubeParams {
+  query: string;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ApiAuditoriaDto {
+  id: number;
+  usuarioNome: string;
+  acao: string;
+  alvo: string | null;
+  detalhes: string | null;
+  timestamp: string;
+}
+
 export interface ApiEvidenciaDto {
   id: string;
   tipo: string;
@@ -419,5 +451,19 @@ export const apiService = {
 
   async removerEvidencia(checagemId: string, evidenciaId: string): Promise<void> {
     return api.delete<void>(`/checagens/${checagemId}/evidencias/${evidenciaId}`);
+  },
+
+  // Auditoria
+  async listarAuditoria(checagemId: string): Promise<ApiAuditoriaDto[]> {
+    return api.get<ApiAuditoriaDto[]>(`/checagens/${checagemId}/auditoria`);
+  },
+
+  // YouTube / Denodare
+  async buscarYoutube(params: BuscarYoutubeParams): Promise<YoutubeResultadoDto[]> {
+    const qs = new URLSearchParams({ query: params.query });
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.startDate) qs.set('startDate', params.startDate);
+    if (params.endDate) qs.set('endDate', params.endDate);
+    return api.get<YoutubeResultadoDto[]>(`/youtube/buscar?${qs.toString()}`);
   },
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -44,6 +44,57 @@ import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile } from '../types';
 import { TOOLS } from '../constants';
+import { apiService, ApiAuditoriaDto } from '../services/apiService';
+
+// ─── Auditoria helpers ──────────────────────────────────────────────────────
+
+const NOMES_CAMPOS: Record<string, string> = {
+  resumo_metodologia: 'Metodologia de Checagem',
+  perguntas: 'Perguntas de Investigação',
+  fontes: 'Fontes Consultadas',
+  inverificavel: 'Status Inverificável',
+  contato_autor: 'Contato com Autor',
+  texto_parecer: 'Redação do Parecer',
+};
+
+function formatarCamposAlterados(acao: string, detalhes: string | null): string {
+  if (acao === 'checagem_atribuida' && detalhes?.startsWith('checador:')) {
+    return detalhes.replace('checador:', '');
+  }
+  if (acao === 'parecer_finalizado' && detalhes) {
+    const etiqueta = detalhes.replace('etiqueta:', '');
+    return `com etiqueta "${etiqueta}"`;
+  }
+  if (acao === 'evidencia_adicionada' && detalhes) {
+    return `(${detalhes})`;
+  }
+  if (!detalhes) return '';
+  const campos = detalhes.split(',')
+    .map(c => NOMES_CAMPOS[c.trim()] ?? c.trim())
+    .filter(Boolean);
+  if (campos.length === 0) return '';
+  if (campos.length === 1) return `"${campos[0]}"`;
+  const ultimo = campos.pop();
+  return `"${campos.join('", "')}" e "${ultimo}"`;
+}
+
+function formatarDataAuditoria(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon: React.ReactNode }> = {
+  checagem_atribuida:  { verbo: 'atribuiu tarefa ao checador', color: '#3b82f6', icon: <UserPlus size={12} /> },
+  checagem_iniciada:   { verbo: 'iniciou a checagem',          color: '#3b82f6', icon: <Clock size={12} /> },
+  investigacao_salva:  { verbo: 'alterou',                     color: '#8b5cf6', icon: <Save size={12} /> },
+  parecer_salvo:       { verbo: 'salvou',                      color: '#8b5cf6', icon: <FileText size={12} /> },
+  parecer_finalizado:  { verbo: 'finalizou o Parecer',         color: '#10b981', icon: <CheckCircle size={12} /> },
+  evidencia_adicionada:{ verbo: 'adicionou Evidência',         color: '#f59e0b', icon: <Plus size={12} /> },
+  evidencia_removida:  { verbo: 'removeu uma Evidência',       color: '#ef4444', icon: <Trash2 size={12} /> },
+  _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
+};
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 interface AnalysisViewProps {
   selectedNews: NewsItem | undefined;
@@ -100,6 +151,32 @@ export const AnalysisView = ({
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
+
+  const [auditoriaLogs, setAuditoriaLogs] = useState<ApiAuditoriaDto[]>([]);
+  const [auditoriaLoading, setAuditoriaLoading] = useState(false);
+
+  const checagemId = selectedNews?.checagemId;
+
+  useEffect(() => {
+    if (!checagemId) return;
+    setAuditoriaLoading(true);
+    apiService.listarAuditoria(checagemId)
+      .then(setAuditoriaLogs)
+      .catch(() => setAuditoriaLogs([]))
+      .finally(() => setAuditoriaLoading(false));
+  }, [checagemId]);
+
+  // Para cada par (checador + tipo de ação) exibe apenas a ocorrência mais recente.
+  // Como o backend retorna ordenado por timestamp DESC, basta pegar a primeira ocorrência.
+  const auditoriaLogsUnicos = useMemo(() => {
+    const vistos = new Set<string>();
+    return auditoriaLogs.filter(log => {
+      const chave = `${log.usuarioNome}:${log.acao}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  }, [auditoriaLogs]);
   const [isAddingLink, setIsAddingLink] = React.useState(false);
   const [linkInput, setLinkInput] = React.useState('');
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
@@ -317,8 +394,22 @@ export const AnalysisView = ({
                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                               <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Fonte Original / Veículo</label>
                               <div className="flex items-center gap-2">
-                                <LinkIcon size={14} className="opacity-40" />
-                                <span className="text-sm font-bold text-blue-600 truncate">{selectedNews.source}</span>
+                                <LinkIcon size={14} className="opacity-40 shrink-0" />
+                                {selectedNews.link ? (
+                                  <a
+                                    href={selectedNews.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors"
+                                    title={selectedNews.link}
+                                  >
+                                    {selectedNews.fonte || selectedNews.source || selectedNews.link}
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-blue-600 truncate">
+                                    {selectedNews.fonte || selectedNews.source || '—'}
+                                  </span>
+                                )}
                               </div>
                            </div>
                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
@@ -361,7 +452,7 @@ export const AnalysisView = ({
                     </section>
 
                     {/* Action History section */}
-                    <section 
+                    <section
                       className="rounded-3xl border shadow-sm overflow-hidden mt-8"
                       style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
                     >
@@ -370,75 +461,56 @@ export const AnalysisView = ({
                           <History size={18} className="opacity-60" />
                           <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: themeConfig.dashboard.text }}>Histórico de Ações</h3>
                         </div>
+                        {auditoriaLogsUnicos.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 opacity-60">
+                            {auditoriaLogsUnicos.length} {auditoriaLogsUnicos.length === 1 ? 'registro' : 'registros'}
+                          </span>
+                        )}
                       </div>
-                      <div className="p-8">
-                        <div className="space-y-6">
-                          {selectedNews.assignmentHistory?.map((h, i) => (
-                            <div key={h.id} className="relative flex gap-6 pb-2">
-                              {i !== selectedNews.assignmentHistory!.length - 1 && (
-                                <div className="absolute left-[11px] top-[24px] bottom-0 w-px bg-slate-100" />
-                              )}
-                              <div className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10",
-                                h.action === 'assigned' ? "bg-blue-100 text-blue-600" :
-                                h.action === 'reopened' ? "bg-amber-100 text-amber-600" :
-                                h.action === 'rejected' ? "bg-red-100 text-red-600" :
-                                "bg-slate-100 text-slate-600"
-                              )}>
-                                {h.action === 'assigned' && <UserPlus size={12} />}
-                                {h.action === 'reopened' && <RotateCcw size={12} />}
-                                {h.action === 'rejected' && <XCircle size={12} />}
-                                {h.action === 'reassigned' && <Users size={12} />}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p className="text-xs font-bold uppercase tracking-widest">
-                                    {h.action === 'assigned' ? 'Notícia Atribuída' : 
-                                     h.action === 'reopened' ? 'Checagem Reaberta' :
-                                     h.action === 'rejected' ? 'Revisão Rejeitada' :
-                                     'Tarefa Reatribuída'}
-                                  </p>
-                                  <span className="text-[10px] opacity-40 font-medium">
-                                    {new Date(h.timestamp).toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
-                                  <p className="opacity-70 mb-2 leading-relaxed">
-                                    {h.action === 'assigned' && `Responsável definido para o fluxo de triagem.`}
-                                    {h.action === 'reopened' && `A checagem foi recusada e enviada para correções.`}
-                                    {h.action === 'rejected' && `A revisão foi reprovada pelo editor.`}
-                                    {h.action === 'reassigned' && `Tarefa movida para outro responsável.`}
-                                  </p>
-                                  {h.reason && (
-                                    <div className="pt-2 border-t border-slate-200 mt-2 italic opacity-60">
-                                      "{h.reason}"
-                                    </div>
+                      <div className="p-6">
+                        {auditoriaLoading ? (
+                          <div className="text-center py-8 opacity-30 text-xs">Carregando histórico...</div>
+                        ) : auditoriaLogsUnicos.length === 0 ? (
+                          <div className="text-center py-8 opacity-30 italic text-xs">
+                            Nenhuma ação registrada para esta checagem.
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {auditoriaLogsUnicos.map((log, i) => {
+                              const campos = formatarCamposAlterados(log.acao, log.detalhes);
+                              const acaoConfig = AUDITORIA_ACAO_CONFIG[log.acao] ?? AUDITORIA_ACAO_CONFIG['_default'];
+                              return (
+                                <div key={log.id} className="relative flex gap-4">
+                                  {i !== auditoriaLogsUnicos.length - 1 && (
+                                    <div className="absolute left-[11px] top-[24px] bottom-0 w-px bg-slate-100" />
                                   )}
-                                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 opacity-60">
-                                    <div className="flex flex-col">
-                                      <span className="text-[9px] uppercase font-bold tracking-tighter">Por</span>
-                                      <span className="text-[10px] font-bold">{h.assignedBy}</span>
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 mt-0.5"
+                                    style={{ backgroundColor: `${acaoConfig.color}20`, color: acaoConfig.color }}
+                                  >
+                                    {acaoConfig.icon}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                      <p className="text-xs font-bold leading-tight" style={{ color: themeConfig.dashboard.text }}>
+                                        {log.usuarioNome}
+                                        <span className="font-normal opacity-60 ml-1">{acaoConfig.verbo}</span>
+                                        {campos && (
+                                          <span className="font-semibold ml-1">
+                                            {campos}
+                                          </span>
+                                        )}
+                                      </p>
+                                      <span className="text-[10px] opacity-40 font-medium shrink-0">
+                                        {formatarDataAuditoria(log.timestamp)}
+                                      </span>
                                     </div>
-                                    {h.assignedTo && (
-                                      <>
-                                        <ArrowRight size={10} />
-                                        <div className="flex flex-col">
-                                          <span className="text-[9px] uppercase font-bold tracking-tighter">Para</span>
-                                          <span className="text-[10px] font-bold">{h.assignedTo}</span>
-                                        </div>
-                                      </>
-                                    )}
                                   </div>
                                 </div>
-                              </div>
-                            </div>
-                          ))}
-                          {(!selectedNews.assignmentHistory || selectedNews.assignmentHistory.length === 0) && (
-                            <div className="text-center py-6 opacity-30 italic text-xs">
-                              Nenhum histórico registrado para esta notícia.
-                            </div>
-                          )}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </section>
                   </motion.div>

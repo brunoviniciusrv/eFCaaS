@@ -1,5 +1,6 @@
 package br.com.efcaas.api.web;
 
+import br.com.efcaas.api.service.AuditoriaService;
 import br.com.efcaas.api.service.ChecagemService;
 import br.com.efcaas.api.web.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +24,7 @@ import java.util.List;
 public class ChecagemController {
 
     private final ChecagemService service;
+    private final AuditoriaService auditoriaService;
 
     @PostMapping("/{id}/iniciar")
     @PreAuthorize("hasAuthority('perform_analysis')")
@@ -122,5 +124,12 @@ public class ChecagemController {
     @Operation(summary = "Revisar parecer via IA (stub MVP)")
     public ResponseEntity<RascunhoIaResponse> revisarParecer(@PathVariable Long id) {
         return ResponseEntity.ok(service.revisarParecer(id));
+    }
+
+    @GetMapping("/{id}/auditoria")
+    @Operation(summary = "Histórico de ações da checagem",
+               description = "Retorna o log de auditoria de todas as ações realizadas nesta checagem, ordenadas da mais recente para a mais antiga.")
+    public ResponseEntity<List<AuditoriaDto>> listarAuditoria(@PathVariable Long id) {
+        return ResponseEntity.ok(auditoriaService.listarPorChecagem(id));
     }
 }

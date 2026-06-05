@@ -144,7 +144,7 @@ public class ConteudoSuspeitoService {
 
         historicoRepo.save(new HistoricoAtribuicao(checagem, checador, curador, "assigned", req.briefing()));
         auditoria.registrar(curadorId, "checagem_atribuida",
-                "checagem:" + checagem.getId(), "checador:" + checador.getId());
+                "checagem:" + checagem.getId(), "checador:" + checador.getNome());
 
         return checagemMapper.toDto(checagem, null, List.of());
     }

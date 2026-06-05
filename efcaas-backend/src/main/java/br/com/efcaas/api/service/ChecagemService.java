@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -65,7 +66,16 @@ public class ChecagemService {
         }
 
         investigacaoRepo.save(inv);
-        auditoria.registrar(usuarioId, "investigacao_salva", "checagem:" + checagemId, null);
+
+        List<String> camposAlterados = new ArrayList<>();
+        if (req.resumo() != null) camposAlterados.add("resumo_metodologia");
+        if (req.perguntas() != null && !req.perguntas().isEmpty()) camposAlterados.add("perguntas");
+        if (req.fontes() != null && !req.fontes().isEmpty()) camposAlterados.add("fontes");
+        if (req.inverificavel()) camposAlterados.add("inverificavel");
+        if (req.contatoAutor() != null) camposAlterados.add("contato_autor");
+        String detalhesInv = camposAlterados.isEmpty() ? null : String.join(",", camposAlterados);
+
+        auditoria.registrar(usuarioId, "investigacao_salva", "checagem:" + checagemId, detalhesInv);
         return mapper.toInvestigacaoDto(inv);
     }
 
@@ -84,7 +94,7 @@ public class ChecagemService {
         parecer.setChecagem(checagemRepo.getReferenceById(checagemId));
         parecer.setTextoParecer(req.textoParecer());
         parecerRepo.save(parecer);
-        auditoria.registrar(usuarioId, "parecer_salvo", "checagem:" + checagemId, null);
+        auditoria.registrar(usuarioId, "parecer_salvo", "checagem:" + checagemId, "texto_parecer");
         return mapper.toParecerDto(parecer);
     }
 
