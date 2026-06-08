@@ -8,9 +8,6 @@ function getAiClient() {
 }
 
 export async function generateDraftReport(news: NewsItem, reportStructure: ReportStructure) {
-  const ai = getAiClient();
-  if (!ai) return "_Funcionalidade de IA não disponível neste ambiente._";
-
   const model = "gemini-3-flash-preview";
   const prompt = `
     Você é um checador de fatos profissional. 
@@ -38,6 +35,9 @@ export async function generateDraftReport(news: NewsItem, reportStructure: Repor
     Retorne o parecer final em Markdown.
   `;
 
+  const ai = getAiClient();
+  if (!ai) return "IA indisponível: configure GEMINI_API_KEY para gerar rascunhos automáticos.";
+
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
@@ -47,8 +47,6 @@ export async function generateDraftReport(news: NewsItem, reportStructure: Repor
 }
 
 export async function generateArticleSuggestions(title: string, content: string) {
-  const ai = getAiClient();
-  if (!ai) return { titles: [title], excerpt: content.substring(0, 200) + "..." };
   const model = "gemini-3-flash-preview";
   const prompt = `
     Você é um editor sênior de uma agência de checagem.
@@ -63,6 +61,9 @@ export async function generateArticleSuggestions(title: string, content: string)
       "excerpt": "Texto do lead aqui..."
     }
   `;
+
+  const ai = getAiClient();
+  if (!ai) return { titles: [title], excerpt: content.substring(0, 200) + "..." };
 
   const response = await ai.models.generateContent({
     model,
@@ -86,8 +87,6 @@ export async function generateArticleSuggestions(title: string, content: string)
 }
 
 export async function reviewReport(text: string) {
-  const ai = getAiClient();
-  if (!ai) return "_Funcionalidade de IA não disponível neste ambiente._";
   const model = "gemini-3-flash-preview";
   const prompt = `
     Você é um revisor de checagem de fatos. 
@@ -104,6 +103,9 @@ export async function reviewReport(text: string) {
     3. Retorne o texto revisado em Markdown, seguido de uma seção "Sugestões de Melhoria" se houver.
   `;
 
+  const ai = getAiClient();
+  if (!ai) return "IA indisponível: configure GEMINI_API_KEY para revisão automática.";
+
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
@@ -113,8 +115,6 @@ export async function reviewReport(text: string) {
 }
 
 export async function analyzeTrends(topic: string, dateRange: string) {
-  const ai = getAiClient();
-  if (!ai) return [];
   const model = "gemini-3-flash-preview";
   const prompt = `
     Você é um especialista em monitoramento de mídias sociais e tendências de informação. 
@@ -141,6 +141,9 @@ export async function analyzeTrends(topic: string, dateRange: string) {
       }
     ]
   `;
+
+  const ai = getAiClient();
+  if (!ai) return [];
 
   const response = await ai.models.generateContent({
     model,

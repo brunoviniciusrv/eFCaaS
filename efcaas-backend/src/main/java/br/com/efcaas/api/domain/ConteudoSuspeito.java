@@ -26,6 +26,9 @@ public class ConteudoSuspeito {
     @Column(length = 255)
     private String link;
 
+    @Column(length = 255)
+    private String fonte;
+
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
