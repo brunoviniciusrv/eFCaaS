@@ -2,6 +2,7 @@ package br.com.efcaas.api.exception;
 
 import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
+import java.util.NoSuchElementException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
@@ -47,6 +48,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Permissão insuficiente para esta operação");
         pd.setTitle("Acesso negado");
         pd.setType(URI.create("https://efcaas.com/errors/forbidden"));
+        pd.setProperty("timestamp", Instant.now());
+        return pd;
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ProblemDetail handleNotFound(NoSuchElementException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        pd.setTitle("Recurso não encontrado");
+        pd.setType(URI.create("https://efcaas.com/errors/not-found"));
         pd.setProperty("timestamp", Instant.now());
         return pd;
     }

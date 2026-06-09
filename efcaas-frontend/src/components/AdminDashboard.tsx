@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
-import { MOCK_USERS } from '../constants';
 import { PermissionsManager } from './PermissionsManager';
+import { apiService } from '../services/apiService';
 import { 
   Users as UsersIcon, 
   Clock, 
@@ -55,6 +55,7 @@ import {
   Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
+import { ResponsiveTabs } from './ResponsiveTabs';
 import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
 
 interface AdminDashboardProps {
@@ -221,34 +222,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setNewUser({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
   };
 
-  const handleSaveLabel = () => {
+  const handleSaveLabel = useCallback(async () => {
     if (!newLabel.name || !newLabel.description) return;
-    
-    // Check uniqueness
+
     if (!editingLabelId && labels.some(l => l.name === newLabel.name)) {
       alert('Já existe uma etiqueta com este nome.');
       return;
     }
 
     if (editingLabelId) {
+      // Edição: apenas local por enquanto (PUT não implementado no backend)
       setLabels(prev => prev.map(l => l.id === editingLabelId ? { ...l, ...newLabel } : l));
       setEditingLabelId(null);
     } else {
-      const label: LabelConfig = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...newLabel
-      };
-      setLabels(prev => [...prev, label]);
+      try {
+        const created = await apiService.criarEtiqueta({
+          nome: newLabel.name,
+          descricao: newLabel.description,
+          cor: newLabel.color,
+        });
+        setLabels(prev => [...prev, created]);
+      } catch (err) {
+        alert(`Erro ao criar etiqueta: ${err instanceof Error ? err.message : err}`);
+        return;
+      }
     }
+
     setIsAddingLabel(false);
     setNewLabel({ name: 'Verdadeiro', description: '', color: 'bg-slate-500' });
-  };
+  }, [newLabel, editingLabelId, labels, setLabels]);
 
-  const handleDeleteLabel = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta etiqueta?')) {
+  const handleDeleteLabel = useCallback(async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta etiqueta?')) return;
+    try {
+      await apiService.deletarEtiqueta(id);
       setLabels(prev => prev.filter(l => l.id !== id));
+    } catch (err) {
+      alert(`Erro ao excluir etiqueta: ${err instanceof Error ? err.message : err}`);
     }
-  };
+  }, [setLabels]);
 
   const handleToggleMandatoryField = (field: string) => {
     setReportConfig(prev => ({
@@ -337,29 +349,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* Tabs - Pill style */}
-      <div className="flex p-1 rounded-2xl border w-fit" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-        {[
-          { id: 'users', label: 'Equipe', icon: UsersIcon, permission: 'admin_users' },
-          { id: 'audit', label: 'Logs', icon: FileText, permission: 'view_audit_logs' },
-          { id: 'permissions', label: 'Permissões', icon: Lock, permission: 'admin_permissions' },
-          { id: 'settings', label: 'Ajustes', icon: SettingsIcon, permission: 'admin_settings' },
-        ].filter(tab => !tab.permission || checkPermission(tab.permission)).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id as AdminTab); setSearchTerm(''); }}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-              activeTab === tab.id ? "shadow-sm" : "opacity-40 hover:opacity-100"
-            )}
-            style={{ 
-              backgroundColor: activeTab === tab.id ? themeConfig.sidebar.activeBackground : 'transparent',
-              color: activeTab === tab.id ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
-            }}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="w-full sm:w-fit">
+        <ResponsiveTabs
+          activeTab={activeTab}
+          setActiveTab={(id) => {
+            setActiveTab(id as AdminTab);
+            setSearchTerm('');
+          }}
+          themeConfig={themeConfig}
+          tabs={[
+            { id: 'users', label: 'Equipe', icon: UsersIcon, permission: 'admin_users' },
+            { id: 'audit', label: 'Logs', icon: FileText, permission: 'view_audit_logs' },
+            { id: 'permissions', label: 'Permissões', icon: Lock, permission: 'admin_permissions' },
+            { id: 'settings', label: 'Ajustes', icon: SettingsIcon, permission: 'admin_settings' },
+          ].filter(tab => !tab.permission || checkPermission(tab.permission))}
+        />
       </div>
 
       {/* Main Content Area */}
@@ -547,7 +551,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Tag style={{ color: themeConfig.general.accent }} size={20} />
-                  <h2 className="text-lg font-bold" style={{ color: themeConfig.dashboard.text }}>Gestão de Etiquetas</h2>
+                  <h2 className="text-lg font-bold" style={{ color: themeConfig.dashboard.text }}>''Gestão de Etiquet''as</h2>
                 </div>
                 <button 
                   onClick={() => {

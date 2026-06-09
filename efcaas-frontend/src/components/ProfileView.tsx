@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { UserProfile, ThemeConfig, View } from '../types';
-import { MOCK_USERS } from '../constants';
 
 interface ProfileViewProps {
   user: UserProfile;
