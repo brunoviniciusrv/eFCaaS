@@ -4,6 +4,7 @@ import br.com.efcaas.api.domain.AnaliseIa;
 import br.com.efcaas.api.domain.Checagem;
 import br.com.efcaas.api.domain.ConteudoSuspeito;
 import br.com.efcaas.api.domain.Evidencia;
+import br.com.efcaas.api.domain.Investigacao;
 import br.com.efcaas.api.domain.Parecer;
 import br.com.efcaas.api.web.dto.AnaliseIaDto;
 import br.com.efcaas.api.web.dto.ConteudoSuspeitoDto;
@@ -21,6 +22,7 @@ public class ConteudoSuspeitoMapper {
     public ConteudoSuspeitoDto toDto(ConteudoSuspeito c,
                                      Checagem checagem,
                                      Parecer parecer,
+                                     Investigacao investigacao,
                                      List<Evidencia> evidencias,
                                      AnaliseIa analiseIa) {
         return new ConteudoSuspeitoDto(
@@ -33,7 +35,7 @@ public class ConteudoSuspeitoMapper {
                 c.getDataEntrada() != null ? c.getDataEntrada().toString() : null,
                 c.getStatus(),
                 c.getPrioridade(),
-                checagem != null ? checagemMapper.toDto(checagem, parecer, evidencias) : null,
+                checagem != null ? checagemMapper.toDto(checagem, parecer, investigacao, evidencias) : null,
                 analiseIa != null ? toAnaliseIaDto(analiseIa) : null
         );
     }

@@ -5,6 +5,8 @@ import br.com.efcaas.api.domain.Etiqueta;
 import br.com.efcaas.api.domain.Evidencia;
 import br.com.efcaas.api.domain.Investigacao;
 import br.com.efcaas.api.domain.Parecer;
+import br.com.efcaas.api.config.ApiProperties;
+import br.com.efcaas.api.service.EvidenciaAccessTokenService;
 import br.com.efcaas.api.web.dto.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,8 @@ import java.util.List;
 public class ChecagemMapper {
 
     private final ObjectMapper objectMapper;
+    private final EvidenciaAccessTokenService accessTokenService;
+    private final ApiProperties apiProperties;
 
     public ChecagemDto toDto(Checagem ch, Parecer parecer, Investigacao investigacao, List<Evidencia> evidencias) {
         return new ChecagemDto(
@@ -32,7 +36,9 @@ public class ChecagemMapper {
                 ch.getDataConclusao() != null ? ch.getDataConclusao().toString() : null,
                 investigacao != null ? toInvestigacaoDto(investigacao) : null,
                 parecer != null ? toParecerDto(parecer) : null,
-                evidencias != null ? evidencias.stream().map(this::toEvidenciaDto).toList() : Collections.emptyList()
+                evidencias != null
+                        ? evidencias.stream().map(ev -> toEvidenciaDto(ev, ch.getId())).toList()
+                        : Collections.emptyList()
         );
     }
 
@@ -62,13 +68,26 @@ public class ChecagemMapper {
         );
     }
 
-    public EvidenciaDto toEvidenciaDto(Evidencia e) {
+    public EvidenciaDto toEvidenciaDto(Evidencia e, Long checagemId) {
+        String urlAcesso = e.getObjectKey() != null && !e.getObjectKey().isBlank()
+                ? buildDownloadUrl(checagemId, e.getId())
+                : e.getLinkArquivo();
         return new EvidenciaDto(
                 str(e.getId()),
                 e.getTipo(),
-                e.getLinkArquivo(),
-                e.getDescricao()
+                urlAcesso,
+                e.getDescricao(),
+                e.getNomeArquivo(),
+                e.getTamanhoBytes(),
+                e.getContentType(),
+                e.getObjectKey()
         );
+    }
+
+    private String buildDownloadUrl(Long checagemId, Long evidenciaId) {
+        String base = apiProperties.publicUrl().replaceAll("/$", "");
+        String token = accessTokenService.gerarToken(checagemId, evidenciaId);
+        return base + "/checagens/" + checagemId + "/evidencias/" + evidenciaId + "/download?token=" + token;
     }
 
     public EtiquetaDto toEtiquetaDto(Etiqueta e) {

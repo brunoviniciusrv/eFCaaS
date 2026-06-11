@@ -7,8 +7,16 @@ import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import io.minio.GetObjectResponse;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,6 +34,8 @@ public class ChecagemService {
     private final EtiquetaRepository etiquetaRepo;
     private final ChecagemMapper mapper;
     private final AuditoriaService auditoria;
+    private final StorageService storageService;
+    private final EvidenciaAccessTokenService accessTokenService;
     private final IaService iaService;
     private final ObjectMapper objectMapper;
 
@@ -124,7 +134,77 @@ public class ChecagemService {
     public List<EvidenciaDto> listarEvidencias(Long checagemId) {
         buscarChecagem(checagemId);
         return evidenciaRepo.findByChecagemId(checagemId)
-                .stream().map(mapper::toEvidenciaDto).toList();
+                .stream().map(ev -> mapper.toEvidenciaDto(ev, checagemId)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<StreamingResponseBody> downloadEvidencia(
+            Long checagemId, Long evidenciaId, String token, String rangeHeader) {
+        accessTokenService.validar(token, checagemId, evidenciaId);
+        Evidencia e = evidenciaRepo.findByIdAndChecagemId(evidenciaId, checagemId)
+                .orElseThrow(() -> new NoSuchElementException("Evidência não encontrada: " + evidenciaId));
+        if (e.getObjectKey() == null || e.getObjectKey().isBlank()) {
+            throw new IllegalStateException("Evidência não possui arquivo armazenado");
+        }
+
+        String contentType = e.getContentType() != null ? e.getContentType() : "application/octet-stream";
+        String filename = e.getNomeArquivo() != null ? e.getNomeArquivo() : "arquivo";
+        long fileSize = e.getTamanhoBytes() != null && e.getTamanhoBytes() > 0
+                ? e.getTamanhoBytes()
+                : storageService.getObjectSize(e.getObjectKey());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"");
+        headers.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+
+        if (rangeHeader == null || rangeHeader.isBlank()) {
+            StreamingResponseBody body = outputStream -> {
+                try (GetObjectResponse object = storageService.getObject(e.getObjectKey())) {
+                    object.transferTo(outputStream);
+                }
+            };
+            headers.setContentLength(fileSize);
+            return ResponseEntity.ok().headers(headers).body(body);
+        }
+
+        ByteRange range = parseByteRange(rangeHeader, fileSize);
+        long contentLength = range.end() - range.start() + 1;
+
+        StreamingResponseBody body = outputStream -> {
+            try (GetObjectResponse object = storageService.getObjectRange(
+                    e.getObjectKey(), range.start(), contentLength)) {
+                object.transferTo(outputStream);
+            }
+        };
+
+        headers.setContentLength(contentLength);
+        headers.set(HttpHeaders.CONTENT_RANGE,
+                "bytes " + range.start() + "-" + range.end() + "/" + fileSize);
+
+        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).headers(headers).body(body);
+    }
+
+    @Transactional
+    public EvidenciaDto uploadEvidenciaArquivo(
+            Long checagemId, MultipartFile file, String descricao, Long usuarioId) {
+        StorageService.UploadResult upload = storageService.upload(checagemId, file);
+        Checagem ch = buscarChecagem(checagemId);
+        String tipo = inferirTipoEvidencia(upload.contentType());
+
+        Evidencia evidencia = new Evidencia();
+        evidencia.setChecagem(ch);
+        evidencia.setTipo(tipo);
+        evidencia.setObjectKey(upload.objectKey());
+        evidencia.setNomeArquivo(upload.originalFilename());
+        evidencia.setContentType(upload.contentType());
+        evidencia.setTamanhoBytes(upload.size());
+        evidencia.setDescricao(descricao != null && !descricao.isBlank()
+                ? descricao
+                : upload.originalFilename());
+        evidenciaRepo.save(evidencia);
+        auditoria.registrar(usuarioId, "evidencia_adicionada", "checagem:" + checagemId, tipo);
+        return mapper.toEvidenciaDto(evidencia, checagemId);
     }
 
     @Transactional
@@ -137,7 +217,7 @@ public class ChecagemService {
         e.setDescricao(req.descricao());
         evidenciaRepo.save(e);
         auditoria.registrar(usuarioId, "evidencia_adicionada", "checagem:" + checagemId, req.tipo());
-        return mapper.toEvidenciaDto(e);
+        return mapper.toEvidenciaDto(e, checagemId);
     }
 
     @Transactional
@@ -145,6 +225,9 @@ public class ChecagemService {
         buscarChecagem(checagemId);
         Evidencia e = evidenciaRepo.findByIdAndChecagemId(evidenciaId, checagemId)
                 .orElseThrow(() -> new NoSuchElementException("Evidência não encontrada: " + evidenciaId));
+        if (e.getObjectKey() != null && !e.getObjectKey().isBlank()) {
+            storageService.delete(e.getObjectKey());
+        }
         evidenciaRepo.delete(e);
         auditoria.registrar(usuarioId, "evidencia_removida", "checagem:" + checagemId, "evidencia:" + evidenciaId);
     }
@@ -185,5 +268,35 @@ public class ChecagemService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String inferirTipoEvidencia(String contentType) {
+        if (contentType == null) return "document";
+        if (contentType.startsWith("image/")) return "image";
+        if (contentType.startsWith("video/")) return "video";
+        return "document";
+    }
+
+    private record ByteRange(long start, long end) {}
+
+    private static ByteRange parseByteRange(String rangeHeader, long fileSize) {
+        if (!rangeHeader.startsWith("bytes=")) {
+            throw new IllegalArgumentException("Range inválido");
+        }
+        String[] parts = rangeHeader.substring(6).trim().split("-", 2);
+        long start;
+        long end;
+        if (parts[0].isEmpty()) {
+            long suffix = Long.parseLong(parts[1]);
+            start = Math.max(0, fileSize - suffix);
+            end = fileSize - 1;
+        } else {
+            start = Long.parseLong(parts[0]);
+            end = (parts.length < 2 || parts[1].isEmpty()) ? fileSize - 1 : Long.parseLong(parts[1]);
+        }
+        if (start < 0 || end >= fileSize || start > end) {
+            throw new IllegalArgumentException("Range inválido");
+        }
+        return new ByteRange(start, end);
     }
 }
