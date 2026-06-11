@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
 
 export const setToken = (token: string) => sessionStorage.setItem('efcaas_token', token);
 export const clearToken = () => sessionStorage.removeItem('efcaas_token');
@@ -46,13 +46,20 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  }).catch(() => {
-    throw new Error('Falha de rede ao enviar o arquivo. Verifique o tamanho (máx. 200 MB) e tente novamente.');
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new Error(
+      'Não foi possível enviar o arquivo. Verifique se VITE_API_URL aponta para a API ' +
+      '(Docker: http://localhost:8081/api/v1). Proxies nginx bloqueiam uploads acima de ~1 MB ' +
+      'se client_max_body_size não estiver configurado.'
+    );
+  }
 
   if (response.status === 401) {
     clearToken();
@@ -61,6 +68,12 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error(
+        'Arquivo rejeitado pelo proxy (413). Use a API direta em http://localhost:8081/api/v1 ' +
+        'ou aumente client_max_body_size no nginx.'
+      );
+    }
     const errBody = await response.json().catch(() => ({}));
     throw new Error(
       (errBody as any).detail || (errBody as any).message || `Erro ${response.status}`
