@@ -23,6 +23,7 @@ public class ConteudoSuspeitoService {
     private final ConteudoSuspeitoRepository conteudoRepo;
     private final ChecagemRepository checagemRepo;
     private final ParecerRepository parecerRepo;
+    private final InvestigacaoRepository investigacaoRepo;
     private final EvidenciaRepository evidenciaRepo;
     private final AnaliseIaRepository analiseIaRepo;
     private final UsuarioRepository usuarioRepo;
@@ -61,9 +62,12 @@ public class ConteudoSuspeitoService {
                 .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
         Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
         Parecer parecer = ch != null ? parecerRepo.findByChecagemId(ch.getId()).orElse(null) : null;
+        Investigacao investigacao = ch != null
+                ? investigacaoRepo.findByChecagemId(ch.getId()).orElse(null)
+                : null;
         List<Evidencia> evidencias = ch != null ? evidenciaRepo.findByChecagemId(ch.getId()) : List.of();
         AnaliseIa analiseIa = analiseIaRepo.findByConteudoId(id).orElse(null);
-        return mapper.toDto(c, ch, parecer, evidencias, analiseIa);
+        return mapper.toDto(c, ch, parecer, investigacao, evidencias, analiseIa);
     }
 
     @Transactional

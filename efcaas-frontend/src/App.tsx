@@ -34,7 +34,7 @@ import {
   SpecializedNetworkCheck
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
-import { apiService } from './services/apiService';
+import { apiService, normalizeReportStructure } from './services/apiService';
 import { clearToken } from './services/apiClient';
 
 // Components
@@ -376,7 +376,7 @@ function AppContent() {
     if (!selectedNewsId) return;
     setNews(prev => prev.map(n => n.id === selectedNewsId ? {
       ...n,
-      reportStructure: { ...n.reportStructure!, ...updates }
+      reportStructure: normalizeReportStructure({ ...n.reportStructure, ...updates }),
     } : n));
   };
 
@@ -418,6 +418,29 @@ function AppContent() {
       ...evidence,
       id: Math.random().toString(36).substr(2, 9),
       timestamp: new Date().toLocaleString()
+    };
+    setNews(prev => prev.map(n => n.id === selectedNewsId ? {
+      ...n,
+      evidence: [...n.evidence, newEvidence]
+    } : n));
+  };
+
+  const handleUploadEvidenceFile = async (file: File) => {
+    if (!selectedNewsId) return;
+    const currentNews = news.find(n => n.id === selectedNewsId);
+
+    if (!currentNews?.checagemId) {
+      throw new Error('Checagem não iniciada. Atribua a tarefa antes de anexar arquivos.');
+    }
+
+    const apiEv = await apiService.uploadEvidenciaArquivo(currentNews.checagemId, file, file.name);
+    const newEvidence: Evidence = {
+      id: apiEv.id,
+      type: (apiEv.tipo as Evidence['type']) ?? 'document',
+      url: apiEv.linkArquivo,
+      title: apiEv.nomeArquivo ?? file.name,
+      description: apiEv.descricao ?? undefined,
+      timestamp: new Date().toLocaleString(),
     };
     setNews(prev => prev.map(n => n.id === selectedNewsId ? {
       ...n,
@@ -1078,6 +1101,7 @@ function AppContent() {
           <Route path="/analysis/:id" element={
             <AnalysisRouteWrapper 
               news={news}
+              setNews={setNews}
               setSelectedNewsId={setSelectedNewsId}
               isToolboxOpen={isToolboxOpen}
               setIsToolboxOpen={setIsToolboxOpen}
@@ -1087,6 +1111,7 @@ function AppContent() {
               handleReviewReport={handleReviewReport}
               handleUpdateReport={handleUpdateReport}
               handleAddEvidence={handleAddEvidence}
+              handleUploadEvidenceFile={handleUploadEvidenceFile}
               handleRemoveEvidence={handleRemoveEvidence}
               isSaving={isSaving}
               isGeneratingDraft={isGeneratingDraft}
@@ -1149,21 +1174,64 @@ const AnalysisRouteWrapper = (props: any) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const selectedNews = props.news.find((n: any) => n.id === id);
+  const [isLoadingDetail, setIsLoadingDetail] = React.useState(false);
 
   useEffect(() => {
     if (id) {
       props.setSelectedNewsId(id);
     }
-  }, [id, props]);
+  }, [id, props.setSelectedNewsId]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+    setIsLoadingDetail(true);
+
+    apiService.obterConteudo(id)
+      .then((fresh) => {
+        if (cancelled) return;
+        props.setNews((prev: NewsItem[]) =>
+          prev.map((n) => {
+            if (n.id !== id) return n;
+            return {
+              ...n,
+              ...fresh,
+              evidence: fresh.evidence,
+              reportStructure: fresh.reportStructure ?? n.reportStructure,
+              report: fresh.report ?? n.report,
+            };
+          })
+        );
+      })
+      .catch((err) => {
+        console.error('Erro ao carregar detalhes da investigação:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDetail(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, props.setNews]);
 
   if (!selectedNews) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  if (isLoadingDetail && selectedNews.evidence.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] opacity-60">
+        <p className="text-sm font-medium">Carregando investigação...</p>
+      </div>
+    );
+  }
+
   return (
     <AnalysisView 
       {...props}
-      selectedNews={selectedNews}
+      selectedNews={props.news.find((n: any) => n.id === id) ?? selectedNews}
       setCurrentView={(view: string) => navigate(`/${view}`)}
     />
   );

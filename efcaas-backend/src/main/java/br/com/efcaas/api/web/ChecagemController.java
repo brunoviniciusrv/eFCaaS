@@ -9,10 +9,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -94,13 +96,35 @@ public class ChecagemController {
 
     @PostMapping("/{id}/evidencias")
     @PreAuthorize("hasAuthority('perform_analysis')")
-    @Operation(summary = "Adicionar evidência")
+    @Operation(summary = "Adicionar evidência (link externo)")
     public ResponseEntity<EvidenciaDto> adicionarEvidencia(
             @PathVariable Long id,
             @Valid @RequestBody AdicionarEvidenciaRequest request,
             Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.adicionarEvidencia(id, request, Long.parseLong(auth.getName())));
+    }
+
+    @PostMapping(value = "/{id}/evidencias/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('perform_analysis')")
+    @Operation(summary = "Enviar arquivo de evidência para o object storage (MinIO)")
+    public ResponseEntity<EvidenciaDto> uploadEvidencia(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String descricao,
+            Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.uploadEvidenciaArquivo(id, file, descricao, Long.parseLong(auth.getName())));
+    }
+
+    @GetMapping("/{id}/evidencias/{evId}/download")
+    @Operation(summary = "Download de arquivo de evidência (token temporário na query string)")
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> downloadEvidencia(
+            @PathVariable Long id,
+            @PathVariable Long evId,
+            @RequestParam String token,
+            @RequestHeader(value = org.springframework.http.HttpHeaders.RANGE, required = false) String range) {
+        return service.downloadEvidencia(id, evId, token, range);
     }
 
     @DeleteMapping("/{id}/evidencias/{evId}")

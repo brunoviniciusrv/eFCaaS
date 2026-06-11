@@ -44,7 +44,7 @@ import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile } from '../types';
 import { TOOLS } from '../constants';
-import { apiService, ApiAuditoriaDto } from '../services/apiService';
+import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
 
 // ─── Auditoria helpers ──────────────────────────────────────────────────────
 
@@ -108,6 +108,7 @@ interface AnalysisViewProps {
   handleReviewReport: () => void;
   handleUpdateReport: (text: string) => void;
   handleAddEvidence: (evidence: Omit<Evidence, 'id' | 'timestamp'>) => void;
+  handleUploadEvidenceFile: (file: File) => Promise<void>;
   handleRemoveEvidence: (id: string) => void;
   isSaving: boolean;
   isGeneratingDraft: boolean;
@@ -130,6 +131,7 @@ export const AnalysisView = ({
   handleReviewReport,
   handleUpdateReport,
   handleAddEvidence,
+  handleUploadEvidenceFile,
   handleRemoveEvidence,
   isSaving,
   isGeneratingDraft,
@@ -185,20 +187,28 @@ export const AnalysisView = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const maxBytes = 200 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert('O arquivo excede o limite de 200 MB.');
+      e.target.value = '';
+      return;
+    }
+
     setIsUploading(true);
     setUploadStatus('idle');
 
-    // Simulate upload
-    setTimeout(() => {
-      handleAddEvidence({
-        type: 'document',
-        title: file.name,
-        url: URL.createObjectURL(file)
-      });
-      setIsUploading(false);
+    try {
+      await handleUploadEvidenceFile(file);
       setUploadStatus('success');
       setTimeout(() => setUploadStatus('idle'), 3000);
-    }, 1500);
+    } catch (err) {
+      console.error('Erro ao enviar arquivo:', err);
+      setUploadStatus('error');
+      alert(err instanceof Error ? err.message : 'Falha ao enviar o arquivo.');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleLinkSubmit = (e: React.FormEvent) => {
@@ -216,14 +226,7 @@ export const AnalysisView = ({
     setTimeout(() => setUploadStatus('idle'), 3000);
   };
 
-  const reportStructure = selectedNews.reportStructure || {
-    summary: '',
-    questions: [''],
-    sources: [''],
-    isInverifiable: false,
-    contactWithAuthor: { hadContact: null },
-    label: undefined
-  };
+  const reportStructure = normalizeReportStructure(selectedNews.reportStructure);
 
   const aiScores = selectedNews.aiScores ?? { gravity: 0, urgency: 0, trend: 0 };
 
@@ -811,6 +814,7 @@ export const AnalysisView = ({
                                className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                                onChange={handleFileUpload}
                                disabled={isUploading}
+                               accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
                              />
                              
                              {isUploading ? (
@@ -825,7 +829,7 @@ export const AnalysisView = ({
                                  </div>
                                  <div>
                                     <p className="font-bold text-sm text-slate-800">Anexar Arquivo</p>
-                                    <p className="text-[10px] font-bold opacity-30 uppercase tracking-widest leading-tight">PDF, Imagem, Doc</p>
+                                    <p className="text-[10px] font-bold opacity-30 uppercase tracking-widest leading-tight">PDF, Imagem, Vídeo, Doc</p>
                                  </div>
                                </>
                              )}
@@ -887,32 +891,69 @@ export const AnalysisView = ({
                     )}
                     <div className="grid grid-cols-1 gap-4">
                       {selectedNews.evidence.map(ev => (
-                        <div 
-                          key={ev.id} 
-                          className="flex items-center gap-4 p-4 rounded-3xl border bg-white shadow-sm hover:shadow-md transition-all group"
+                        <div
+                          key={ev.id}
+                          className="rounded-3xl border bg-white shadow-sm hover:shadow-md transition-all group overflow-hidden"
                           style={{ borderColor: themeConfig.general.border }}
                         >
-                          <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                            {ev.type === 'link' ? <LinkIcon size={18} className="text-blue-500" /> : <FileText size={18} className="text-slate-400" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-black truncate text-slate-800">{ev.title}</h4>
-                            <p className="text-[10px] opacity-50 truncate font-mono">{ev.url}</p>
-                          </div>
-                          {canEdit && (
-                            <button 
-                              onClick={() => handleRemoveEvidence(ev.id)} 
-                              className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 transition-all rounded-full hover:bg-red-50"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          {ev.type === 'video' && ev.url && (
+                            <video
+                              src={ev.url}
+                              controls
+                              preload="metadata"
+                              crossOrigin="anonymous"
+                              className="w-full aspect-video bg-black"
+                            />
                           )}
+                          {ev.type === 'image' && ev.url && (
+                            <a href={ev.url} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={ev.url}
+                                alt={ev.title}
+                                className="w-full max-h-72 object-contain bg-slate-50"
+                              />
+                            </a>
+                          )}
+                          <div className="flex items-center gap-4 p-4">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                              {ev.type === 'link' && <LinkIcon size={18} className="text-blue-500" />}
+                              {ev.type === 'video' && <VideoIcon size={18} className="text-violet-500" />}
+                              {ev.type === 'image' && <ImageIcon size={18} className="text-emerald-500" />}
+                              {ev.type === 'document' && <FileText size={18} className="text-slate-400" />}
+                              {!['link', 'video', 'image', 'document'].includes(ev.type) && (
+                                <FileText size={18} className="text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {ev.url ? (
+                                <a
+                                  href={ev.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-black truncate text-slate-800 hover:text-blue-600 block"
+                                >
+                                  {ev.title}
+                                </a>
+                              ) : (
+                                <h4 className="text-sm font-black truncate text-slate-800">{ev.title}</h4>
+                              )}
+                              <p className="text-[10px] opacity-50 truncate font-mono">{ev.url}</p>
+                            </div>
+                            {canEdit && (
+                              <button
+                                onClick={() => handleRemoveEvidence(ev.id)}
+                                className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 transition-all rounded-full hover:bg-red-50 shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {selectedNews.evidence.length === 0 && (
                         <div className="py-12 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center space-y-2 opacity-40">
                           <Info size={24} />
-                          <p className="text-sm font-medium">Inicie a investigação anexando links ou documentos.</p>
+                          <p className="text-sm font-medium">Inicie a investigação anexando links, documentos, imagens ou vídeos.</p>
                         </div>
                       )}
                     </div>
