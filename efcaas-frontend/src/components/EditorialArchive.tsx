@@ -25,7 +25,7 @@ import {
   User as UserIcon,
   Tag
 } from 'lucide-react';
-import { EditorialArticle, ArticleStatus, UserProfile, NewsItem } from '../types';
+import { EditorialArticle, ArticleStatus, UserProfile, NewsItem, ThemeConfig } from '../types';
 import { cn } from '../lib/utils';
 
 interface EditorialArchiveProps {
@@ -34,9 +34,10 @@ interface EditorialArchiveProps {
   user: UserProfile;
   onDeleteArticle: (id: string) => void;
   onUpdateStatus: (id: string, status: ArticleStatus) => void;
+  themeConfig: ThemeConfig;
 }
 
-export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpdateStatus }: EditorialArchiveProps) {
+export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpdateStatus, themeConfig }: EditorialArchiveProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'all'>('all');
@@ -111,21 +112,21 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans p-6 lg:p-10">
+    <div className="min-h-screen font-sans p-6 lg:p-10 transition-colors duration-300" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-              <FileText className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-black tracking-tight flex items-center gap-3" style={{ color: themeConfig.dashboard.text }}>
+              <FileText className="w-8 h-8" style={{ color: themeConfig.general.accent }} />
               Acervo Editorial
             </h1>
-            <p className="text-slate-500 font-medium mt-1">Gerencie, exporte e publique suas checagens finalizadas.</p>
+            <p className="text-sm font-medium mt-1 opacity-75">Gerencie, exporte e publique suas checagens finalizadas.</p>
           </div>
           
           <div className="flex items-center gap-3">
             <div className="relative group">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50">
                 <Search className="w-4 h-4" />
               </span>
               <input 
@@ -133,14 +134,24 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                 placeholder="Buscar matérias..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-300 transition-all w-64 text-sm"
+                className="pl-10 pr-4 py-2 border rounded-xl outline-none transition-all w-64 text-sm"
+                style={{ 
+                  backgroundColor: themeConfig.general.inputBackground, 
+                  borderColor: themeConfig.general.inputBorder,
+                  color: themeConfig.general.inputText
+                }}
               />
             </div>
             
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-300 transition-all text-sm font-semibold text-slate-600"
+              className="px-4 py-2 border rounded-xl outline-none text-sm font-semibold"
+              style={{ 
+                backgroundColor: themeConfig.general.inputBackground, 
+                borderColor: themeConfig.general.inputBorder,
+                color: themeConfig.general.inputText
+              }}
             >
               <option value="all">Todos os Status</option>
               <option value="draft">Rascunhos</option>
@@ -163,15 +174,19 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
               key={cat.id}
               onClick={() => setStatusFilter(cat.id as ArticleStatus)}
               className={cn(
-                "p-4 rounded-2xl bg-white border border-slate-200 text-left transition-all hover:shadow-lg group",
-                statusFilter === cat.id && "ring-2 ring-blue-500 shadow-xl border-transparent"
+                "p-4 rounded-2xl border text-left transition-all hover:shadow-lg group"
               )}
+              style={{
+                backgroundColor: themeConfig.general.cardBackground,
+                borderColor: statusFilter === cat.id ? themeConfig.general.accent : themeConfig.general.border,
+                color: themeConfig.dashboard.text
+              }}
             >
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-blue-500 transition-colors">
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">
                 {cat.label}
               </span>
               <div className="flex items-center justify-between mt-1">
-                <span className="text-2xl font-black text-slate-800">{cat.count}</span>
+                <span className="text-2xl font-black">{cat.count}</span>
                 <div className={cn(
                   "w-2 h-2 rounded-full",
                   cat.color === 'slate' ? 'bg-slate-300' :
@@ -184,22 +199,22 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
         </div>
 
         {/* Articles List */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="rounded-[2.5rem] border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Matéria</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Origem</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest" style={{ color: themeConfig.general.tableHeaderText }}>Matéria</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest" style={{ color: themeConfig.general.tableHeaderText }}>Origem</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-center" style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-right" style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
                 {filteredArticles.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center opacity-20">
+                      <div className="flex flex-col items-center opacity-30">
                         <FileText className="w-16 h-16 mb-4" />
                         <p className="text-xl font-bold uppercase tracking-widest">Vazio</p>
                         <p className="text-sm font-medium">Nenhuma matéria encontrada nesta categoria.</p>
@@ -208,23 +223,23 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                   </tr>
                 ) : (
                   filteredArticles.map(article => (
-                    <tr key={article.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <tr key={article.id} className="group transition-colors" style={{ borderBottomColor: themeConfig.general.border }}>
                       <td className="px-6 py-6">
                         <div className="flex flex-col gap-1 max-w-sm">
-                          <span className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                          <span className="text-sm font-bold transition-colors line-clamp-1" style={{ color: themeConfig.dashboard.text }}>
                             {article.title}
                           </span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-2">
+                          <span className="text-[10px] opacity-65 flex items-center gap-2">
                              <Calendar className="w-3 h-3" /> {new Date(article.updatedAt).toLocaleDateString('pt-BR')}
-                             <span className="text-slate-200">|</span>
+                             <span className="opacity-40">|</span>
                              <UserIcon className="w-3 h-3" /> Redator ID: {article.authorId}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-6">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-bold text-slate-500 line-clamp-1">{getNewsTitle(article.newsId)}</span>
-                          <span className="text-[9px] text-blue-500 font-black uppercase tracking-tight">Ref: #{article.newsId.split('-')[1]}</span>
+                          <span className="text-[10px] font-bold opacity-75 line-clamp-1">{getNewsTitle(article.newsId)}</span>
+                          <span className="text-[9px] font-black uppercase tracking-tight" style={{ color: themeConfig.general.accent }}>Ref: #{article.newsId.split('-')[1]}</span>
                         </div>
                       </td>
                       <td className="px-6 py-6">
@@ -325,7 +340,8 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
         <div className="mt-8 flex justify-center">
            <button 
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all active:scale-95"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-bold hover:opacity-95 transition-all active:scale-95 shadow-md"
+            style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
            >
              Voltar ao Início
            </button>

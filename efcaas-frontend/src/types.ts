@@ -292,6 +292,14 @@ export interface NewsItem {
     gravity: number;
     urgency: number;
     trend: number;
+    inveracidade?: number;
+    distorcao?: number;
+    foraDeContexto?: number;
+    golpe?: number;
+    fraude?: number;
+    ataques?: number;
+    discursoDeOdio?: number;
+    discursoAntidemocratico?: number;
   };
   aiEvaluation?: AIEvaluation;
   briefing?: string;

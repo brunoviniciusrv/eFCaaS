@@ -35,7 +35,8 @@ import {
   Clock,
   UserPlus,
   Ban,
-  ShieldOff
+  ShieldOff,
+  AlertTriangle
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -150,7 +151,7 @@ export const AnalysisView = ({
   // Actually, if editor is accessing from list, it should be read-only.
   // Full curators/admins can edit.
   const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
-  const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'investigation' | 'result'>('content');
+  const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'tools' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
 
@@ -278,10 +279,11 @@ export const AnalysisView = ({
                   setActiveTab={setActiveTab as any}
                   themeConfig={themeConfig}
                   tabs={[
-                    { id: 'content', label: '1. Conteúdo', icon: FileIcon },
-                    { id: 'metrics', label: '2. Métricas IA', icon: Sparkles },
-                    { id: 'investigation', label: '3. Investigação', icon: Search },
-                    { id: 'result', label: '4. Parecer', icon: FileText },
+                    { id: 'content', label: 'Conteúdo', icon: FileIcon },
+                    { id: 'metrics', label: 'Métricas IA', icon: Sparkles },
+                    ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
+                    { id: 'investigation', label: 'Investigação', icon: Search },
+                    { id: 'result', label: 'Parecer', icon: FileText },
                   ]}
                   buttonClassName="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
                   inactiveButtonClassName="opacity-40 hover:opacity-100 hover:bg-black/5"
@@ -290,36 +292,19 @@ export const AnalysisView = ({
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
             {canEdit && (
-              <>
-                <button 
-                  onClick={() => setIsToolboxOpen(!isToolboxOpen)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                    isToolboxOpen ? "" : "border"
-                  )}
-                  style={{ 
-                    backgroundColor: isToolboxOpen ? themeConfig.buttons.primary : 'transparent',
-                    color: isToolboxOpen ? themeConfig.buttons.primaryText : themeConfig.header.text,
-                    borderColor: themeConfig.header.border
-                  }}
-                >
-                  <Toolbox size={18} />
-                  Ferramentas
-                </button>
-                <button 
-                  onClick={handleSaveFinal}
-                  disabled={isSaving}
-                  className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
-                  style={{ 
-                    backgroundColor: themeConfig.status.success, 
-                    color: '#fff',
-                    boxShadow: `0 10px 15px -3px ${themeConfig.status.success}30`
-                  }}
-                >
-                  <Save size={18} />
-                  {isSaving ? 'Salvando...' : 'Finalizar'}
-                </button>
-              </>
+              <button 
+                onClick={handleSaveFinal}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+                style={{ 
+                  backgroundColor: themeConfig.status.success, 
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.status.success}30`
+                }}
+              >
+                <Save size={18} />
+                {isSaving ? 'Salvando...' : 'Finalizar'}
+              </button>
             )}
             {selectedNews.status === 'completed' && (
               <button 
@@ -527,55 +512,112 @@ export const AnalysisView = ({
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                {/* 2. Automated Insights (GUT Metrics) */}
-                <div className="space-y-4">
+                <div className="space-y-8">
                   <div className="flex items-center gap-2 px-2">
                     <Sparkles size={16} className="text-blue-500" />
                     <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40">Métricas Preliminares de I.A</h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    {[
-                      { label: 'Gravidade', value: aiScores.gravity, icon: AlertCircle, color: themeConfig.status.error },
-                      { label: 'Urgência', value: aiScores.urgency, icon: Sparkles, color: themeConfig.status.warning },
-                      { label: 'Tendência', value: aiScores.trend, icon: History, color: themeConfig.status.info }
-                    ].map((score, idx) => (
-                      <div 
-                        key={idx} 
-                        className="p-6 rounded-3xl border shadow-sm flex flex-col gap-4 transition-all hover:shadow-md bg-white border-slate-100"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="p-3 rounded-2xl" style={{ backgroundColor: `${score.color}10`, color: score.color }}>
-                            <score.icon size={20} />
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-40 block leading-none mb-1">{score.label}</span>
-                            <div className="flex items-baseline justify-end gap-0.5">
-                              {selectedNews.isAIProcessing ? (
-                                <span className="text-xs font-bold text-blue-500 animate-pulse">Calculando...</span>
-                              ) : (
-                                <>
-                                  <span className="text-2xl font-black" style={{ color: themeConfig.dashboard.text }}>{score.value || 0}</span>
-                                  <span className="text-[10px] opacity-30 font-bold">/100</span>
-                                </>
-                              )}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2 px-2">
+                      <AlertCircle size={16} className="text-orange-500" />
+                      <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 text-orange-600">Eixo Desinformação</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {[
+                        { label: 'Inveracidade', value: aiScores.inveracidade || aiScores.gravity || 0, icon: AlertCircle, color: themeConfig.status.error },
+                        { label: 'Distorção', value: aiScores.distorcao || aiScores.urgency || 0, icon: Sparkles, color: themeConfig.status.warning },
+                        { label: 'Fora de Contexto', value: aiScores.foraDeContexto || aiScores.trend || 0, icon: History, color: themeConfig.status.info }
+                      ].map((score, idx) => (
+                        <div 
+                          key={idx} 
+                          className="p-5 rounded-3xl border shadow-sm flex flex-col gap-4 transition-all hover:shadow-md bg-white border-slate-100 h-full"
+                        >
+                          <div className="flex flex-col justify-between h-full space-y-4">
+                            <div className="flex justify-between items-start">
+                              <div className="p-2.5 rounded-2xl" style={{ backgroundColor: `${score.color}10`, color: score.color }}>
+                                <score.icon size={18} />
+                              </div>
+                              <div className="text-right flex-1 ml-3">
+                                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50 block leading-tight mb-1">{score.label}</span>
+                                <div className="flex items-baseline justify-end gap-0.5">
+                                  {selectedNews.isAIProcessing ? (
+                                    <span className="text-xs font-bold text-blue-500 animate-pulse">...</span>
+                                  ) : (
+                                    <span className="text-xl font-black leading-none" style={{ color: themeConfig.dashboard.text }}>{score.value}%</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden mt-auto shrink-0">
+                               {selectedNews.isAIProcessing ? (
+                                 <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
+                               ) : (
+                                 <motion.div 
+                                   initial={{ width: 0 }}
+                                   animate={{ width: `${score.value}%` }}
+                                   className="h-full rounded-full"
+                                   style={{ backgroundColor: score.color }}
+                                 />
+                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden">
-                           {selectedNews.isAIProcessing ? (
-                             <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
-                           ) : (
-                             <motion.div 
-                               initial={{ width: 0 }}
-                               animate={{ width: `${score.value || 0}%` }}
-                               className="h-full rounded-full"
-                               style={{ backgroundColor: score.color }}
-                             />
-                           )}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2 px-2">
+                      <AlertTriangle size={16} className="text-red-500" />
+                      <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 text-red-600">Eixo Ilicitudes</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {[
+                        { label: 'Golpe', value: aiScores.golpe || Math.floor((aiScores.gravity || 0) * 0.7), icon: AlertTriangle, color: '#ef4444' },
+                        { label: 'Fraude', value: aiScores.fraude || Math.floor((aiScores.urgency || 0) * 0.8), icon: AlertTriangle, color: '#f97316' },
+                        { label: 'Ataques', value: aiScores.ataques || Math.floor((aiScores.trend || 0) * 0.6), icon: AlertTriangle, color: '#8b5cf6' },
+                        { label: 'Disc. Ódio', value: aiScores.discursoDeOdio || Math.floor((aiScores.gravity || 0) * 0.9), icon: AlertTriangle, color: '#ec4899' },
+                        { label: 'Disc. Antidemocrático', value: aiScores.discursoAntidemocratico || Math.floor((aiScores.gravity || 0) * 0.5), icon: AlertTriangle, color: '#ef4444' }
+                      ].map((score, idx) => (
+                        <div 
+                          key={idx} 
+                          className="p-5 rounded-3xl border shadow-sm flex flex-col gap-4 transition-all hover:shadow-md bg-white border-slate-100 h-full"
+                        >
+                          <div className="flex flex-col justify-between h-full space-y-4">
+                            <div className="flex justify-between items-start">
+                              <div className="p-2.5 rounded-2xl" style={{ backgroundColor: `${score.color}10`, color: score.color }}>
+                                <score.icon size={18} />
+                              </div>
+                              <div className="text-right flex-1 ml-3">
+                                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50 block leading-tight mb-1">{score.label}</span>
+                                <div className="flex items-baseline justify-end gap-0.5">
+                                  {selectedNews.isAIProcessing ? (
+                                    <span className="text-[10px] font-bold text-blue-500 animate-pulse">...</span>
+                                  ) : (
+                                    <span className="text-xl font-black leading-none" style={{ color: themeConfig.dashboard.text }}>{score.value}%</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden mt-auto shrink-0">
+                               {selectedNews.isAIProcessing ? (
+                                 <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
+                               ) : (
+                                 <motion.div 
+                                   initial={{ width: 0 }}
+                                   animate={{ width: `${score.value}%` }}
+                                   className="h-full rounded-full"
+                                   style={{ backgroundColor: score.color }}
+                                 />
+                               )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1162,6 +1204,63 @@ export const AnalysisView = ({
                              </div>
                           </div>
                        </div>
+                    </div>
+                  </div>
+                </section>
+              </motion.div>
+            )}
+            {activeTab === 'tools' && (
+              <motion.div 
+                key="tools"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-6"
+              >
+                <section 
+                  className="rounded-3xl border overflow-hidden shadow-sm"
+                  style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
+                >
+                  <div className="p-4 border-b flex items-center justify-between" style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
+                    <h3 className="text-xs font-black uppercase tracking-widest opacity-60" style={{ color: themeConfig.dashboard.text }}>Ferramentas Analíticas</h3>
+                  </div>
+                  <div className="p-6">
+                    <p className="text-sm text-slate-500 mb-6 font-medium">Use essas ferramentas externas e assistentes integrados para auxiliar na checagem e consolidação de evidências.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {TOOLS.map((tool, i) => {
+                        const Icon = getToolIcon(tool.icon);
+                        return (
+                          <div 
+                            key={i} 
+                            className="p-6 rounded-2xl border transition-all hover:bg-slate-50/20 flex flex-col justify-between"
+                            style={{ borderColor: themeConfig.general.border }}
+                          >
+                            <div className="mb-4">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div 
+                                  className="p-2 rounded-xl flex items-center justify-center border"
+                                  style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
+                                >
+                                  <Icon size={18} style={{ color: themeConfig.general.accent }} />
+                                </div>
+                                <h4 className="font-bold text-sm" style={{ color: themeConfig.dashboard.text }}>{tool.name}</h4>
+                              </div>
+                              <p className="text-xs text-slate-500 leading-relaxed">{tool.description}</p>
+                            </div>
+                            <button 
+                              className="w-full py-2 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer hover:opacity-90"
+                              style={{ 
+                                backgroundColor: themeConfig.general.cardBackground, 
+                                borderColor: themeConfig.general.border,
+                                color: themeConfig.dashboard.text
+                              }}
+                            >
+                              Abrir Utilitário
+                              <ExternalLink size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </section>

@@ -140,16 +140,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
           </form>
 
           {/* Footer Actions */}
-          <div className="pt-6 border-t border-slate-50 flex flex-col gap-4">
-            <button 
-              onClick={onOpenOnboarding}
-              className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest"
-              onMouseEnter={(e) => (e.currentTarget.style.color = accentColor)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '')}
-            >
-              <Settings size={14} />
-              Configurar Agência
-            </button>
+          <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Identidade Corporativa</p>
+                <p className="text-[9px] text-slate-400 mt-0.5 leading-relaxed">Personalize a identidade visual, governança e ferramentas de IA da sua agência.</p>
+              </div>
+              <button 
+                onClick={onOpenOnboarding}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all shadow-sm flex items-center gap-1 hover:brightness-105 cursor-pointer"
+                style={{ backgroundColor: accentColor }}
+              >
+                <Settings size={10} strokeWidth={3} />
+                Ajustar
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -157,7 +162,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
       {/* Help Button */}
       <button 
         onClick={() => setShowHelp(true)}
-        className="fixed bottom-8 right-8 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:shadow-xl transition-all"
+        className="fixed bottom-8 right-8 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center transition-all hover:shadow-xl"
+        style={{ color: themeConfig.general.accent }}
       >
         <HelpCircle size={24} />
       </button>
@@ -183,12 +189,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                   <button 
                     key={account.email}
                     onClick={() => fillCredentials(account.email)}
-                    className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all group"
+                    className="p-4 rounded-2xl border border-slate-100 text-left transition-all group hover:bg-slate-50"
+                    style={{ borderColor: `${themeConfig.general.accent}20` }}
                   >
                     <div className="flex items-center gap-3 mb-2">
                        <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
                           {account.role === 'admin'   && <Shield      size={16} className="text-red-500" />}
-                          {account.role === 'curator' && <Search      size={16} className="text-blue-500" />}
+                          {account.role === 'curator' && <Search      size={16} style={{ color: themeConfig.general.accent }} />}
                           {account.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
                           {account.role === 'editor'  && <User        size={16} className="text-slate-500" />}
                        </div>
@@ -196,7 +203,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                           <p className="text-xs font-black uppercase tracking-tight text-slate-900">{account.role}</p>
                        </div>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600 truncate">{account.email}</p>
+                    <p className="text-[11px] font-medium text-slate-500 truncate group-hover:opacity-80">{account.email}</p>
                     <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Clique para preencher</p>
                   </button>
                 ))}

@@ -45,7 +45,8 @@ import {
   ArticleTemplateType,
   EditorialComment,
   ArticleVersion,
-  LabelConfig
+  LabelConfig,
+  ThemeConfig
 } from '../types';
 import { cn } from '../lib/utils';
 import { generateArticleSuggestions } from '../services/geminiService';
@@ -57,9 +58,10 @@ interface EditorViewProps {
   onSaveArticle: (article: EditorialArticle) => void;
   articles: EditorialArticle[];
   checkPermission: (permId: string) => boolean;
+  themeConfig: ThemeConfig;
 }
 
-export function EditorView({ user, news, labels, onSaveArticle, articles, checkPermission }: EditorViewProps) {
+export function EditorView({ user, news, labels, onSaveArticle, articles, checkPermission, themeConfig }: EditorViewProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
@@ -164,11 +166,11 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
   if (!newsItem) return null;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex h-screen overflow-hidden font-sans transition-colors duration-300" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
       {/* Left Sidebar: Context & Evidence */}
-      <aside className="w-80 bg-white border-r border-slate-200 overflow-y-auto hidden lg:flex flex-col">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50">
-          <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+      <aside className="w-80 border-r overflow-y-auto hidden lg:flex flex-col" style={{ backgroundColor: themeConfig.general.cardBackground, borderRightColor: themeConfig.general.border }}>
+        <div className="p-4 border-b" style={{ borderBottomColor: themeConfig.general.border, backgroundColor: themeConfig.general.tableHeaderBackground }}>
+          <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: themeConfig.dashboard.text }}>
             <FileText className="w-4 h-4" /> Parecer da Checagem
           </h2>
         </div>
@@ -177,7 +179,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           {/* Label Context */}
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conclusão</label>
-            <div className="mt-2 text-sm font-medium p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center justify-between group">
+            <div className="mt-2 text-sm font-medium p-3 border rounded-lg shadow-sm flex items-center justify-between group" style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border }}>
               <span className={cn(
                 "px-2 py-1 rounded text-white text-xs font-bold",
                 newsItem.reportStructure?.label === 'Falso' ? 'bg-red-500' :
@@ -187,7 +189,8 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
               </span>
               <button 
                 onClick={insertLabel}
-                className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1 rounded hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
+                style={{ backgroundColor: themeConfig.buttons.secondary, color: themeConfig.buttons.secondaryText }}
                 title="Inserir no editor"
               >
                 <Plus className="w-4 h-4" />
@@ -198,7 +201,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           {/* AI Briefing Summary */}
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo da Evidência</label>
-            <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-lg leading-relaxed">
+            <div className="mt-2 text-xs rounded-lg leading-relaxed p-3 border" style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
               {newsItem.aiEvaluation?.explanation || "Aguardando processamento..."}
             </div>
           </div>
@@ -252,38 +255,49 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
       </aside>
 
       {/* Main Content: The Editor */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white">
+      <main className="flex-1 flex flex-col min-w-0" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
         {/* Editor Toolbar */}
-        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-6 shrink-0 bg-white z-10">
+        <header className="h-16 border-b flex items-center justify-between px-6 shrink-0 z-10" style={{ borderBottomColor: themeConfig.general.border, backgroundColor: themeConfig.general.cardBackground, color: themeConfig.dashboard.text }}>
           <div className="flex items-center gap-4">
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <div className="flex p-1 rounded-lg" style={{ backgroundColor: themeConfig.general.inputBackground }}>
               <button 
                 onClick={() => setActiveTab('editor')}
                 className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
-                  activeTab === 'editor' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-all"
                 )}
+                style={{
+                  backgroundColor: activeTab === 'editor' ? themeConfig.general.cardBackground : 'transparent',
+                  color: activeTab === 'editor' ? themeConfig.general.accent : themeConfig.buttons.secondaryText
+                }}
               >
                 Editor
               </button>
               <button 
                 onClick={() => setActiveTab('preview')}
                 className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
-                  activeTab === 'preview' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-all"
                 )}
+                style={{
+                  backgroundColor: activeTab === 'preview' ? themeConfig.general.cardBackground : 'transparent',
+                  color: activeTab === 'preview' ? themeConfig.general.accent : themeConfig.buttons.secondaryText
+                }}
               >
                 Preview
               </button>
             </div>
             
-            <div className="h-6 w-[1px] bg-slate-200 mx-2" />
+            <div className="h-6 w-[1px] mx-2" style={{ backgroundColor: themeConfig.general.border }} />
             
             <div className="flex items-center gap-2">
               <select 
                 value={template}
                 onChange={(e) => setTemplate(e.target.value as ArticleTemplateType)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none hover:border-slate-300"
+                className="text-xs font-medium border rounded-md px-2 py-1 outline-none transition-all"
+                style={{ 
+                  backgroundColor: themeConfig.general.inputBackground, 
+                  borderColor: themeConfig.general.inputBorder,
+                  color: themeConfig.general.inputText
+                }}
               >
                 <option value="short">Artigo Curto</option>
                 <option value="breaking">Breaking News</option>
@@ -296,30 +310,40 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowComments(!showComments)}
-              className={cn(
-                "p-2 rounded-full hover:bg-slate-100 transition-colors relative",
-                showComments ? "text-blue-600 bg-blue-50" : "text-slate-500"
-              )}
+              className="p-2 rounded-full transition-colors relative"
+              style={{
+                color: showComments ? themeConfig.general.accent : themeConfig.buttons.secondaryText,
+                backgroundColor: showComments ? `${themeConfig.general.accent}15` : 'transparent'
+              }}
             >
               <MessageSquare className="w-5 h-5" />
               {comments.filter(c => !c.resolved).length > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white">
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2" style={{ borderColor: themeConfig.general.cardBackground }}>
                   {comments.filter(c => !c.resolved).length}
                 </span>
               )}
             </button>
             <button 
               onClick={() => setShowHistory(!showHistory)}
-              className={cn("p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors", showHistory && "text-blue-600 bg-blue-50")}
+              className="p-2 rounded-full transition-colors"
+              style={{
+                color: showHistory ? themeConfig.general.accent : themeConfig.buttons.secondaryText,
+                backgroundColor: showHistory ? `${themeConfig.general.accent}15` : 'transparent'
+              }}
             >
               <History className="w-5 h-5" />
             </button>
-            <div className="h-6 w-[1px] bg-slate-200 mx-1" />
+            <div className="h-6 w-[1px] mx-1" style={{ backgroundColor: themeConfig.general.border }} />
             <div className="flex items-center gap-2">
               <select 
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ArticleStatus)}
-                className="text-xs font-bold uppercase tracking-widest bg-white border border-slate-200 rounded-md px-3 py-1.5 outline-none"
+                className="text-xs font-bold uppercase tracking-widest border rounded-md px-3 py-1.5 outline-none transition-all"
+                style={{ 
+                  backgroundColor: themeConfig.general.inputBackground, 
+                  borderColor: themeConfig.general.inputBorder,
+                  color: themeConfig.general.inputText
+                }}
               >
                 <option value="draft">Rascunho</option>
                 <option value="review">Para Revisão</option>
@@ -328,7 +352,8 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
               </select>
               <button 
                 onClick={handleSave}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shadow-md hover:opacity-95"
+                style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
               >
                 <Save className="w-4 h-4" /> Salvar
               </button>
