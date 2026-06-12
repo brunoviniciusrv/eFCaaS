@@ -43,14 +43,14 @@ docs/
 
 ## Entregável 2
 
-> Reservado para documentos da segunda entrega.
-
-**Descrição da pasta:** <!-- TODO -->
+> Artefatos relacionados à validação da solução por meio de um protótipo navegável, implementação do MVP, demonstração das principais funcionalidades e definição dos padrões visuais da interface.
 
 | Arquivo | Descrição |
 |---------|-----------|
-| *(vazio)* | — |
-
+| Link do Protótipo Interativo | Protótipo de alta fidelidade contendo telas navegáveis e fluxos de interação alinhados aos requisitos e funcionalidades especificados no PRD. |
+| Link do Repositório | Repositório contendo o código-fonte do Produto Mínimo Viável (MVP), implementado e hospedado no GitHub da squad para desenvolvimento e versionamento da solução. |
+| Vídeo de Demonstração | Gravação demonstrando as principais funcionalidades e jornadas de uso do sistema, evidenciando a execução prática dos requisitos definidos no PRD. |
+| Guia de Estilo.pdf | Documento que reúne os padrões visuais da aplicação, incluindo paleta de cores, tipografia, componentes e diretrizes de interface e experiência do usuário. |
 ---
 
 ## Entregável 3
