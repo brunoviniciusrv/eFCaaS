@@ -48,7 +48,7 @@ docs/
 | Arquivo | Descrição |
 |---------|-----------|
 | Link do Protótipo Interativo | Protótipo de alta fidelidade contendo telas navegáveis e fluxos de interação alinhados aos requisitos e funcionalidades especificados no PRD. |
-| Link do Repositório | Repositório contendo o código-fonte do Produto Mínimo Viável (MVP), implementado e hospedado no GitHub da squad para desenvolvimento e versionamento da solução. |
+| `Repositório eFCaaS` | Repositório principal do MVP da solução eFCaaS, localizado na branch `main` do repositório `Squad-4`. Na estrutura do projeto, apresentada neste repositório, a implementação está dividida entre as pastas `efcaas-backend`, que concentra os componentes de backend e a lógica de negócio, e `efcaas-frontend`, responsável pela interface e experiência do usuário, permitindo a separação e organização das diferentes camadas da aplicação. |
 | Vídeo de Demonstração | Gravação demonstrando as principais funcionalidades e jornadas de uso do sistema, evidenciando a execução prática dos requisitos definidos no PRD. |
 | Guia de Estilo.pdf | Documento que reúne os padrões visuais da aplicação, incluindo paleta de cores, tipografia, componentes e diretrizes de interface e experiência do usuário. |
 ---
