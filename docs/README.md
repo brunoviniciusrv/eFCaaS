@@ -30,8 +30,6 @@ docs/
 
 > Descoberta e fundamentação: visão de produto, análise de contexto, stakeholders e viabilidade.
 
-**Descrição da pasta:** <!-- TODO -->
-
 | Arquivo | Descrição |
 |---------|-----------|
 | `Analise SWOT V2 .pdf` | <!-- TODO --> |
