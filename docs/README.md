@@ -1,79 +1,198 @@
-# Pasta `docs`
+# Documentação eFCaaS
 
-Esta pasta concentra a documentação técnica e funcional do projeto **eFCaaS**, centralizando artefatos produzidos pelo time (descoberta, requisitos, processos e modelagem).
+Esta pasta concentra os artefatos de descoberta, requisitos, modelagem e apresentação do projeto **eFCaaS** (Checagem de Fatos como Serviço), produzidos pelo Squad 4.
 
-## Objetivos
+Use as seções abaixo para descrever, quando quiser, o conteúdo de cada pasta e documento.
 
-- Registrar decisões e direcionamentos do projeto.
-- Consolidar artefatos de requisitos (visão, PRD, hipóteses, épicos, casos de uso).
-- Documentar processos e fluxos do produto.
-- Manter diagramas e representações visuais para apoiar entendimento e evolução do sistema.
-- Facilitar onboarding e revisão rápida do que já foi produzido.
+---
 
-## Estrutura e conteúdo
+## Estrutura de pastas
 
-### Arquivos na raiz de `docs/`
+```
+docs/
+├── Entregável 1/              # Descoberta e fundamentação do produto
+├── Entregável 2/              # Reservado — 2ª entrega
+├── Entregável 3/              # Reservado — 3ª entrega
+├── Entregável 4/              # Reservado — 4ª entrega
+├── Entregável 5/              # Reservado — 5ª entrega
+├── Entregável 6/              # Reservado — 6ª entrega
+├── Diagramas/                 # Arquitetura, contexto e modelagem de dados
+├── Fluxogramas/               # Processos de negócio (BPM)
+├── Histórias de Usuário e Casos de Uso/   # Épicos e casos de uso por persona
+├── Slides e Apresentações/    # Materiais de apresentação
+├── Desatualizados/            # Versões anteriores substituídas
+└── scripts-criacao-banco-efcaas.sql       # Script SQL legado (referência)
+```
 
-- **`Canvas de Hipóteses - eFCaaS.pdf`**
-  - Artefato de descoberta/validação: premissas, hipóteses e o que precisa ser testado/validado.
+---
 
-- **`Plano de Trabalho - Revisado.pdf`**
-  - Planejamento de execução: escopo de trabalho, organização das entregas e direcionamento de atividades.
+## Entregável 1
 
-- **`PBB - Squad 4.pdf`**
-  - Documento base do produto (PBB): visão geral, contexto e alinhamento do problema/solução.
+> Descoberta e fundamentação: visão de produto, análise de contexto, stakeholders e viabilidade.
 
-- **`eFCaaS - Visão de Projeto.pdf`**
-  - Visão de projeto: objetivos, escopo, stakeholders e diretrizes que orientam o desenvolvimento.
+**Descrição da pasta:** <!-- TODO -->
 
-- **`eFCaaS - PRD.pdf`**
-  - *Product Requirements Document*: requisitos e especificação do produto em maior detalhe (o que precisa ser entregue e por quê).
- 
-- **`Backlog.pdf`**
-  - *Backlog*: backlog atualizado com a priorização das funcionalidades a serem implementadas.
+| Arquivo | Descrição |
+|---------|-----------|
+| `Analise SWOT V2 .pdf` | <!-- TODO --> |
+| `Business Model Canvas - eFCaaS.jpg` | <!-- TODO --> |
+| `Canvas de hipoteses de negócios V2.pdf` | <!-- TODO --> |
+| `eFCaaS - PRD.pdf` | <!-- TODO --> |
+| `Estudo de Viabilidade Técnica.pdf` | <!-- TODO --> |
+| `Mapa Stakeholder v2.0.pdf` | <!-- TODO --> |
 
-### `docs/Diagramas/`
+---
 
-Diagramas e representações de arquitetura/contexto do sistema.
+## Entregável 2
 
-Artefatos já gerados:
-- `Diagrama Arquitetura de Alto Nivel.svg`
-- `DiagramaDeContexto.png`
-- `DiagramaDeContexto.svg`
-- `Legenda diagrama de contexto.pdf`
-- `idef0_eFCaaS.pdf`
+> Reservado para documentos da segunda entrega.
 
-### `docs/Fluxogramas/`
+**Descrição da pasta:** <!-- TODO -->
 
-Fluxos de processo (BPM) e imagens de apoio para entendimento dos passos do produto.
+| Arquivo | Descrição |
+|---------|-----------|
+| *(vazio)* | — |
 
-Artefatos já gerados:
-- `Fluxo_eFCaaS.bpm`
-- `Workflow.bpm`
-- `Sugestão de Fluxo de Personalização.png`
-- `Sugestão de Fluxo de checagem.png`
+---
 
-### `docs/Histórias de Usuário e Casos de Uso/`
+## Entregável 3
 
-Requisitos funcionais por persona/ator, incluindo épicos e diagramas de casos de uso.
+> Reservado para documentos da terceira entrega.
 
-Artefatos já gerados:
-- `Épicos - Administrador.pdf`
-- `Épicos - Curador.pdf`
-- `Épicos - Checador.pdf`
-- `Diagrama de Casos de Uso - Administrador.pdf`
-- `Diagrama de Casos de Uso - Checador.pdf`
-- `Diagrama de Casos de Uso - Curador.pdf`
+**Descrição da pasta:** <!-- TODO -->
 
-### `docs/Slides e Apresentações/`
+| Arquivo | Descrição |
+|---------|-----------|
+| *(vazio)* | — |
 
-Materiais de apresentação do projeto.
+---
 
-Artefatos já gerados:
-- `Slides - eFCaaS.pdf`
+## Entregável 4
+
+> Reservado para documentos da quarta entrega.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| *(vazio)* | — |
+
+---
+
+## Entregável 5
+
+> Reservado para documentos da quinta entrega.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| *(vazio)* | — |
+
+---
+
+## Entregável 6
+
+> Reservado para documentos da sexta entrega.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| *(vazio)* | — |
+
+---
+
+## Diagramas
+
+> Representações visuais de arquitetura, contexto do sistema e modelagem de dados.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `Diagrama Arquitetura de Alto Nivel.svg` | <!-- TODO --> |
+| `eFCaaS - Diagrama de Contexto.pdf` | <!-- TODO --> |
+| `eFCaaS - Modelo Lógico do BD.pdf` | <!-- TODO --> |
+| `idef0_eFCaaS.pdf` | <!-- TODO --> |
+| `Modelo C4.pdf` | <!-- TODO --> |
+
+---
+
+## Fluxogramas
+
+> Fluxos de processo de negócio e operacionais do produto.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `Fluxo_eFCaaS.bpm` | <!-- TODO --> |
+| `Workflow.bpm` | <!-- TODO --> |
+| `Sugestão de Fluxo de checagem.png` | <!-- TODO --> |
+| `Sugestão de Fluxo de Personalização.png` | <!-- TODO --> |
+
+---
+
+## Histórias de Usuário e Casos de Uso
+
+> Épicos, histórias e diagramas de casos de uso por persona (Administrador, Curador, Checador).
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `Épicos - Administrador.pdf` | <!-- TODO --> |
+| `Épicos - Curador.pdf` | <!-- TODO --> |
+| `Épicos - Checador.pdf` | <!-- TODO --> |
+| `Diagrama de Casos de Uso - Administrador.pdf` | <!-- TODO --> |
+| `Diagrama de Casos de Uso - Curador.pdf` | <!-- TODO --> |
+| `Diagrama de Casos de Uso - Checador.pdf` | <!-- TODO --> |
+
+---
+
+## Slides e Apresentações
+
+> Materiais de apresentação do projeto.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `Slides - eFCaaS.pdf` | <!-- TODO --> |
+
+---
+
+## Desatualizados
+
+> Versões anteriores de documentos substituídos por artefatos mais recentes. Não usar como fonte principal.
+
+**Descrição da pasta:** <!-- TODO -->
+
+| Arquivo | Descrição | Substituído por |
+|---------|-----------|-----------------|
+| `Backlog - Moscow.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `Canvas de Hipóteses - eFCaaS.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `Documento de Arquitetura de Negócio - eFCaaS.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `eFCaaS - Visão de Projeto.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `Lista de Integrações e Dependências Externas.docx.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `PBB - Squad 4.pdf` | <!-- TODO --> | <!-- TODO --> |
+| `Plano de Trabalho - Revisado.pdf` | <!-- TODO --> | <!-- TODO --> |
+
+---
+
+## Arquivos na raiz de `docs/`
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `scripts-criacao-banco-efcaas.sql` | Script SQL legado de criação do banco. Obsoleto para execução manual — o schema é aplicado automaticamente pelo Flyway em `efcaas-backend/src/main/resources/db/migration/`. |
+
+---
 
 ## Links externos
 
-- PBB no Miro: https://miro.com/app/board/uXjVGzap9AY=/
-- Slide (Google): https://docs.google.com/presentation/d/1nA5vXRO5pfkn0RrENbe51fJEfRc3SF7UM7lo5gb4KxQ/edit?usp=sharing
-- Protótipos: https://ai.studio/apps/737a2342-c5f6-4a16-88e6-5b0fe467b15c
+| Recurso | URL |
+|---------|-----|
+| PBB no Miro | https://miro.com/app/board/uXjVGzap9AY=/ |
+| Apresentação (Google Slides) | https://docs.google.com/presentation/d/1nA5vXRO5pfkn0RrENbe51fJEfRc3SF7UM7lo5gb4KxQ/edit?usp=sharing |
+| Protótipo (AI Studio) | https://ai.studio/apps/737a2342-c5f6-4a16-88e6-5b0fe467b15c |
