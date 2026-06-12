@@ -32,12 +32,12 @@ docs/
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `Analise SWOT V2 .pdf` | <!-- TODO --> |
-| `Business Model Canvas - eFCaaS.jpg` | <!-- TODO --> |
-| `Canvas de hipoteses de negócios V2.pdf` | <!-- TODO --> |
-| `eFCaaS - PRD.pdf` | <!-- TODO --> |
-| `Estudo de Viabilidade Técnica.pdf` | <!-- TODO --> |
-| `Mapa Stakeholder v2.0.pdf` | <!-- TODO --> |
+| `Analise SWOT V2 .pdf` | Documento que apresenta a análise SWOT do projeto, identificando forças, fraquezas, oportunidades e ameaças relacionadas ao negócio e ao ambiente externo. |
+| `Business Model Canvas - eFCaaS.jpg` | Representação visual do modelo de negócios do eFCaaS, contendo os principais elementos como proposta de valor, segmentos de clientes, canais, fontes de receita, recursos e atividades-chave. |
+| `Canvas de hipoteses de negócios V2.pdf` | Artefato utilizado para registrar e validar as principais hipóteses relacionadas ao problema, público-alvo, solução proposta e viabilidade do negócio. |
+| `eFCaaS - PRD.pdf` | Documento de Requisitos do Produto (Product Requirements Document), descrevendo objetivos, funcionalidades, requisitos e características esperadas para a solução eFCaaS. |
+| `Estudo de Viabilidade Técnica.pdf` | Documento que avalia a viabilidade técnica da implementação da solução, considerando tecnologias, infraestrutura, limitações e riscos envolvidos no desenvolvimento. |
+| `Mapa Stakeholder v2.0.pdf` | Mapeamento das partes interessadas do projeto, identificando os principais stakeholders, seus interesses, influência e relacionamento com a solução proposta. |
 
 ---
 
