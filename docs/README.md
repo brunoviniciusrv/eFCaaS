@@ -105,75 +105,20 @@ docs/
 
 > Representações visuais de arquitetura, contexto do sistema e modelagem de dados.
 
-**Descrição da pasta:** <!-- TODO -->
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `Diagrama Arquitetura de Alto Nivel.svg` | <!-- TODO --> |
-| `eFCaaS - Diagrama de Contexto.pdf` | <!-- TODO --> |
-| `eFCaaS - Modelo Lógico do BD.pdf` | <!-- TODO --> |
-| `idef0_eFCaaS.pdf` | <!-- TODO --> |
-| `Modelo C4.pdf` | <!-- TODO --> |
-
----
-
 ## Fluxogramas
 
 > Fluxos de processo de negócio e operacionais do produto.
-
-**Descrição da pasta:** <!-- TODO -->
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `Fluxo_eFCaaS.bpm` | <!-- TODO --> |
-| `Workflow.bpm` | <!-- TODO --> |
-| `Sugestão de Fluxo de checagem.png` | <!-- TODO --> |
-| `Sugestão de Fluxo de Personalização.png` | <!-- TODO --> |
-
----
 
 ## Histórias de Usuário e Casos de Uso
 
 > Épicos, histórias e diagramas de casos de uso por persona (Administrador, Curador, Checador).
 
-**Descrição da pasta:** <!-- TODO -->
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `Épicos - Administrador.pdf` | <!-- TODO --> |
-| `Épicos - Curador.pdf` | <!-- TODO --> |
-| `Épicos - Checador.pdf` | <!-- TODO --> |
-| `Diagrama de Casos de Uso - Administrador.pdf` | <!-- TODO --> |
-| `Diagrama de Casos de Uso - Curador.pdf` | <!-- TODO --> |
-| `Diagrama de Casos de Uso - Checador.pdf` | <!-- TODO --> |
-
----
-
 ## Slides e Apresentações
 
 > Materiais de apresentação do projeto.
-
-**Descrição da pasta:** <!-- TODO -->
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `Slides - eFCaaS.pdf` | <!-- TODO --> |
-
----
 
 ## Desatualizados
 
 > Versões anteriores de documentos substituídos por artefatos mais recentes. Não usar como fonte principal.
 
-**Descrição da pasta:** <!-- TODO -->
-
-| Arquivo | Descrição | Substituído por |
-|---------|-----------|-----------------|
-| `Backlog - Moscow.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `Canvas de Hipóteses - eFCaaS.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `Documento de Arquitetura de Negócio - eFCaaS.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `eFCaaS - Visão de Projeto.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `Lista de Integrações e Dependências Externas.docx.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `PBB - Squad 4.pdf` | <!-- TODO --> | <!-- TODO --> |
-| `Plano de Trabalho - Revisado.pdf` | <!-- TODO --> | <!-- TODO --> |
 
