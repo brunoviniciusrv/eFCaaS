@@ -7,6 +7,29 @@ import {
   ReportStructure,
 } from '../types';
 
+export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
+  summary: '',
+  questions: [''],
+  sources: [''],
+  isInverifiable: false,
+  contactWithAuthor: { hadContact: null },
+};
+
+export function normalizeReportStructure(
+  rs?: Partial<ReportStructure> | null
+): ReportStructure {
+  return {
+    ...DEFAULT_REPORT_STRUCTURE,
+    ...rs,
+    questions: rs?.questions?.length ? rs.questions : [''],
+    sources: rs?.sources?.length ? rs.sources : [''],
+    contactWithAuthor: {
+      ...DEFAULT_REPORT_STRUCTURE.contactWithAuthor,
+      ...rs?.contactWithAuthor,
+    },
+  };
+}
+
 // ─────────────────────────────────────────────
 // Tipos espelho dos DTOs do backend
 // ─────────────────────────────────────────────
@@ -116,6 +139,10 @@ export interface ApiEvidenciaDto {
   tipo: string;
   linkArquivo: string;
   descricao: string;
+  nomeArquivo?: string | null;
+  tamanhoBytes?: number | null;
+  contentType?: string | null;
+  objectKey?: string | null;
 }
 
 // ─────────────────────────────────────────────
@@ -252,7 +279,7 @@ function mapUsuario(dto: ApiUsuarioDto): UserProfile {
 
 function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string): ReportStructure | undefined {
   if (!inv && !etiquetaNome) return undefined;
-  return {
+  return normalizeReportStructure({
     summary: inv?.resumoMetodologia ?? '',
     questions: inv?.perguntas?.length ? inv.perguntas : [''],
     sources: inv?.fontes?.length ? inv.fontes : [''],
@@ -263,7 +290,7 @@ function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string):
       justification: inv?.justificativaSemContato ?? undefined,
     },
     label: etiquetaNome,
-  };
+  });
 }
 
 function mapEvidencias(evidencias: ApiEvidenciaDto[]): Evidence[] {
@@ -271,7 +298,7 @@ function mapEvidencias(evidencias: ApiEvidenciaDto[]): Evidence[] {
     id: ev.id,
     type: (ev.tipo as Evidence['type']) ?? 'link',
     url: ev.linkArquivo ?? '',
-    title: ev.descricao ?? ev.linkArquivo ?? '',
+    title: ev.nomeArquivo ?? ev.descricao ?? ev.linkArquivo ?? '',
     description: ev.descricao ?? undefined,
     timestamp: new Date().toLocaleString(),
   }));
@@ -447,6 +474,17 @@ export const apiService = {
     body: AdicionarEvidenciaBody
   ): Promise<ApiEvidenciaDto> {
     return api.post<ApiEvidenciaDto>(`/checagens/${checagemId}/evidencias`, body);
+  },
+
+  async uploadEvidenciaArquivo(
+    checagemId: string,
+    file: File,
+    descricao?: string
+  ): Promise<ApiEvidenciaDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (descricao) formData.append('descricao', descricao);
+    return api.upload<ApiEvidenciaDto>(`/checagens/${checagemId}/evidencias/upload`, formData);
   },
 
   async removerEvidencia(checagemId: string, evidenciaId: string): Promise<void> {
