@@ -9,21 +9,7 @@ Plataforma web para apoiar equipes de checagem de fatos no ciclo completo de inv
 ## Objetivo do projeto
 
 Oferecer uma solução **eFCaaS** (*electronic Fact Checking as a Service*) que centralize o fluxo de trabalho de agências e equipes de checagem: recebimento de conteúdos suspeitos, triagem, atribuição a checadores, coleta de evidências, revisão editorial e publicação de relatórios.
-
-A plataforma contempla perfis distintos — **Administrador**, **Curador** e **Checador** — com permissões granulares e trilha de auditoria das ações realizadas.
-
----
-
-## Problema que endereça
-
-A disseminação de desinformação e conteúdos não verificados cresce em velocidade maior do que a capacidade de resposta das equipes de checagem. Muitas agências ainda dependem de processos manuais, ferramentas dispersas e fluxos pouco rastreáveis, o que dificulta:
-
-- Priorizar e distribuir demandas entre checadores;
-- Registrar evidências e metodologia de forma consistente;
-- Garantir revisão editorial antes da publicação;
-- Manter histórico auditável das decisões tomadas.
-
-O eFCaaS propõe unificar esse fluxo em uma plataforma integrada, com apoio de IA para rascunhos e revisão, sem substituir o julgamento humano.
+A plataforma oferece integração com ferramentas de inteligência Artificial que apoiam na checagem de fatos, permitindo a extração de contéudo e apoio no processo de checagem.
 
 ---
 
@@ -140,7 +126,6 @@ Inseridas automaticamente pelo Flyway (`V3__seed_dados_iniciais.sql`):
 | Senha | `Admin@2026!` |
 | Perfil | Administrador |
 
-> Troque a senha do administrador antes de usar em ambiente real.
 
 ---
 
