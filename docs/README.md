@@ -177,20 +177,3 @@ docs/
 | `PBB - Squad 4.pdf` | <!-- TODO --> | <!-- TODO --> |
 | `Plano de Trabalho - Revisado.pdf` | <!-- TODO --> | <!-- TODO --> |
 
----
-
-## Arquivos na raiz de `docs/`
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `scripts-criacao-banco-efcaas.sql` | Script SQL legado de criação do banco. Obsoleto para execução manual — o schema é aplicado automaticamente pelo Flyway em `efcaas-backend/src/main/resources/db/migration/`. |
-
----
-
-## Links externos
-
-| Recurso | URL |
-|---------|-----|
-| PBB no Miro | https://miro.com/app/board/uXjVGzap9AY=/ |
-| Apresentação (Google Slides) | https://docs.google.com/presentation/d/1nA5vXRO5pfkn0RrENbe51fJEfRc3SF7UM7lo5gb4KxQ/edit?usp=sharing |
-| Protótipo (AI Studio) | https://ai.studio/apps/737a2342-c5f6-4a16-88e6-5b0fe467b15c |
