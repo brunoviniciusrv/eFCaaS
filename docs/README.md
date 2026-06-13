@@ -11,7 +11,7 @@ Use as seções abaixo para descrever, quando quiser, o conteúdo de cada pasta 
 ```
 docs/
 ├── Entregável 1/              # Descoberta e fundamentação do produto
-├── Entregável 2/              # Reservado — 2ª entrega
+├── Entregável 2/              # Protótipo de Alta Fidelidade / MVP
 ├── Entregável 3/              # Reservado — 3ª entrega
 ├── Entregável 4/              # Reservado — 4ª entrega
 ├── Entregável 5/              # Reservado — 5ª entrega
