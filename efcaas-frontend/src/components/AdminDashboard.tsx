@@ -36,7 +36,8 @@ import {
   Info,
   Image as ImageIcon,
   Palette,
-  Lock
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -57,6 +58,8 @@ import {
 import { cn } from '../lib/utils';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
+import { AiEngineModulesPanel } from './AiEngineModulesPanel';
+import { AiModuleKey } from '../config/aiModules';
 
 interface AdminDashboardProps {
   news: NewsItem[];
@@ -542,6 +545,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* AI Engine Modules */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest block mb-0.5">
+                    Módulos Inteligentes
+                  </span>
+                  <h2 className="text-xl font-bold" style={{ color: themeConfig.dashboard.text }}>
+                    Engine de Inteligência Artificial
+                  </h2>
+                  <p className="text-sm opacity-60" style={{ color: themeConfig.dashboard.text }}>
+                    Funcionalidades desativadas ficam ocultas na curadoria e na investigação.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8"
+                style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
+              >
+                <AiEngineModulesPanel
+                  config={agencyConfig}
+                  onChange={(key: AiModuleKey, enabled) =>
+                    setAgencyConfig((prev) => ({ ...prev, [key]: enabled }))
+                  }
+                />
               </div>
             </section>
 

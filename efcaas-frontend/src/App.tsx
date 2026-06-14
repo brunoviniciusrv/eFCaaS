@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
   PLACEHOLDER_USER,
@@ -177,6 +177,23 @@ function AppContent() {
     const saved = localStorage.getItem('platform_agency_config');
     return saved ? JSON.parse(saved) : INITIAL_AGENCY_CONFIG;
   });
+  const configSyncReady = useRef(false);
+
+  useEffect(() => {
+    apiService.obterConfiguracaoAgencia()
+      .then(({ agency, theme }) => {
+        setAgencyConfig(agency);
+        if (theme) {
+          setThemeConfig(theme);
+        }
+      })
+      .catch((err) => {
+        console.warn('Não foi possível carregar configuração da agência da API:', err);
+      })
+      .finally(() => {
+        configSyncReady.current = true;
+      });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('platform_theme_config', JSON.stringify(themeConfig));
@@ -185,6 +202,23 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem('platform_agency_config', JSON.stringify(agencyConfig));
   }, [agencyConfig]);
+
+  useEffect(() => {
+    if (!configSyncReady.current) return;
+
+    const podePersistir =
+      !agencyConfig.isOnboardingCompleted ||
+      (isAuthenticated && checkPermission('admin_settings'));
+    if (!podePersistir) return;
+
+    const timer = window.setTimeout(() => {
+      apiService.salvarConfiguracaoAgencia(agencyConfig, themeConfig).catch((err) => {
+        console.error('Erro ao persistir configuração da agência:', err);
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted]);
 
   // Monitor received news for new items and notify
   useEffect(() => {
@@ -957,11 +991,16 @@ function AppContent() {
     }
   };
 
-  const handleOnboardingComplete = (agency: AgencyConfig, theme: ThemeConfig) => {
-    setAgencyConfig({ ...agency, isOnboardingCompleted: true });
+  const handleOnboardingComplete = async (agency: AgencyConfig, theme: ThemeConfig) => {
+    const completedAgency = { ...agency, isOnboardingCompleted: true };
+    setAgencyConfig(completedAgency);
     setThemeConfig(theme);
+    try {
+      await apiService.salvarConfiguracaoAgencia(completedAgency, theme);
+    } catch (err) {
+      console.error('Erro ao salvar configuração do Ajustar:', err);
+    }
     setShowOnboarding(false);
-    // User requested that after onboarding it returns to login screen
   };
 
   const handleLogout = () => {
@@ -1095,6 +1134,7 @@ function AppContent() {
                 onSendToSpecializedNetwork={handleSendToSpecializedNetwork}
                 specializedNetworkChecks={specializedNetworkChecks}
                 onMoveTask={handleCuratorMoveTask}
+                agencyConfig={agencyConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1120,6 +1160,7 @@ function AppContent() {
               reportConfig={reportConfig}
               themeConfig={themeConfig}
               currentUser={user}
+              agencyConfig={agencyConfig}
             />
           } />
           <Route path="/editor/:id" element={
@@ -1131,6 +1172,7 @@ function AppContent() {
                 articles={articles}
                 onSaveArticle={handleSaveArticle}
                 checkPermission={checkPermission}
+                themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1142,6 +1184,7 @@ function AppContent() {
                 articles={articles}
                 onDeleteArticle={handleDeleteArticle}
                 onUpdateStatus={handleUpdateArticleStatus}
+                themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />

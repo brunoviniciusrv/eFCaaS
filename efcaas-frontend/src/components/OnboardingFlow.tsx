@@ -22,6 +22,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { ThemeConfig, AgencyConfig } from '../types';
+import { AiEngineModulesPanel } from './AiEngineModulesPanel';
+import { AiModuleKey } from '../config/aiModules';
 import { INITIAL_THEME_CONFIG } from '../constants';
 
 interface OnboardingFlowProps {
@@ -397,46 +399,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <p className="text-xs text-slate-500 mt-1">Ative as funcionalidades avançadas de processamento natural (NLP) do eFCaaS.</p>
                 </div>
 
-                <div className="space-y-2.5">
-                  {[
-                    { id: 'enableAI', label: 'Copiloto de IA Generativa', desc: 'Sugerir resumos automáticos e triar de forma proativa as investigações de fake news.', icon: Sparkles, color: 'bg-blue-500' },
-                    { id: 'enableSocialSearch', label: 'Monitor de Redes Sociais', desc: 'Varrer tendências virais e palavras chaves suspeitas em contas do X, Facebook e WhatsApp.', icon: Search, color: 'bg-sky-500' },
-                    { id: 'enableTrendAnalyzer', label: 'Analisador de Desinformações', desc: 'Cruzamentos estatísticos automáticos com bancos de falsidade conhecidos.', icon: Zap, color: 'bg-amber-500' },
-                    { id: 'enableMisinfoRisk', label: 'Classificação de Risco de Engajamento', desc: 'Cálculo de propagação tóxica de posts em canais abertos.', icon: AlertTriangle, color: 'bg-rose-500' },
-                    { id: 'enableSpecializedNetwork', label: 'Conexão de Rede Global de Checadores', desc: 'Ativar alertas urgentes para moderadores de terceiras agências parceiras.', icon: Globe, color: 'bg-indigo-500' }
-                  ].map((feat) => {
-                    const isEnabled = agency[feat.id as keyof AgencyConfig] === true;
-                    const Icon = feat.icon;
-                    return (
-                      <button
-                        key={feat.id}
-                        onClick={() => setAgency(prev => ({ ...prev, [feat.id]: !prev[feat.id as keyof AgencyConfig] }))}
-                        className={`w-full p-3 border rounded-2xl flex items-center justify-between text-left transition-all ${
-                          isEnabled 
-                            ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                            : 'border-slate-150 hover:border-slate-200 bg-slate-50/20'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-4">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            isEnabled ? feat.color + ' text-white' : 'bg-slate-200 text-slate-400'
-                          }`}>
-                            <Icon size={16} />
-                          </div>
-                          <div className="truncate">
-                            <span className="text-xs font-bold text-slate-900 block truncate">{feat.label}</span>
-                            <span className="text-[10px] text-slate-500 block truncate max-w-lg md:max-w-md">{feat.desc}</span>
-                          </div>
-                        </div>
-
-                        {/* Custom visual switch */}
-                        <div className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${isEnabled ? 'bg-emerald-600' : 'bg-slate-300'}`}>
-                          <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-200 ${isEnabled ? 'left-5' : 'left-[3px]'}`} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                <AiEngineModulesPanel
+                  config={agency}
+                  onChange={(key: AiModuleKey, enabled) =>
+                    setAgency((prev) => ({ ...prev, [key]: enabled }))
+                  }
+                />
               </div>
 
               {/* Right Column: Roles & Governance configuration (Merged for high efficiency) */}

@@ -59,8 +59,10 @@ import {
   NewsStatus, 
   AssignmentHistory,
   ReceivedNewsItem,
-  ReceivedNewsStatus
+  ReceivedNewsStatus,
+  AgencyConfig,
 } from '../types';
+import { isAiModuleEnabled } from '../config/aiModules';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
@@ -97,6 +99,7 @@ interface CuratorDashboardProps {
   onSendToSpecializedNetwork: (newsId: string) => void;
   specializedNetworkChecks: any[];
   onMoveTask?: (newsId: string, newStatus: NewsStatus) => Promise<void>;
+  agencyConfig: AgencyConfig;
 }
 
 type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
@@ -124,8 +127,11 @@ export const CuratorDashboard = ({
   onSendToSpecializedNetwork,
   specializedNetworkChecks,
   onMoveTask,
+  agencyConfig,
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
+  const socialSearchEnabled = isAiModuleEnabled(agencyConfig, 'enableSocialSearch');
+  const specializedNetworkEnabled = isAiModuleEnabled(agencyConfig, 'enableSpecializedNetwork');
   const [activeTab, setActiveTab] = useState<CuratorTab>(
     checkPermission('manage_received') ? 'received' : 
     checkPermission('review_and_approve') ? 'reviews' : 'list'
@@ -191,6 +197,58 @@ export const CuratorDashboard = ({
   });
   const [isExtracting, setIsExtracting] = useState(false);
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (socialSearchEnabled) return;
+    setExtractionParams((prev) => ({
+      ...prev,
+      platforms: {
+        youtube: false,
+        reddit: false,
+        facebook: false,
+        telegram: false,
+      },
+    }));
+    setIsExtractionModalOpen(false);
+  }, [socialSearchEnabled]);
+
+  React.useEffect(() => {
+    if (specializedNetworkEnabled) return;
+    if (activeTab === 'specialized_network') {
+      setActiveTab(checkPermission('manage_received') ? 'received' : 'triage');
+    }
+  }, [specializedNetworkEnabled, activeTab, checkPermission]);
+
+  const extractionPlatforms = useMemo(
+    () =>
+      socialSearchEnabled
+        ? [
+            { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
+            { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
+            { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
+            { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' },
+          ]
+        : [],
+    [socialSearchEnabled]
+  );
+
+  const curatorTabs = useMemo(
+    () =>
+      [
+        { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
+        { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+        ...(specializedNetworkEnabled
+          ? [{ id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' }]
+          : []),
+        { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
+        { id: 'list', label: 'Publicações', icon: Activity },
+        { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
+        { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
+        { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' },
+      ].filter((tab) => !tab.permission || checkPermission(tab.permission)),
+    [specializedNetworkEnabled, checkPermission]
+  );
+
   const [newNews, setNewNews] = useState({
     title: '',
     alegacao: '',
@@ -524,16 +582,7 @@ export const CuratorDashboard = ({
           activeTab={activeTab}
           setActiveTab={setActiveTab as any}
           themeConfig={themeConfig}
-          tabs={[
-            { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
-            { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
-            { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
-            { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
-            { id: 'list', label: 'Publicações', icon: Activity },
-            { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
-            { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
-            { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
-          ].filter(tab => !tab.permission || checkPermission(tab.permission))}
+          tabs={curatorTabs}
         />
       </div>
 
@@ -563,6 +612,7 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
                 <div className="w-full md:w-auto flex gap-2">
+                  {socialSearchEnabled && (
                   <button 
                     onClick={() => setIsExtractionModalOpen(true)}
                     className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
@@ -571,6 +621,7 @@ export const CuratorDashboard = ({
                     <Zap size={16} />
                     Busca e Extração
                   </button>
+                  )}
                 </div>
               </div>
 
@@ -1044,6 +1095,7 @@ export const CuratorDashboard = ({
                     <UserPlus size={14} />
                     Atribuir Checador
                   </button>
+                  {specializedNetworkEnabled && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1060,6 +1112,7 @@ export const CuratorDashboard = ({
                     <Globe size={14} />
                     {item.sentToSpecializedNetwork ? 'Encaminhado pra Rede' : 'Rede Especializada'}
                   </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1472,7 +1525,7 @@ export const CuratorDashboard = ({
 
       {/* Extraction Modal */}
       <AnimatePresence>
-        {isExtractionModalOpen && (
+        {isExtractionModalOpen && socialSearchEnabled && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
@@ -1551,12 +1604,7 @@ export const CuratorDashboard = ({
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-wider opacity-50">Onde Buscar</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
-                        { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
-                        { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
-                        { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' }
-                      ].map(platform => (
+                      {extractionPlatforms.map(platform => (
                         <button
                           key={platform.id}
                           onClick={() => setExtractionParams({
@@ -2513,6 +2561,7 @@ export const CuratorDashboard = ({
                       <UserPlus size={16} />
                       Atribuir Checador
                     </button>
+                    {specializedNetworkEnabled && (
                     <button 
                       onClick={() => {
                         onSendToSpecializedNetwork(currentTriageItem.id);
@@ -2528,6 +2577,7 @@ export const CuratorDashboard = ({
                       <Globe size={16} />
                       {currentTriageItem.sentToSpecializedNetwork ? 'Encaminhado' : 'Rede Especializada'}
                     </button>
+                    )}
                  </div>
               </div>
 
