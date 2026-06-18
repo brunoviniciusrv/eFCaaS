@@ -616,7 +616,7 @@ export const CuratorDashboard = ({
                   <button 
                     onClick={() => setIsExtractionModalOpen(true)}
                     className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Zap size={16} />
                     Busca e Extração
@@ -692,7 +692,11 @@ export const CuratorDashboard = ({
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 hover:brightness-95"
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                        }}
                       >
                         <Eye size={14} />
                         Visualizar
@@ -798,7 +802,12 @@ export const CuratorDashboard = ({
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-white border hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-2 shadow-sm hover:brightness-95"
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                          borderColor: themeConfig.general.border,
+                        }}
                         style={{ borderColor: themeConfig.general.border }}
                       >
                         <Eye size={14} />
@@ -807,7 +816,7 @@ export const CuratorDashboard = ({
                       <button 
                         onClick={() => onForwardToTriage(item)}
                         className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                        style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                       >
                         <ArrowUpRight size={14} />
                         Triagem
@@ -926,7 +935,7 @@ export const CuratorDashboard = ({
                 <button 
                   onClick={() => setIsRegisterModalOpen(true)}
                   className="px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2"
-                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                 >
                   <Plus size={18} />
                   Registrar Notícia
@@ -1261,7 +1270,8 @@ export const CuratorDashboard = ({
                           {checkPermission('assign_tasks') && (
                             <button 
                               onClick={() => handleOpenAssign(item.id)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Atribuir / Redistribuir"
                             >
                               <UserPlus size={18} />
@@ -1270,7 +1280,8 @@ export const CuratorDashboard = ({
                           {item.status === 'completed' && checkPermission('review_and_approve') && (
                             <button 
                               onClick={() => setReopeningNewsId(item.id)}
-                              className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Reabrir para Revisão"
                             >
                               <RotateCcw size={18} />
@@ -1279,7 +1290,8 @@ export const CuratorDashboard = ({
                           {checkPermission('manage_triage') && item.status === 'pending' && (
                             <button
                               onClick={() => handleOpenEdit(item)}
-                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Editar Conteúdo"
                             >
                               <FileText size={18} />
@@ -1290,7 +1302,8 @@ export const CuratorDashboard = ({
                               setSelectedNewsId(item.id);
                               navigate(`/analysis/${item.id}`);
                             }}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                            style={{ color: themeConfig.general.mutedText }}
                             title="Visualizar Conteúdo"
                           >
                             <ExternalLink size={18} />
@@ -1460,7 +1473,12 @@ export const CuratorDashboard = ({
 
                 <button 
                   onClick={() => setDetailedCheckerId(checker.id)}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:bg-slate-50"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:brightness-95"
+                  style={{
+                    borderColor: themeConfig.general.border,
+                    backgroundColor: themeConfig.general.mutedBackground,
+                    color: themeConfig.general.mutedText,
+                  }}
                   style={{ borderColor: themeConfig.general.border }}
                 >
                   Ver Tarefas Detalhadas
@@ -1504,7 +1522,7 @@ export const CuratorDashboard = ({
                   <button 
                     onClick={() => setReviewingNewsId(item.id)}
                     className="w-full py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Search size={18} />
                     Revisar Agora
@@ -1968,7 +1986,7 @@ export const CuratorDashboard = ({
                 <button 
                   onClick={() => executeReview(true)}
                   className="flex-1 py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                  style={{ backgroundColor: themeConfig.status.success, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.status.success, color: themeConfig.buttons.primaryText }}
                 >
                   <Check size={18} />
                   Aprovar e Publicar
@@ -2030,7 +2048,7 @@ export const CuratorDashboard = ({
                   onClick={handleReopenAction}
                   disabled={!reopenReason.trim()}
                   className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
-                  style={{ backgroundColor: themeConfig.status.warning, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.status.warning, color: themeConfig.buttons.primaryText }}
                 >
                   Confirmar Reabertura
                 </button>
@@ -2351,7 +2369,7 @@ export const CuratorDashboard = ({
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setIsReceivedDetailOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={() => setIsReceivedDetailOpen(false)} className="p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)]" style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
                     <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
@@ -2466,7 +2484,7 @@ export const CuratorDashboard = ({
                         setIsReceivedDetailOpen(false);
                       }}
                       className="w-full py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                      style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                     >
                       <ArrowUpRight size={24} />
                       <span>Encaminhar para Triagem</span>
@@ -2541,7 +2559,7 @@ export const CuratorDashboard = ({
             >
               <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
                  <div className="flex items-center gap-4">
-                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)]" style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
                     <div>
