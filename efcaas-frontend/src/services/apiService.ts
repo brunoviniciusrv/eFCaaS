@@ -5,6 +5,8 @@ import {
   LabelConfig,
   Evidence,
   ReportStructure,
+  AgencyConfig,
+  ThemeConfig,
 } from '../types';
 
 export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
@@ -143,6 +145,28 @@ export interface ApiAuditoriaDto {
   alvo: string | null;
   detalhes: string | null;
   timestamp: string;
+}
+
+export interface ApiAgencyConfigDto {
+  name: string;
+  logoUrl: string;
+  isOnboardingCompleted: boolean;
+  language: string;
+  country: string;
+  timezone: string;
+  enableAI?: boolean;
+  enableSpecializedNetwork?: boolean;
+  enableSocialSearch?: boolean;
+  enableTrendAnalyzer?: boolean;
+  enableMisinfoRisk?: boolean;
+  enableIllicitRisk?: boolean;
+  useDefaultProfiles?: boolean;
+  templateId?: string;
+}
+
+export interface ApiConfiguracaoAgenciaDto {
+  agency: ApiAgencyConfigDto;
+  theme: ThemeConfig;
 }
 
 export interface ApiEvidenciaDto {
@@ -371,6 +395,44 @@ function mapEtiqueta(dto: ApiEtiquetaDto): LabelConfig {
   };
 }
 
+function mapAgencyConfigFromApi(dto: ApiAgencyConfigDto): AgencyConfig {
+  return {
+    name: dto.name ?? '',
+    logoUrl: dto.logoUrl ?? '',
+    isOnboardingCompleted: dto.isOnboardingCompleted ?? false,
+    language: dto.language ?? 'pt-BR',
+    country: dto.country ?? 'Brasil',
+    timezone: dto.timezone ?? 'America/Sao_Paulo',
+    enableAI: dto.enableAI,
+    enableSpecializedNetwork: dto.enableSpecializedNetwork,
+    enableSocialSearch: dto.enableSocialSearch,
+    enableTrendAnalyzer: dto.enableTrendAnalyzer,
+    enableMisinfoRisk: dto.enableMisinfoRisk,
+    enableIllicitRisk: dto.enableIllicitRisk,
+    useDefaultProfiles: dto.useDefaultProfiles,
+    templateId: dto.templateId,
+  };
+}
+
+function mapAgencyConfigToApi(agency: AgencyConfig): ApiAgencyConfigDto {
+  return {
+    name: agency.name,
+    logoUrl: agency.logoUrl,
+    isOnboardingCompleted: agency.isOnboardingCompleted ?? false,
+    language: agency.language ?? 'pt-BR',
+    country: agency.country ?? 'Brasil',
+    timezone: agency.timezone ?? 'America/Sao_Paulo',
+    enableAI: agency.enableAI,
+    enableSpecializedNetwork: agency.enableSpecializedNetwork,
+    enableSocialSearch: agency.enableSocialSearch,
+    enableTrendAnalyzer: agency.enableTrendAnalyzer,
+    enableMisinfoRisk: agency.enableMisinfoRisk,
+    enableIllicitRisk: agency.enableIllicitRisk,
+    useDefaultProfiles: agency.useDefaultProfiles,
+    templateId: agency.templateId,
+  };
+}
+
 // ─────────────────────────────────────────────
 // Funções de API
 // ─────────────────────────────────────────────
@@ -386,6 +448,29 @@ export const apiService = {
   async getMe(): Promise<UserProfile> {
     const dto = await api.get<ApiUsuarioDto>('/me');
     return mapUsuario(dto);
+  },
+
+  async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const dto = await api.get<ApiConfiguracaoAgenciaDto>('/configuracao/agencia');
+    const theme = dto.theme && Object.keys(dto.theme).length > 0 ? dto.theme : undefined;
+    return {
+      agency: mapAgencyConfigFromApi(dto.agency),
+      theme: theme as ThemeConfig,
+    };
+  },
+
+  async salvarConfiguracaoAgencia(
+    agency: AgencyConfig,
+    theme: ThemeConfig
+  ): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const dto = await api.put<ApiConfiguracaoAgenciaDto>('/configuracao/agencia', {
+      agency: mapAgencyConfigToApi(agency),
+      theme,
+    });
+    return {
+      agency: mapAgencyConfigFromApi(dto.agency),
+      theme: dto.theme as ThemeConfig,
+    };
   },
 
   // Usuários

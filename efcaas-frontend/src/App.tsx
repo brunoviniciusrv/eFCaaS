@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
   PLACEHOLDER_USER,
@@ -36,6 +36,8 @@ import {
 import { generateDraftReport, reviewReport } from './services/geminiService';
 import { apiService, normalizeReportStructure } from './services/apiService';
 import { clearToken } from './services/apiClient';
+import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
+import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
 // Components
 import { Sidebar } from './components/Sidebar';
@@ -113,9 +115,18 @@ function AppContent() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('platform_editor_assignments');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   useEffect(() => {
     localStorage.setItem('platform_editorial_articles', JSON.stringify(articles));
   }, [articles]);
+
+  useEffect(() => {
+    localStorage.setItem('platform_editor_assignments', JSON.stringify(editorAssignments));
+  }, [editorAssignments]);
 
   const handleSaveArticle = (article: EditorialArticle) => {
     setArticles(prev => {
@@ -151,7 +162,10 @@ function AppContent() {
           apiService.listarEtiquetas(),
           apiService.listarUsuarios(),
         ]);
-        setNews(newsFromApi);
+        setNews(newsFromApi.map((n) => ({
+          ...n,
+          assignedToEditor: editorAssignments[n.id],
+        })));
         setLabels(labelsFromApi);
         setUsers(usersFromApi);
       } catch (err) {
@@ -171,12 +185,44 @@ function AppContent() {
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('platform_theme_config');
-    return saved ? JSON.parse(saved) : INITIAL_THEME_CONFIG;
+    const savedAgency = localStorage.getItem('platform_agency_config');
+    let theme = saved ? normalizeThemeConfig(JSON.parse(saved)) : INITIAL_THEME_CONFIG;
+    if (savedAgency) {
+      try {
+        const agency = JSON.parse(savedAgency) as AgencyConfig;
+        const preset = findThemePresetById(agency.templateId);
+        if (preset) theme = applyThemePreset(theme, preset);
+      } catch {
+        // mantém tema salvo
+      }
+    }
+    return theme;
   });
   const [agencyConfig, setAgencyConfig] = useState<AgencyConfig>(() => {
     const saved = localStorage.getItem('platform_agency_config');
     return saved ? JSON.parse(saved) : INITIAL_AGENCY_CONFIG;
   });
+  const configSyncReady = useRef(false);
+
+  useEffect(() => {
+    apiService.obterConfiguracaoAgencia()
+      .then(({ agency, theme }) => {
+        const templateId = resolveThemeTemplateId(agency.templateId);
+        setAgencyConfig(templateId !== agency.templateId ? { ...agency, templateId } : agency);
+        if (theme) {
+          let normalized = normalizeThemeConfig(theme);
+          const preset = findThemePresetById(templateId);
+          if (preset) normalized = applyThemePreset(normalized, preset);
+          setThemeConfig(normalized);
+        }
+      })
+      .catch((err) => {
+        console.warn('Não foi possível carregar configuração da agência da API:', err);
+      })
+      .finally(() => {
+        configSyncReady.current = true;
+      });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('platform_theme_config', JSON.stringify(themeConfig));
@@ -185,6 +231,23 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem('platform_agency_config', JSON.stringify(agencyConfig));
   }, [agencyConfig]);
+
+  useEffect(() => {
+    if (!configSyncReady.current) return;
+
+    const podePersistir =
+      !agencyConfig.isOnboardingCompleted ||
+      (isAuthenticated && checkPermission('admin_settings'));
+    if (!podePersistir) return;
+
+    const timer = window.setTimeout(() => {
+      apiService.salvarConfiguracaoAgencia(agencyConfig, themeConfig).catch((err) => {
+        console.error('Erro ao persistir configuração da agência:', err);
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted]);
 
   // Monitor received news for new items and notify
   useEffect(() => {
@@ -906,6 +969,80 @@ function AppContent() {
     addAuditLog('move_task', `Notícia #${newsId}`, `Moveu "${targetNews?.title}" para ${statusLabel}`);
   };
 
+  const handleMoveRedacao = (newsId: string, assigned: boolean) => {
+    const newsItem = news.find((n) => n.id === newsId);
+    if (!newsItem) return;
+
+    setEditorAssignments((prev) => {
+      const next = { ...prev };
+      if (assigned) next[newsId] = user.id;
+      else delete next[newsId];
+      return next;
+    });
+
+    setNews((prev) =>
+      prev.map((n) =>
+        n.id === newsId
+          ? { ...n, assignedToEditor: assigned ? user.id : undefined }
+          : n
+      )
+    );
+
+    if (assigned) {
+      setArticles((prev) => {
+        if (prev.some((a) => a.newsId === newsId)) return prev;
+
+        const baseText =
+          newsItem.reportStructure?.summary ||
+          newsItem.report ||
+          newsItem.content ||
+          newsItem.alegacao ||
+          '';
+        const plainExcerpt = baseText.replace(/<[^>]*>/g, '').trim();
+
+        const article: EditorialArticle = {
+          id: `art-${newsId}`,
+          newsId,
+          title: newsItem.title,
+          content: newsItem.report || (plainExcerpt ? `<p>${plainExcerpt}</p>` : ''),
+          excerpt: plainExcerpt
+            ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
+            : newsItem.title,
+          status: 'draft',
+          template: 'complete',
+          authorId: user.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          comments: [],
+          versions: [],
+        };
+
+        return [article, ...prev];
+      });
+
+      addAuditLog(
+        'assign_editor',
+        `Notícia #${newsId}`,
+        `Atribuiu "${newsItem.title}" para redação editorial`
+      );
+    } else {
+      setArticles((prev) => {
+        const article = prev.find((a) => a.newsId === newsId);
+        if (!article) return prev;
+        if (article.status === 'draft' || article.status === 'in_editing') {
+          return prev.filter((a) => a.newsId !== newsId);
+        }
+        return prev;
+      });
+
+      addAuditLog(
+        'unassign_editor',
+        `Notícia #${newsId}`,
+        `Devolveu "${newsItem.title}" à fila de redação`
+      );
+    }
+  };
+
   const handleCuratorMoveTask = async (newsId: string, newStatus: string): Promise<void> => {
     await apiService.atualizarStatusConteudo(newsId, newStatus);
     setNews(prev => prev.map(n => n.id === newsId ? { ...n, status: newStatus as NewsItem['status'] } : n));
@@ -965,11 +1102,16 @@ function AppContent() {
     }
   };
 
-  const handleOnboardingComplete = (agency: AgencyConfig, theme: ThemeConfig) => {
-    setAgencyConfig({ ...agency, isOnboardingCompleted: true });
+  const handleOnboardingComplete = async (agency: AgencyConfig, theme: ThemeConfig) => {
+    const completedAgency = { ...agency, isOnboardingCompleted: true };
+    setAgencyConfig(completedAgency);
     setThemeConfig(theme);
+    try {
+      await apiService.salvarConfiguracaoAgencia(completedAgency, theme);
+    } catch (err) {
+      console.error('Erro ao salvar configuração do Ajustar:', err);
+    }
     setShowOnboarding(false);
-    // User requested that after onboarding it returns to login screen
   };
 
   const handleLogout = () => {
@@ -1012,7 +1154,8 @@ function AppContent() {
       style={{ 
         backgroundColor: themeConfig.dashboard.background, 
         color: themeConfig.dashboard.text,
-        fontFamily: themeConfig.fontFamily 
+        fontFamily: themeConfig.fontFamily,
+        ...themeCssVariables(themeConfig),
       }}
     >
       <Sidebar 
@@ -1037,6 +1180,7 @@ function AppContent() {
                 setSelectedNewsId={setSelectedNewsId}
                 handleStartAnalysis={handleStartAnalysis}
                 handleMoveTask={handleMoveTask}
+                handleMoveRedacao={handleMoveRedacao}
                 themeConfig={themeConfig}
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
@@ -1103,6 +1247,7 @@ function AppContent() {
                 onSendToSpecializedNetwork={handleSendToSpecializedNetwork}
                 specializedNetworkChecks={specializedNetworkChecks}
                 onMoveTask={handleCuratorMoveTask}
+                agencyConfig={agencyConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1128,6 +1273,7 @@ function AppContent() {
               reportConfig={reportConfig}
               themeConfig={themeConfig}
               currentUser={user}
+              agencyConfig={agencyConfig}
             />
           } />
           <Route path="/editor/:id" element={
@@ -1139,6 +1285,7 @@ function AppContent() {
                 articles={articles}
                 onSaveArticle={handleSaveArticle}
                 checkPermission={checkPermission}
+                themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1150,6 +1297,7 @@ function AppContent() {
                 articles={articles}
                 onDeleteArticle={handleDeleteArticle}
                 onUpdateStatus={handleUpdateArticleStatus}
+                themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />
           } />

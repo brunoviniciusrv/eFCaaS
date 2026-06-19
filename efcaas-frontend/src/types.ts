@@ -86,6 +86,9 @@ export interface ThemeConfig {
     tableHeaderBackground: string;
     tableHeaderText: string;
     tableRowHover: string;
+    mutedBackground: string;
+    mutedText: string;
+    hoverBackground: string;
   };
 }
 
@@ -274,6 +277,7 @@ export interface NewsItem {
   status: NewsStatus;
   priority?: 'low' | 'medium' | 'high';
   assignedTo?: string; // User ID
+  assignedToEditor?: string; // Editor user ID (aba Redação)
   startTime?: string; // ISO string
   completedAt?: string; // ISO string
   isRectified?: boolean;

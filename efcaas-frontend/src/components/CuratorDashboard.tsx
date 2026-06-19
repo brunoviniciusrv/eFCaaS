@@ -59,8 +59,10 @@ import {
   NewsStatus, 
   AssignmentHistory,
   ReceivedNewsItem,
-  ReceivedNewsStatus
+  ReceivedNewsStatus,
+  AgencyConfig,
 } from '../types';
+import { isAiModuleEnabled } from '../config/aiModules';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
@@ -97,6 +99,7 @@ interface CuratorDashboardProps {
   onSendToSpecializedNetwork: (newsId: string) => void;
   specializedNetworkChecks: any[];
   onMoveTask?: (newsId: string, newStatus: NewsStatus) => Promise<void>;
+  agencyConfig: AgencyConfig;
 }
 
 type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
@@ -124,8 +127,11 @@ export const CuratorDashboard = ({
   onSendToSpecializedNetwork,
   specializedNetworkChecks,
   onMoveTask,
+  agencyConfig,
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
+  const socialSearchEnabled = isAiModuleEnabled(agencyConfig, 'enableSocialSearch');
+  const specializedNetworkEnabled = isAiModuleEnabled(agencyConfig, 'enableSpecializedNetwork');
   const [activeTab, setActiveTab] = useState<CuratorTab>(
     checkPermission('manage_received') ? 'received' : 
     checkPermission('review_and_approve') ? 'reviews' : 'list'
@@ -191,6 +197,58 @@ export const CuratorDashboard = ({
   });
   const [isExtracting, setIsExtracting] = useState(false);
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (socialSearchEnabled) return;
+    setExtractionParams((prev) => ({
+      ...prev,
+      platforms: {
+        youtube: false,
+        reddit: false,
+        facebook: false,
+        telegram: false,
+      },
+    }));
+    setIsExtractionModalOpen(false);
+  }, [socialSearchEnabled]);
+
+  React.useEffect(() => {
+    if (specializedNetworkEnabled) return;
+    if (activeTab === 'specialized_network') {
+      setActiveTab(checkPermission('manage_received') ? 'received' : 'triage');
+    }
+  }, [specializedNetworkEnabled, activeTab, checkPermission]);
+
+  const extractionPlatforms = useMemo(
+    () =>
+      socialSearchEnabled
+        ? [
+            { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
+            { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
+            { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
+            { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' },
+          ]
+        : [],
+    [socialSearchEnabled]
+  );
+
+  const curatorTabs = useMemo(
+    () =>
+      [
+        { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
+        { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+        ...(specializedNetworkEnabled
+          ? [{ id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' }]
+          : []),
+        { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
+        { id: 'list', label: 'Publicações', icon: Activity },
+        { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
+        { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
+        { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' },
+      ].filter((tab) => !tab.permission || checkPermission(tab.permission)),
+    [specializedNetworkEnabled, checkPermission]
+  );
+
   const [newNews, setNewNews] = useState({
     title: '',
     alegacao: '',
@@ -561,16 +619,7 @@ export const CuratorDashboard = ({
           activeTab={activeTab}
           setActiveTab={setActiveTab as any}
           themeConfig={themeConfig}
-          tabs={[
-            { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
-            { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
-            { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
-            { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
-            { id: 'list', label: 'Publicações', icon: Activity },
-            { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
-            { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
-            { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
-          ].filter(tab => !tab.permission || checkPermission(tab.permission))}
+          tabs={curatorTabs}
         />
       </div>
 
@@ -600,14 +649,16 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
                 <div className="w-full md:w-auto flex gap-2">
+                  {socialSearchEnabled && (
                   <button 
                     onClick={() => setIsExtractionModalOpen(true)}
                     className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Zap size={16} />
                     Busca e Extração
                   </button>
+                  )}
                 </div>
               </div>
 
@@ -678,7 +729,11 @@ export const CuratorDashboard = ({
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 hover:brightness-95"
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                        }}
                       >
                         <Eye size={14} />
                         Visualizar
@@ -784,7 +839,12 @@ export const CuratorDashboard = ({
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-white border hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-2 shadow-sm hover:brightness-95"
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                          borderColor: themeConfig.general.border,
+                        }}
                         style={{ borderColor: themeConfig.general.border }}
                       >
                         <Eye size={14} />
@@ -793,7 +853,7 @@ export const CuratorDashboard = ({
                       <button 
                         onClick={() => onForwardToTriage(item)}
                         className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                        style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                       >
                         <ArrowUpRight size={14} />
                         Triagem
@@ -912,7 +972,7 @@ export const CuratorDashboard = ({
                 <button 
                   onClick={() => setIsRegisterModalOpen(true)}
                   className="px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2"
-                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                 >
                   <Plus size={18} />
                   Registrar Notícia
@@ -1081,6 +1141,7 @@ export const CuratorDashboard = ({
                     <UserPlus size={14} />
                     Atribuir Checador
                   </button>
+                  {specializedNetworkEnabled && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1097,6 +1158,7 @@ export const CuratorDashboard = ({
                     <Globe size={14} />
                     {item.sentToSpecializedNetwork ? 'Encaminhado pra Rede' : 'Rede Especializada'}
                   </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1245,7 +1307,8 @@ export const CuratorDashboard = ({
                           {checkPermission('assign_tasks') && (
                             <button 
                               onClick={() => handleOpenAssign(item.id)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Atribuir / Redistribuir"
                             >
                               <UserPlus size={18} />
@@ -1254,7 +1317,8 @@ export const CuratorDashboard = ({
                           {item.status === 'completed' && checkPermission('review_and_approve') && (
                             <button 
                               onClick={() => setReopeningNewsId(item.id)}
-                              className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Reabrir para Revisão"
                             >
                               <RotateCcw size={18} />
@@ -1263,7 +1327,8 @@ export const CuratorDashboard = ({
                           {checkPermission('manage_triage') && item.status === 'pending' && (
                             <button
                               onClick={() => handleOpenEdit(item)}
-                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Editar Conteúdo"
                             >
                               <FileText size={18} />
@@ -1274,7 +1339,8 @@ export const CuratorDashboard = ({
                               setSelectedNewsId(item.id);
                               navigate(`/analysis/${item.id}`);
                             }}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                            style={{ color: themeConfig.general.mutedText }}
                             title="Visualizar Conteúdo"
                           >
                             <ExternalLink size={18} />
@@ -1444,7 +1510,12 @@ export const CuratorDashboard = ({
 
                 <button 
                   onClick={() => setDetailedCheckerId(checker.id)}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:bg-slate-50"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:brightness-95"
+                  style={{
+                    borderColor: themeConfig.general.border,
+                    backgroundColor: themeConfig.general.mutedBackground,
+                    color: themeConfig.general.mutedText,
+                  }}
                   style={{ borderColor: themeConfig.general.border }}
                 >
                   Ver Tarefas Detalhadas
@@ -1488,7 +1559,7 @@ export const CuratorDashboard = ({
                   <button 
                     onClick={() => setReviewingNewsId(item.id)}
                     className="w-full py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Search size={18} />
                     Revisar Agora
@@ -1509,7 +1580,7 @@ export const CuratorDashboard = ({
 
       {/* Extraction Modal */}
       <AnimatePresence>
-        {isExtractionModalOpen && (
+        {isExtractionModalOpen && socialSearchEnabled && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
@@ -1588,12 +1659,7 @@ export const CuratorDashboard = ({
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-wider opacity-50">Onde Buscar</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
-                        { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
-                        { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
-                        { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' }
-                      ].map(platform => (
+                      {extractionPlatforms.map(platform => (
                         <button
                           key={platform.id}
                           onClick={() => setExtractionParams({
@@ -1957,7 +2023,7 @@ export const CuratorDashboard = ({
                 <button 
                   onClick={() => executeReview(true)}
                   className="flex-1 py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                  style={{ backgroundColor: themeConfig.status.success, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.status.success, color: themeConfig.buttons.primaryText }}
                 >
                   <Check size={18} />
                   Aprovar e Publicar
@@ -2019,7 +2085,7 @@ export const CuratorDashboard = ({
                   onClick={handleReopenAction}
                   disabled={!reopenReason.trim()}
                   className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
-                  style={{ backgroundColor: themeConfig.status.warning, color: '#fff' }}
+                  style={{ backgroundColor: themeConfig.status.warning, color: themeConfig.buttons.primaryText }}
                 >
                   Confirmar Reabertura
                 </button>
@@ -2394,7 +2460,7 @@ export const CuratorDashboard = ({
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setIsReceivedDetailOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={() => setIsReceivedDetailOpen(false)} className="p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)]" style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
                     <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
@@ -2509,7 +2575,7 @@ export const CuratorDashboard = ({
                         setIsReceivedDetailOpen(false);
                       }}
                       className="w-full py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                      style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                     >
                       <ArrowUpRight size={24} />
                       <span>Encaminhar para Triagem</span>
@@ -2584,7 +2650,7 @@ export const CuratorDashboard = ({
             >
               <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
                  <div className="flex items-center gap-4">
-                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)]" style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
                     <div>
@@ -2604,6 +2670,7 @@ export const CuratorDashboard = ({
                       <UserPlus size={16} />
                       Atribuir Checador
                     </button>
+                    {specializedNetworkEnabled && (
                     <button 
                       onClick={() => {
                         onSendToSpecializedNetwork(currentTriageItem.id);
@@ -2619,6 +2686,7 @@ export const CuratorDashboard = ({
                       <Globe size={16} />
                       {currentTriageItem.sentToSpecializedNetwork ? 'Encaminhado' : 'Rede Especializada'}
                     </button>
+                    )}
                  </div>
               </div>
 
