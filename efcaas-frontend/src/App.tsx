@@ -662,6 +662,14 @@ function AppContent() {
         prioridade: newsData.priority ?? undefined,
       });
 
+      const attachments: File[] = newsData.attachments ?? [];
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          await apiService.uploadAnexoConteudo(created.id, file);
+        }
+        created = await apiService.obterConteudo(created.id);
+      }
+
       if (newsData.assignedTo) {
         created = await apiService.atribuirConteudo(created.id, {
           checadorId: Number(newsData.assignedTo),
