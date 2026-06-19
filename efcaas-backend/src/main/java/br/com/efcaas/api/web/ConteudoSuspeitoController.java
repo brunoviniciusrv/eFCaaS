@@ -1,6 +1,7 @@
 package br.com.efcaas.api.web;
 
 import br.com.efcaas.api.service.ConteudoSuspeitoService;
+import br.com.efcaas.api.service.AnexoConteudoService;
 import br.com.efcaas.api.web.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -8,10 +9,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -23,6 +26,7 @@ import java.util.List;
 public class ConteudoSuspeitoController {
 
     private final ConteudoSuspeitoService service;
+    private final AnexoConteudoService anexoService;
 
     @GetMapping
     @Operation(summary = "Listar conteúdos (filtros: status, prioridade, checadorId)")
@@ -113,6 +117,45 @@ public class ConteudoSuspeitoController {
             Authentication auth) {
         Long userId = Long.parseLong(auth.getName());
         service.reabrir(id, userId, request != null ? request.justificativa() : null);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/anexos")
+    @Operation(summary = "Listar anexos do conteúdo")
+    public ResponseEntity<List<AnexoConteudoDto>> listarAnexos(@PathVariable Long id) {
+        return ResponseEntity.ok(anexoService.listar(id));
+    }
+
+    @PostMapping(value = "/{id}/anexos/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('create_news')")
+    @Operation(summary = "Enviar anexo do conteúdo para o object storage (MinIO)")
+    public ResponseEntity<AnexoConteudoDto> uploadAnexo(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            Authentication auth) {
+        Long userId = Long.parseLong(auth.getName());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(anexoService.upload(id, file, userId));
+    }
+
+    @GetMapping("/{id}/anexos/{anexoId}/download")
+    @Operation(summary = "Download de anexo do conteúdo (token temporário na query string)")
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> downloadAnexo(
+            @PathVariable Long id,
+            @PathVariable Long anexoId,
+            @RequestParam String token,
+            @RequestHeader(value = org.springframework.http.HttpHeaders.RANGE, required = false) String range) {
+        return anexoService.download(id, anexoId, token, range);
+    }
+
+    @DeleteMapping("/{id}/anexos/{anexoId}")
+    @PreAuthorize("hasAuthority('create_news')")
+    @Operation(summary = "Remover anexo do conteúdo")
+    public ResponseEntity<Void> removerAnexo(
+            @PathVariable Long id,
+            @PathVariable Long anexoId,
+            Authentication auth) {
+        anexoService.remover(id, anexoId, Long.parseLong(auth.getName()));
         return ResponseEntity.noContent().build();
     }
 }

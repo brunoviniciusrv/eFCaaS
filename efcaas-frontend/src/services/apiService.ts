@@ -62,6 +62,17 @@ export interface ApiConteudoDto {
   prioridade: string;
   checagem: ApiChecagemDto | null;
   analiseIa: unknown | null;
+  anexos?: ApiAnexoConteudoDto[];
+}
+
+export interface ApiAnexoConteudoDto {
+  id: string;
+  tipo: string;
+  urlAcesso: string;
+  nomeArquivo?: string | null;
+  contentType?: string | null;
+  tamanhoBytes?: number | null;
+  objectKey?: string | null;
 }
 
 export interface ApiChecagemDto {
@@ -304,6 +315,20 @@ function mapEvidencias(evidencias: ApiEvidenciaDto[]): Evidence[] {
   }));
 }
 
+function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media'] {
+  return (anexos ?? []).map((anexo) => {
+    const tipo = anexo.tipo as 'image' | 'video' | 'audio' | 'document';
+    const type =
+      tipo === 'image' || tipo === 'video' || tipo === 'audio' || tipo === 'document'
+        ? tipo
+        : 'document';
+    return {
+      type,
+      url: anexo.urlAcesso ?? '',
+    };
+  });
+}
+
 function mapConteudo(dto: ApiConteudoDto): NewsItem {
   const ch = dto.checagem;
   return {
@@ -333,6 +358,7 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
     ),
     report: ch?.parecer?.textoParecer ?? undefined,
     assignmentHistory: [],
+    media: mapAnexos(dto.anexos),
   };
 }
 
@@ -412,6 +438,12 @@ export const apiService = {
     };
     const dto = await api.post<ApiConteudoDto>('/conteudos', apiBody);
     return mapConteudo(dto);
+  },
+
+  async uploadAnexoConteudo(conteudoId: string, file: File): Promise<ApiAnexoConteudoDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.upload<ApiAnexoConteudoDto>(`/conteudos/${conteudoId}/anexos/upload`, formData);
   },
 
   async obterConteudo(id: string): Promise<NewsItem> {

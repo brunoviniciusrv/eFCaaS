@@ -1,5 +1,7 @@
 package br.com.efcaas.api.web.dto;
 
+import java.util.List;
+
 public record ConteudoSuspeitoDto(
         String id,
         String titulo,
@@ -11,5 +13,6 @@ public record ConteudoSuspeitoDto(
         String status,
         String prioridade,
         ChecagemDto checagem,
-        AnaliseIaDto analiseIa
+        AnaliseIaDto analiseIa,
+        List<AnexoConteudoDto> anexos
 ) {}

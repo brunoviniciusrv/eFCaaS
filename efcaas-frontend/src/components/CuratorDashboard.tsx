@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Layout, 
   Users, 
@@ -201,6 +201,9 @@ export const CuratorDashboard = ({
     assignedTo: '',
     briefing: ''
   });
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const registerFileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_ATTACHMENT_BYTES = 200 * 1024 * 1024;
   const [selectedStatus, setSelectedStatus] = useState<NewsStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'assignedTo'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -363,8 +366,9 @@ export const CuratorDashboard = ({
       alert("Título é obrigatório.");
       return;
     }
-    onAddNews(newNews);
+    onAddNews({ ...newNews, attachments: pendingAttachments });
     setIsRegisterModalOpen(false);
+    setPendingAttachments([]);
     setNewNews({ 
       title: '',
       alegacao: '',
@@ -375,6 +379,39 @@ export const CuratorDashboard = ({
       assignedTo: '',
       briefing: ''
     });
+  };
+
+  const formatAttachmentSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const addPendingAttachments = (files: FileList | File[]) => {
+    const incoming = Array.from(files);
+    const valid: File[] = [];
+    for (const file of incoming) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        alert(`"${file.name}" excede o limite de 200 MB.`);
+        continue;
+      }
+      valid.push(file);
+    }
+    if (valid.length === 0) return;
+    setPendingAttachments((prev) => {
+      const names = new Set(prev.map((f) => `${f.name}-${f.size}`));
+      return [...prev, ...valid.filter((f) => !names.has(`${f.name}-${f.size}`))];
+    });
+  };
+
+  const handleRegisterFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) addPendingAttachments(e.target.files);
+    e.target.value = '';
+  };
+
+  const handleRegisterDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files?.length) addPendingAttachments(e.dataTransfer.files);
   };
 
   const handleExecuteExtraction = () => {
@@ -2094,13 +2131,64 @@ export const CuratorDashboard = ({
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-bold uppercase tracking-wider opacity-50">Anexos / Mídias</label>
                     <div 
-                      className="border-2 border-dashed rounded-2xl p-6 text-center transition-colors hover:bg-slate-50 cursor-pointer"
-                      style={{ borderColor: themeConfig.general.border }}
+                      className="border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer hover:brightness-95"
+                      style={{
+                        borderColor: themeConfig.general.border,
+                        backgroundColor: themeConfig.general.mutedBackground,
+                        color: themeConfig.general.mutedText,
+                      }}
+                      onClick={() => registerFileInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleRegisterDrop}
                     >
-                      <Upload size={24} className="mx-auto mb-2 opacity-40" />
-                      <p className="text-sm font-medium opacity-60">Arraste arquivos ou clique para selecionar</p>
-                      <p className="text-[10px] opacity-40 mt-1 uppercase tracking-wider">PDF, JPG, PNG, MP4 (Máx 50MB)</p>
+                      <Upload size={24} className="mx-auto mb-2 opacity-60" />
+                      <p className="text-sm font-medium opacity-80">Arraste arquivos ou clique para selecionar</p>
+                      <p className="text-[10px] opacity-60 mt-1 uppercase tracking-wider">
+                        Documentos, imagens, vídeos ou áudio (máx. 200 MB cada)
+                      </p>
+                      <input
+                        ref={registerFileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+                        onChange={handleRegisterFilesSelect}
+                      />
                     </div>
+                    {pendingAttachments.length > 0 && (
+                      <ul className="space-y-2 mt-2">
+                        {pendingAttachments.map((file, index) => (
+                          <li
+                            key={`${file.name}-${file.size}-${index}`}
+                            className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-sm"
+                            style={{
+                              borderColor: themeConfig.general.border,
+                              backgroundColor: themeConfig.general.cardBackground,
+                              color: themeConfig.dashboard.text,
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText size={16} className="shrink-0 opacity-60" />
+                              <span className="truncate font-medium">{file.name}</span>
+                              <span className="text-[10px] opacity-50 shrink-0">
+                                {formatAttachmentSize(file.size)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPendingAttachments((prev) => prev.filter((_, i) => i !== index))
+                              }
+                              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)]"
+                              style={{ color: themeConfig.general.mutedText }}
+                              title="Remover arquivo"
+                            >
+                              <X size={14} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
 
@@ -2152,7 +2240,10 @@ export const CuratorDashboard = ({
               </div>
               <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
-                  onClick={() => setIsRegisterModalOpen(false)}
+                  onClick={() => {
+                    setIsRegisterModalOpen(false);
+                    setPendingAttachments([]);
+                  }}
                   className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
                 >
                   Cancelar

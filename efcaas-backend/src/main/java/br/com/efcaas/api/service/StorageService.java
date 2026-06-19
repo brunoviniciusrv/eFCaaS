@@ -25,13 +25,21 @@ public class StorageService {
     public record UploadResult(String objectKey, String contentType, long size, String originalFilename) {}
 
     public UploadResult upload(Long checagemId, MultipartFile file) {
+        return uploadToPrefix("checagens/" + checagemId, file);
+    }
+
+    public UploadResult uploadConteudo(Long conteudoId, MultipartFile file) {
+        return uploadToPrefix("conteudos/" + conteudoId, file);
+    }
+
+    private UploadResult uploadToPrefix(String prefix, MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo vazio");
         }
 
         String originalName = sanitizeFilename(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "arquivo");
-        String objectKey = "checagens/" + checagemId + "/" + UUID.randomUUID() + "_" + originalName;
+        String objectKey = prefix + "/" + UUID.randomUUID() + "_" + originalName;
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
         long size = file.getSize();
         long partSize = 5 * 1024 * 1024L;

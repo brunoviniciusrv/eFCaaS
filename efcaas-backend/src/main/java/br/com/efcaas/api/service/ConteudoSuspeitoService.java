@@ -25,6 +25,7 @@ public class ConteudoSuspeitoService {
     private final ParecerRepository parecerRepo;
     private final InvestigacaoRepository investigacaoRepo;
     private final EvidenciaRepository evidenciaRepo;
+    private final AnexoConteudoRepository anexoRepo;
     private final AnaliseIaRepository analiseIaRepo;
     private final UsuarioRepository usuarioRepo;
     private final HistoricoAtribuicaoRepository historicoRepo;
@@ -51,7 +52,8 @@ public class ConteudoSuspeitoService {
         return conteudos.stream()
                 .map(c -> {
                     Checagem ch = checagemRepo.findByConteudoId(c.getId()).orElse(null);
-                    return mapper.toDtoSimples(c, ch);
+                    List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(c.getId());
+                    return mapper.toDtoSimples(c, ch, anexos);
                 })
                 .toList();
     }
@@ -66,8 +68,9 @@ public class ConteudoSuspeitoService {
                 ? investigacaoRepo.findByChecagemId(ch.getId()).orElse(null)
                 : null;
         List<Evidencia> evidencias = ch != null ? evidenciaRepo.findByChecagemId(ch.getId()) : List.of();
+        List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(id);
         AnaliseIa analiseIa = analiseIaRepo.findByConteudoId(id).orElse(null);
-        return mapper.toDto(c, ch, parecer, investigacao, evidencias, analiseIa);
+        return mapper.toDto(c, ch, parecer, investigacao, evidencias, analiseIa, anexos);
     }
 
     @Transactional
@@ -83,7 +86,7 @@ public class ConteudoSuspeitoService {
         conteudoRepo.save(c);
 
         auditoria.registrar(curadorId, "conteudo_criado", "conteudo:" + c.getId(), req.titulo());
-        return mapper.toDtoSimples(c, null);
+        return mapper.toDtoSimples(c, null, List.of());
     }
 
     @Transactional
@@ -99,7 +102,8 @@ public class ConteudoSuspeitoService {
         conteudoRepo.save(c);
         auditoria.registrar(usuarioId, "conteudo_editado", "conteudo:" + id, req.titulo());
         Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
-        return mapper.toDtoSimples(c, ch);
+        List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(id);
+        return mapper.toDtoSimples(c, ch, anexos);
     }
 
     @Transactional
@@ -109,8 +113,9 @@ public class ConteudoSuspeitoService {
         c.setStatus(novoStatus);
         conteudoRepo.save(c);
         Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
+        List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(id);
         auditoria.registrar(usuarioId, "status_atualizado", "conteudo:" + id, novoStatus);
-        return mapper.toDtoSimples(c, ch);
+        return mapper.toDtoSimples(c, ch, anexos);
     }
 
     @Transactional
