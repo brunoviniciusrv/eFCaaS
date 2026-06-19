@@ -650,5 +650,8 @@ export const INITIAL_THEME_CONFIG: ThemeConfig = {
     tableHeaderBackground: '#f8fafc',
     tableHeaderText: '#64748b',
     tableRowHover: '#f1f5f9',
+    mutedBackground: '#f1f5f9',
+    mutedText: '#334155',
+    hoverBackground: '#e2e8f0',
   }
 };

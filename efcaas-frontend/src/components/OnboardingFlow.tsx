@@ -22,44 +22,14 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { ThemeConfig, AgencyConfig } from '../types';
+import { AiEngineModulesPanel } from './AiEngineModulesPanel';
+import { AiModuleKey } from '../config/aiModules';
 import { INITIAL_THEME_CONFIG } from '../constants';
+import { THEME_PRESETS, applyThemePreset } from '../config/themePresets';
 
 interface OnboardingFlowProps {
   onComplete: (agency: AgencyConfig, theme: ThemeConfig) => void;
 }
-
-const PRESET_THEMES = [
-  {
-    id: 'modern-blue',
-    name: 'Modern Blue',
-    description: 'Profissional e confiável.',
-    colors: {
-      accent: '#2563eb',
-      background: '#f8fafc',
-      sidebar: '#ffffff'
-    }
-  },
-  {
-    id: 'emerald-clean',
-    name: 'Emerald Clean',
-    description: 'Suave e contemporâneo.',
-    colors: {
-      accent: '#059669',
-      background: '#f0fdf4',
-      sidebar: '#ffffff'
-    }
-  },
-  {
-    id: 'royal-purple',
-    name: 'Royal Purple',
-    description: 'Inovador e arrojado.',
-    colors: {
-      accent: '#7c3aed',
-      background: '#f5f3ff',
-      sidebar: '#ffffff'
-    }
-  }
-];
 
 const FONTS = [
   { id: 'Inter', name: 'Inter (Padrão)', desc: 'Foco em legibilidade' },
@@ -82,78 +52,19 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     enableMisinfoRisk: true,
     enableIllicitRisk: true,
     useDefaultProfiles: true,
-    templateId: 'standard'
+    templateId: 'modern-blue'
   });
   
   const [theme, setTheme] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
+  const [selectedThemeId, setSelectedThemeId] = useState('modern-blue');
 
   const nextStep = () => setStep(s => Math.min(s + 1, 3));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
-  const handleApplyTheme = (preset: typeof PRESET_THEMES[0]) => {
-    const accent = preset.colors.accent;
-    const bg = preset.colors.background;
-    const sidebarBg = preset.colors.sidebar;
-    setTheme(prev => ({
-      ...prev,
-      dashboard: {
-        ...prev.dashboard,
-        background: bg,
-        text: '#0f172a',
-        chartColors: [accent, '#10b981', '#f97316', '#94a3b8']
-      },
-      flow: {
-        ...prev.flow,
-        background: '#ffffff',
-        text: '#0f172a',
-        blockPending: '#f1f5f9',
-        blockInProgress: '#eff6ff',
-        blockCompleted: '#f0fdf4',
-        blockRectify: '#fff7ed',
-        blockFinalReview: '#f5f3ff'
-      },
-      sidebar: {
-        background: sidebarBg,
-        text: '#64748b',
-        activeBackground: '#eff6ff',
-        activeText: accent,
-        border: '#e2e8f0'
-      },
-      header: {
-        background: '#ffffff',
-        text: '#0f172a',
-        border: '#e2e8f0'
-      },
-      buttons: {
-        primary: accent,
-        primaryText: '#ffffff',
-        secondary: '#64748b',
-        secondaryText: '#ffffff',
-        danger: '#dc2626',
-        dangerText: '#ffffff'
-      },
-      status: {
-        success: '#22c55e',
-        warning: '#f59e0b',
-        error: '#ef4444',
-        info: '#3b82f6'
-      },
-      general: {
-        border: '#e2e8f0',
-        cardBackground: '#ffffff',
-        accent: accent,
-        inputBackground: '#ffffff',
-        inputText: '#0f172a',
-        inputBorder: '#e2e8f0',
-        inputPlaceholder: '#94a3b8',
-        modalOverlay: 'rgba(15, 23, 42, 0.5)',
-        modalBackground: '#ffffff',
-        modalText: '#0f172a',
-        tableHeaderBackground: '#f8fafc',
-        tableHeaderText: '#64748b',
-        tableRowHover: '#f1f5f9'
-      }
-    }));
+  const handleApplyTheme = (preset: typeof THEME_PRESETS[0]) => {
+    setSelectedThemeId(preset.id);
+    setAgency((prev) => ({ ...prev, templateId: preset.id }));
+    setTheme((prev) => applyThemePreset(prev, preset));
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,8 +228,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Tema do Sistema</label>
                     <div className="grid grid-cols-1 gap-2">
-                      {PRESET_THEMES.map((themePreset) => {
-                        const isSelected = theme.general.accent === themePreset.colors.accent;
+                      {THEME_PRESETS.map((themePreset) => {
+                        const isSelected = selectedThemeId === themePreset.id;
+                        const isDark = themePreset.mode === 'dark';
                         return (
                           <button
                             key={themePreset.id}
@@ -329,17 +241,37 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                                 : 'border-slate-100 hover:border-slate-200 bg-white'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="flex gap-1 shrink-0 bg-slate-100 p-1 rounded-lg">
-                                <div className="w-4 h-4 rounded-full border shadow-inner" style={{ backgroundColor: themePreset.colors.accent }} />
-                                <div className="w-4 h-4 rounded-full border shadow-inner bg-white" />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="flex gap-1 shrink-0 p-1 rounded-lg border border-slate-200/80"
+                                style={{ backgroundColor: isDark ? themePreset.colors.background : '#f1f5f9' }}
+                              >
+                                <div
+                                  className="w-4 h-4 rounded-full border shadow-inner"
+                                  style={{ backgroundColor: themePreset.colors.accent }}
+                                />
+                                <div
+                                  className="w-4 h-4 rounded-full border shadow-inner"
+                                  style={{
+                                    backgroundColor: isDark
+                                      ? themePreset.colors.sidebar
+                                      : '#ffffff',
+                                  }}
+                                />
                               </div>
-                              <div>
-                                <span className="text-xs font-bold block text-slate-900">{themePreset.name}</span>
-                                <span className="text-[10px] text-slate-400 block">{themePreset.description}</span>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold block text-slate-900 truncate">
+                                  {themePreset.name}
+                                  {isDark && (
+                                    <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                      · Escuro
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block truncate">{themePreset.description}</span>
                               </div>
                             </div>
-                            {isSelected && <div className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-extrabold">✓</div>}
+                            {isSelected && <div className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-extrabold shrink-0 ml-2">✓</div>}
                           </button>
                         );
                       })}
@@ -397,46 +329,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <p className="text-xs text-slate-500 mt-1">Ative as funcionalidades avançadas de processamento natural (NLP) do eFCaaS.</p>
                 </div>
 
-                <div className="space-y-2.5">
-                  {[
-                    { id: 'enableAI', label: 'Copiloto de IA Generativa', desc: 'Sugerir resumos automáticos e triar de forma proativa as investigações de fake news.', icon: Sparkles, color: 'bg-blue-500' },
-                    { id: 'enableSocialSearch', label: 'Monitor de Redes Sociais', desc: 'Varrer tendências virais e palavras chaves suspeitas em contas do X, Facebook e WhatsApp.', icon: Search, color: 'bg-sky-500' },
-                    { id: 'enableTrendAnalyzer', label: 'Analisador de Desinformações', desc: 'Cruzamentos estatísticos automáticos com bancos de falsidade conhecidos.', icon: Zap, color: 'bg-amber-500' },
-                    { id: 'enableMisinfoRisk', label: 'Classificação de Risco de Engajamento', desc: 'Cálculo de propagação tóxica de posts em canais abertos.', icon: AlertTriangle, color: 'bg-rose-500' },
-                    { id: 'enableSpecializedNetwork', label: 'Conexão de Rede Global de Checadores', desc: 'Ativar alertas urgentes para moderadores de terceiras agências parceiras.', icon: Globe, color: 'bg-indigo-500' }
-                  ].map((feat) => {
-                    const isEnabled = agency[feat.id as keyof AgencyConfig] === true;
-                    const Icon = feat.icon;
-                    return (
-                      <button
-                        key={feat.id}
-                        onClick={() => setAgency(prev => ({ ...prev, [feat.id]: !prev[feat.id as keyof AgencyConfig] }))}
-                        className={`w-full p-3 border rounded-2xl flex items-center justify-between text-left transition-all ${
-                          isEnabled 
-                            ? 'border-emerald-600 bg-emerald-50/20 shadow-xs' 
-                            : 'border-slate-150 hover:border-slate-200 bg-slate-50/20'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-4">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            isEnabled ? feat.color + ' text-white' : 'bg-slate-200 text-slate-400'
-                          }`}>
-                            <Icon size={16} />
-                          </div>
-                          <div className="truncate">
-                            <span className="text-xs font-bold text-slate-900 block truncate">{feat.label}</span>
-                            <span className="text-[10px] text-slate-500 block truncate max-w-lg md:max-w-md">{feat.desc}</span>
-                          </div>
-                        </div>
-
-                        {/* Custom visual switch */}
-                        <div className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${isEnabled ? 'bg-emerald-600' : 'bg-slate-300'}`}>
-                          <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-200 ${isEnabled ? 'left-5' : 'left-[3px]'}`} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                <AiEngineModulesPanel
+                  config={agency}
+                  onChange={(key: AiModuleKey, enabled) =>
+                    setAgency((prev) => ({ ...prev, [key]: enabled }))
+                  }
+                />
               </div>
 
               {/* Right Column: Roles & Governance configuration (Merged for high efficiency) */}

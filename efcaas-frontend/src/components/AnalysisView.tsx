@@ -43,7 +43,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
-import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile } from '../types';
+import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
+import { isAiModuleEnabled } from '../config/aiModules';
 import { TOOLS } from '../constants';
 import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
 
@@ -118,6 +119,7 @@ interface AnalysisViewProps {
   reportConfig: ReportStructureConfig;
   themeConfig: ThemeConfig;
   currentUser: UserProfile;
+  agencyConfig: AgencyConfig;
 }
 
 export const AnalysisView = ({
@@ -140,10 +142,16 @@ export const AnalysisView = ({
   labels,
   reportConfig,
   themeConfig,
-  currentUser
+  currentUser,
+  agencyConfig,
 }: AnalysisViewProps) => {
   const navigate = useNavigate();
   if (!selectedNews) return null;
+
+  const showMisinfoAxis = isAiModuleEnabled(agencyConfig, 'enableTrendAnalyzer');
+  const showIllicitAxis = isAiModuleEnabled(agencyConfig, 'enableMisinfoRisk');
+  const showSemanticAnalysis = isAiModuleEnabled(agencyConfig, 'enableAI');
+  const showMetricsTab = showMisinfoAxis || showIllicitAxis || showSemanticAnalysis;
 
   const isEditor = currentUser.role === 'editor';
   const isChecker = currentUser.role === 'checker';
@@ -154,6 +162,12 @@ export const AnalysisView = ({
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'tools' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
+
+  useEffect(() => {
+    if (!showMetricsTab && activeTab === 'metrics') {
+      setActiveTab('content');
+    }
+  }, [showMetricsTab, activeTab]);
 
   const [auditoriaLogs, setAuditoriaLogs] = useState<ApiAuditoriaDto[]>([]);
   const [auditoriaLoading, setAuditoriaLoading] = useState(false);
@@ -280,7 +294,7 @@ export const AnalysisView = ({
                   themeConfig={themeConfig}
                   tabs={[
                     { id: 'content', label: 'Conteúdo', icon: FileIcon },
-                    { id: 'metrics', label: 'Métricas IA', icon: Sparkles },
+                    ...(showMetricsTab ? [{ id: 'metrics', label: 'Métricas IA', icon: Sparkles }] : []),
                     ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
                     { id: 'investigation', label: 'Investigação', icon: Search },
                     { id: 'result', label: 'Parecer', icon: FileText },
@@ -519,6 +533,8 @@ export const AnalysisView = ({
                   </div>
 
                   <div className="space-y-4 pt-2">
+                    {showMisinfoAxis && (
+                    <>
                     <div className="flex items-center gap-2 px-2">
                       <AlertCircle size={16} className="text-orange-500" />
                       <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 text-orange-600">Eixo Desinformação</h3>
@@ -566,9 +582,13 @@ export const AnalysisView = ({
                         </div>
                       ))}
                     </div>
+                    </>
+                    )}
                   </div>
 
                   <div className="space-y-4 pt-2">
+                    {showIllicitAxis && (
+                    <>
                     <div className="flex items-center gap-2 px-2">
                       <AlertTriangle size={16} className="text-red-500" />
                       <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 text-red-600">Eixo Ilicitudes</h3>
@@ -618,10 +638,13 @@ export const AnalysisView = ({
                         </div>
                       ))}
                     </div>
+                    </>
+                    )}
                   </div>
                 </div>
 
                 {/* 2.1 AI Semantic Analysis */}
+                {showSemanticAnalysis && (
                 <section 
                   className="rounded-3xl border shadow-sm overflow-hidden"
                   style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
@@ -708,6 +731,7 @@ export const AnalysisView = ({
                     })()}
                   </div>
                 </section>
+                )}
               </motion.div>
             )}
 
