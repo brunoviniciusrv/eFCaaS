@@ -63,7 +63,7 @@ docs/
 |---------|-----------|
 | Diagrama de Arquitetura de Solução | Documento contendo a arquitetura técnica do sistema eFCaaS, evidenciando a interação entre os componentes de frontend, backend, banco de dados e integrações externas por meio de APIs. |
 | Documento de Requisitos Não-Funcionais (RNFs) | Documento que consolida os requisitos de desempenho, escalabilidade, disponibilidade e segurança da aplicação, derivados da seção técnica do PRD. |
-| Relatório de Impacto à Proteção de Dados (RIPD) e Controle de Acesso (RBAC) | Artefato que apresenta as medidas de proteção de dados adotadas pela solução, bem como as estratégias de autenticação, autorização e controle de permissões dos usuários, em conformidade com os princípios da LGPD. |
+| Relatório de Segurança e LGPD | Artefato que apresenta as medidas de proteção de dados adotadas pela solução, bem como as estratégias de autenticação, autorização e controle de permissões dos usuários, em conformidade com os princípios da LGPD. |
 | Dicionário de Dados e Modelo Entidade-Relacionamento (DER) | Documento responsável por descrever as entidades, atributos, relacionamentos e regras de armazenamento das informações utilizadas pelo sistema. |
 | Plano e Relatório de Testes | Conjunto de evidências e registros de testes funcionais realizados para validar os critérios de aceite e os requisitos definidos no PRD, demonstrando o comportamento esperado da solução. |
 
