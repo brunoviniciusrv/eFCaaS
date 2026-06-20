@@ -145,8 +145,10 @@ export interface ReceivedNewsItem {
   receivedAt: string;
   status: ReceivedNewsStatus;
   media?: {
+    id?: string;
     type: 'image' | 'video' | 'audio' | 'document';
     url: string;
+    title?: string;
   }[];
   originalLink?: string;
   messageId?: string;
@@ -285,8 +287,10 @@ export interface NewsItem {
   sentToSpecializedNetwork?: boolean;
   specializedCheckId?: string;
   media?: {
+    id?: string;
     type: 'image' | 'video' | 'audio' | 'document';
     url: string;
+    title?: string;
   }[];
   evidence: Evidence[];
   report?: string;

@@ -127,7 +127,7 @@ public class ConteudoSuspeitoController {
     }
 
     @PostMapping(value = "/{id}/anexos/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('create_news')")
+    @PreAuthorize("hasAnyAuthority('create_news', 'perform_analysis')")
     @Operation(summary = "Enviar anexo do conteúdo para o object storage (MinIO)")
     public ResponseEntity<AnexoConteudoDto> uploadAnexo(
             @PathVariable Long id,
@@ -149,7 +149,7 @@ public class ConteudoSuspeitoController {
     }
 
     @DeleteMapping("/{id}/anexos/{anexoId}")
-    @PreAuthorize("hasAuthority('create_news')")
+    @PreAuthorize("hasAnyAuthority('create_news', 'perform_analysis')")
     @Operation(summary = "Remover anexo do conteúdo")
     public ResponseEntity<Void> removerAnexo(
             @PathVariable Long id,

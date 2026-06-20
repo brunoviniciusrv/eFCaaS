@@ -105,6 +105,7 @@ interface AnalysisViewProps {
   isToolboxOpen: boolean;
   setIsToolboxOpen: (open: boolean) => void;
   handleSaveFinal: () => void;
+  handleSaveInvestigation: () => Promise<boolean>;
   handleUpdateReportStructure: (updates: Partial<ReportStructure>) => void;
   handleGenerateDraft: () => void;
   handleReviewReport: () => void;
@@ -112,6 +113,8 @@ interface AnalysisViewProps {
   handleAddEvidence: (evidence: Omit<Evidence, 'id' | 'timestamp'>) => void;
   handleUploadEvidenceFile: (file: File) => Promise<void>;
   handleRemoveEvidence: (id: string) => void;
+  handleUploadMediaFile: (file: File) => Promise<void>;
+  handleRemoveMedia: (anexoId: string) => Promise<void>;
   isSaving: boolean;
   isGeneratingDraft: boolean;
   isReviewing: boolean;
@@ -129,6 +132,7 @@ export const AnalysisView = ({
   isToolboxOpen,
   setIsToolboxOpen,
   handleSaveFinal,
+  handleSaveInvestigation,
   handleUpdateReportStructure,
   handleGenerateDraft,
   handleReviewReport,
@@ -136,6 +140,8 @@ export const AnalysisView = ({
   handleAddEvidence,
   handleUploadEvidenceFile,
   handleRemoveEvidence,
+  handleUploadMediaFile,
+  handleRemoveMedia,
   isSaving,
   isGeneratingDraft,
   isReviewing,
@@ -197,6 +203,22 @@ export const AnalysisView = ({
   const [isAddingLink, setIsAddingLink] = React.useState(false);
   const [linkInput, setLinkInput] = React.useState('');
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
+  const [isContentUploading, setIsContentUploading] = React.useState(false);
+  const [contentUploadStatus, setContentUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
+  const [showInvestigationSaveSuccess, setShowInvestigationSaveSuccess] = useState(false);
+
+  const handleSaveInvestigationClick = async () => {
+    const saved = await handleSaveInvestigation();
+    if (saved) {
+      setShowInvestigationSaveSuccess(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!showInvestigationSaveSuccess) return;
+    const timer = setTimeout(() => setShowInvestigationSaveSuccess(false), 4000);
+    return () => clearTimeout(timer);
+  }, [showInvestigationSaveSuccess]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,6 +244,34 @@ export const AnalysisView = ({
       alert(err instanceof Error ? err.message : 'Falha ao enviar o arquivo.');
     } finally {
       setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleContentFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxBytes = 200 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert('O arquivo excede o limite de 200 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setIsContentUploading(true);
+    setContentUploadStatus('idle');
+
+    try {
+      await handleUploadMediaFile(file);
+      setContentUploadStatus('success');
+      setTimeout(() => setContentUploadStatus('idle'), 3000);
+    } catch (err) {
+      console.error('Erro ao enviar anexo:', err);
+      setContentUploadStatus('error');
+      alert(err instanceof Error ? err.message : 'Falha ao enviar o arquivo.');
+    } finally {
+      setIsContentUploading(false);
       e.target.value = '';
     }
   };
@@ -305,7 +355,22 @@ export const AnalysisView = ({
             </nav>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-            {canEdit && (
+            {canEdit && activeTab === 'investigation' && (
+              <button
+                onClick={handleSaveInvestigationClick}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+                style={{
+                  backgroundColor: themeConfig.status.success,
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.status.success}30`,
+                }}
+              >
+                <Save size={18} />
+                {isSaving ? 'Salvando...' : 'Salvar Investigação'}
+              </button>
+            )}
+            {canEdit && activeTab === 'result' && (
               <button 
                 onClick={handleSaveFinal}
                 disabled={isSaving}
@@ -362,34 +427,137 @@ export const AnalysisView = ({
                        <p className="leading-relaxed text-sm" style={{ color: themeConfig.dashboard.text }}>"{selectedNews.content}"</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 gap-6">
-                      {selectedNews.media?.map((m, i) => (
-                        <div key={i} className="rounded-2xl overflow-hidden border bg-black/5" style={{ borderColor: themeConfig.general.border }}>
-                          {m.type === 'image' && <img src={m.url} alt="Media" className="w-full h-auto" referrerPolicy="no-referrer" />}
-                          {m.type === 'video' && (
-                            <div className="relative group">
-                              <video src={m.url} controls className="w-full aspect-video bg-black" />
-                              <div className="absolute top-4 left-4 p-2 bg-black/50 backdrop-blur-md rounded-lg text-white text-[10px] uppercase font-bold tracking-widest">Vídeo Anexo</div>
-                            </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                          Mídias e Anexos {selectedNews.media?.length ? `(${selectedNews.media.length})` : ''}
+                        </label>
+                      </div>
+
+                      {canEdit && (
+                        <div
+                          className={cn(
+                            'p-6 rounded-[2rem] border-2 border-dashed transition-all cursor-pointer relative flex flex-col items-center justify-center text-center space-y-3 group overflow-hidden',
+                            isContentUploading
+                              ? 'bg-blue-50/20 border-blue-300'
+                              : 'bg-slate-50/50 border-slate-200 hover:border-blue-400 hover:bg-blue-50/10'
                           )}
-                          {m.type === 'audio' && (
-                            <div className="p-10 flex flex-col items-center gap-6 bg-slate-50">
-                              <div 
-                                className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
-                                style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
-                              >
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                              </div>
-                              <div className="w-full max-w-xl">
-                                <div className="text-center mb-4">
-                                  <span className="text-xs font-black uppercase tracking-[.2em] opacity-40">Áudio Original</span>
-                                </div>
-                                <audio src={m.url} controls className="w-full" />
-                              </div>
+                        >
+                          <input
+                            type="file"
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                            onChange={handleContentFileUpload}
+                            disabled={isContentUploading}
+                            accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                          />
+                          {isContentUploading ? (
+                            <div className="flex flex-col items-center">
+                              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin mb-2" />
+                              <p className="text-[10px] font-bold text-blue-600">Subindo...</p>
                             </div>
+                          ) : (
+                            <>
+                              <div className="w-10 h-10 rounded-xl bg-white shadow-lg flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform border border-slate-50">
+                                <FileIcon size={20} />
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm text-slate-800">Anexar Arquivo</p>
+                                <p className="text-[10px] font-bold opacity-30 uppercase tracking-widest leading-tight">
+                                  PDF, Imagem, Vídeo, Áudio, Doc
+                                </p>
+                              </div>
+                            </>
                           )}
                         </div>
-                      ))}
+                      )}
+
+                      {contentUploadStatus === 'success' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="py-2 bg-green-50 text-green-600 text-[10px] font-black text-center rounded-xl border border-green-100 uppercase tracking-widest"
+                        >
+                          Anexo adicionado com sucesso!
+                        </motion.div>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-6">
+                        {(selectedNews.media ?? []).map((m, i) => (
+                          <div
+                            key={m.id ?? i}
+                            className="rounded-2xl overflow-hidden border bg-black/5 group relative"
+                            style={{ borderColor: themeConfig.general.border }}
+                          >
+                            {m.type === 'image' && (
+                              <img src={m.url} alt={m.title ?? 'Imagem'} className="w-full h-auto" referrerPolicy="no-referrer" />
+                            )}
+                            {m.type === 'video' && (
+                              <div className="relative">
+                                <video src={m.url} controls className="w-full aspect-video bg-black" />
+                                <div className="absolute top-4 left-4 p-2 bg-black/50 backdrop-blur-md rounded-lg text-white text-[10px] uppercase font-bold tracking-widest">
+                                  Vídeo Anexo
+                                </div>
+                              </div>
+                            )}
+                            {m.type === 'audio' && (
+                              <div className="p-10 flex flex-col items-center gap-6 bg-slate-50">
+                                <div
+                                  className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
+                                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                                >
+                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                                </div>
+                                <div className="w-full max-w-xl">
+                                  <div className="text-center mb-4">
+                                    <span className="text-xs font-black uppercase tracking-[.2em] opacity-40">Áudio Original</span>
+                                  </div>
+                                  <audio src={m.url} controls className="w-full" />
+                                </div>
+                              </div>
+                            )}
+                            {m.type === 'document' && (
+                              <div className="p-6 flex items-center gap-4 bg-slate-50">
+                                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shrink-0">
+                                  <FileText size={18} className="text-slate-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <a
+                                    href={m.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-black truncate text-slate-800 hover:text-blue-600 block"
+                                  >
+                                    {m.title ?? 'Documento'}
+                                  </a>
+                                  <p className="text-[10px] opacity-50 truncate font-mono">{m.url}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {canEdit && m.id && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await handleRemoveMedia(m.id!);
+                                  } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Falha ao remover o anexo.');
+                                  }
+                                }}
+                                className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm text-slate-400 hover:text-red-500 transition-all rounded-full shadow-sm opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {(selectedNews.media ?? []).length === 0 && !canEdit && (
+                        <div className="py-8 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center space-y-2 opacity-40">
+                          <Info size={24} />
+                          <p className="text-sm font-medium">Nenhum anexo disponível para este conteúdo.</p>
+                        </div>
+                      )}
                     </div>
 
                         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1067,6 +1235,7 @@ export const AnalysisView = ({
                     </div>
                   </div>
                 </section>
+
               </motion.div>
             )}
 
@@ -1361,6 +1530,58 @@ export const AnalysisView = ({
                 })}
               </div>
             </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showInvestigationSaveSuccess && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowInvestigationSaveSuccess(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm mx-4"
+            >
+              <div
+                className="rounded-3xl border shadow-2xl p-8 text-center"
+                style={{
+                  backgroundColor: themeConfig.general.cardBackground,
+                  borderColor: themeConfig.general.border,
+                }}
+              >
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ backgroundColor: `${themeConfig.status.success}20` }}
+                >
+                  <CheckCircle size={32} style={{ color: themeConfig.status.success }} />
+                </div>
+                <h3
+                  className="text-lg font-black mb-2"
+                  style={{ color: themeConfig.dashboard.text }}
+                >
+                  Investigação salva!
+                </h3>
+                <p className="text-sm opacity-60 mb-6 leading-relaxed">
+                  As informações da investigação foram salvas com sucesso no banco de dados.
+                </p>
+                <button
+                  onClick={() => setShowInvestigationSaveSuccess(false)}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+                  style={{ backgroundColor: themeConfig.status.success }}
+                >
+                  OK
+                </button>
+              </div>
+            </motion.div>
           </>
         )}
       </AnimatePresence>

@@ -347,8 +347,10 @@ function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media']
         ? tipo
         : 'document';
     return {
+      id: anexo.id,
       type,
       url: anexo.urlAcesso ?? '',
+      title: anexo.nomeArquivo ?? undefined,
     };
   });
 }
@@ -529,6 +531,10 @@ export const apiService = {
     const formData = new FormData();
     formData.append('file', file);
     return api.upload<ApiAnexoConteudoDto>(`/conteudos/${conteudoId}/anexos/upload`, formData);
+  },
+
+  async removerAnexoConteudo(conteudoId: string, anexoId: string): Promise<void> {
+    return api.delete<void>(`/conteudos/${conteudoId}/anexos/${anexoId}`);
   },
 
   async obterConteudo(id: string): Promise<NewsItem> {

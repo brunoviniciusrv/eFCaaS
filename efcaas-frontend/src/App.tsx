@@ -529,6 +529,41 @@ function AppContent() {
     } : n));
   };
 
+  const handleUploadMediaFile = async (file: File) => {
+    if (!selectedNewsId) return;
+    const currentNews = news.find(n => n.id === selectedNewsId);
+    if (!currentNews) return;
+
+    const apiAnexo = await apiService.uploadAnexoConteudo(currentNews.id, file);
+    const tipo = apiAnexo.tipo as 'image' | 'video' | 'audio' | 'document';
+    const type =
+      tipo === 'image' || tipo === 'video' || tipo === 'audio' || tipo === 'document'
+        ? tipo
+        : 'document';
+    const newMedia = {
+      id: apiAnexo.id,
+      type,
+      url: apiAnexo.urlAcesso ?? '',
+      title: apiAnexo.nomeArquivo ?? file.name,
+    };
+    setNews(prev => prev.map(n => n.id === selectedNewsId ? {
+      ...n,
+      media: [...(n.media ?? []), newMedia],
+    } : n));
+  };
+
+  const handleRemoveMedia = async (anexoId: string) => {
+    if (!selectedNewsId) return;
+    const currentNews = news.find(n => n.id === selectedNewsId);
+    if (!currentNews) return;
+
+    await apiService.removerAnexoConteudo(currentNews.id, anexoId);
+    setNews(prev => prev.map(n => n.id === selectedNewsId ? {
+      ...n,
+      media: (n.media ?? []).filter(m => m.id !== anexoId),
+    } : n));
+  };
+
   const handleGenerateDraft = async () => {
     if (!selectedNews || !selectedNews.reportStructure) return;
     setIsGeneratingDraft(true);
@@ -552,6 +587,34 @@ function AppContent() {
       console.error("Error reviewing report:", error);
     } finally {
       setIsReviewing(false);
+    }
+  };
+
+  const handleSaveInvestigation = async (): Promise<boolean> => {
+    if (!selectedNews) return false;
+    setIsSaving(true);
+    try {
+      if (selectedNews.checagemId) {
+        const rs = selectedNews.reportStructure;
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
+          resumo: rs?.summary ?? '',
+          perguntas: (rs?.questions ?? []).filter(Boolean),
+          fontes: (rs?.sources ?? []).filter(Boolean),
+          inverificavel: rs?.isInverifiable ?? false,
+          contatoAutor: {
+            hadContact: rs?.contactWithAuthor?.hadContact ?? null,
+            justificacao: rs?.contactWithAuthor?.justification ?? null,
+            response: rs?.contactWithAuthor?.response ?? null,
+          },
+        });
+      }
+      return true;
+    } catch (err) {
+      console.error('Erro ao salvar investigação:', err);
+      alert(`Erro ao salvar: ${err instanceof Error ? err.message : err}`);
+      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1134,7 +1197,14 @@ function AppContent() {
   };
 
   if (showOnboarding) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+    return (
+      <OnboardingFlow
+        onComplete={handleOnboardingComplete}
+        onClose={agencyConfig.isOnboardingCompleted ? () => setShowOnboarding(false) : undefined}
+        initialAgency={agencyConfig}
+        initialTheme={themeConfig}
+      />
+    );
   }
 
   if (!isAuthenticated) {
@@ -1259,6 +1329,7 @@ function AppContent() {
               isToolboxOpen={isToolboxOpen}
               setIsToolboxOpen={setIsToolboxOpen}
               handleSaveFinal={handleSaveFinal}
+              handleSaveInvestigation={handleSaveInvestigation}
               handleUpdateReportStructure={handleUpdateReportStructure}
               handleGenerateDraft={handleGenerateDraft}
               handleReviewReport={handleReviewReport}
@@ -1266,6 +1337,8 @@ function AppContent() {
               handleAddEvidence={handleAddEvidence}
               handleUploadEvidenceFile={handleUploadEvidenceFile}
               handleRemoveEvidence={handleRemoveEvidence}
+              handleUploadMediaFile={handleUploadMediaFile}
+              handleRemoveMedia={handleRemoveMedia}
               isSaving={isSaving}
               isGeneratingDraft={isGeneratingDraft}
               isReviewing={isReviewing}

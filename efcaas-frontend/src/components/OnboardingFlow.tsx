@@ -29,6 +29,9 @@ import { THEME_PRESETS, applyThemePreset } from '../config/themePresets';
 
 interface OnboardingFlowProps {
   onComplete: (agency: AgencyConfig, theme: ThemeConfig) => void;
+  onClose?: () => void;
+  initialAgency?: AgencyConfig;
+  initialTheme?: ThemeConfig;
 }
 
 const FONTS = [
@@ -37,26 +40,33 @@ const FONTS = [
   { id: 'Space Grotesk', name: 'Space Grotesk (Tech)', desc: 'Técnico e limpo' }
 ];
 
-export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
+const DEFAULT_AGENCY: AgencyConfig = {
+  name: 'Minha Agência de Checagem',
+  logoUrl: '',
+  isOnboardingCompleted: false,
+  language: 'pt-BR',
+  country: 'Brasil',
+  enableAI: true,
+  enableSpecializedNetwork: true,
+  enableSocialSearch: true,
+  enableTrendAnalyzer: true,
+  enableMisinfoRisk: true,
+  enableIllicitRisk: true,
+  useDefaultProfiles: true,
+  templateId: 'modern-blue',
+};
+
+export const OnboardingFlow = ({ onComplete, onClose, initialAgency, initialTheme }: OnboardingFlowProps) => {
   const [step, setStep] = useState(1);
-  const [agency, setAgency] = useState<AgencyConfig>({
-    name: 'Minha Agência de Checagem',
-    logoUrl: '',
+  const [agency, setAgency] = useState<AgencyConfig>(() => ({
+    ...DEFAULT_AGENCY,
+    ...initialAgency,
     isOnboardingCompleted: false,
-    language: 'pt-BR',
-    country: 'Brasil',
-    enableAI: true,
-    enableSpecializedNetwork: true,
-    enableSocialSearch: true,
-    enableTrendAnalyzer: true,
-    enableMisinfoRisk: true,
-    enableIllicitRisk: true,
-    useDefaultProfiles: true,
-    templateId: 'modern-blue'
-  });
-  
-  const [theme, setTheme] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
-  const [selectedThemeId, setSelectedThemeId] = useState('modern-blue');
+  }));
+
+  const resolvedTemplateId = agency.templateId ?? 'modern-blue';
+  const [theme, setTheme] = useState<ThemeConfig>(initialTheme ?? INITIAL_THEME_CONFIG);
+  const [selectedThemeId, setSelectedThemeId] = useState(resolvedTemplateId);
 
   const nextStep = () => setStep(s => Math.min(s + 1, 3));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
@@ -452,19 +462,30 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       {/* Stepper Wizard Actions Footer */}
       <div className="relative z-10 max-w-5xl w-full mx-auto pt-4 border-t border-slate-200/60 mt-4 flex items-center justify-between shrink-0">
-        <button 
-          onClick={prevStep}
-          disabled={step === 1}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors ${
-            step === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <ArrowLeft size={14} strokeWidth={2.5} />
-          Anterior
-        </button>
+        <div className="flex items-center gap-3">
+          {onClose && step === 1 ? (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              Sair
+            </button>
+          ) : (
+            <button
+              onClick={prevStep}
+              disabled={step === 1}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors ${
+                step === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <ArrowLeft size={14} strokeWidth={2.5} />
+              Anterior
+            </button>
+          )}
+        </div>
 
         {step < 3 ? (
-          <button 
+          <button
             onClick={nextStep}
             className="flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm group"
           >
@@ -472,7 +493,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <ArrowRight size={14} strokeWidth={2.5} className="group-hover:translate-x-0.5 transition-transform" />
           </button>
         ) : (
-          <div className="w-10 h-10" /> /* balanced layout placeholder */
+          <div className="w-10 h-10" />
         )}
       </div>
     </div>
