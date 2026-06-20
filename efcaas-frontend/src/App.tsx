@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
   PLACEHOLDER_USER,
@@ -38,6 +38,57 @@ import { apiService, normalizeReportStructure } from './services/apiService';
 import { clearToken } from './services/apiClient';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
+
+function getParecerTexto(newsItem: NewsItem): string {
+  return newsItem.report?.trim() ?? '';
+}
+
+function parecerToEditorHtml(text: string): string {
+  if (!text.trim()) return '';
+  if (text.trim().startsWith('<')) return text;
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
+function buildDraftArticleFromNews(newsItem: NewsItem, authorId: string): EditorialArticle {
+  const parecerTexto = getParecerTexto(newsItem);
+  const plainExcerpt = parecerTexto.replace(/<[^>]*>/g, '').trim();
+  const content = parecerTexto ? parecerToEditorHtml(parecerTexto) : '';
+
+  return {
+    id: `pending-${newsItem.id}`,
+    newsId: newsItem.id,
+    title: newsItem.title,
+    content,
+    excerpt: plainExcerpt
+      ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
+      : newsItem.title,
+    status: 'draft',
+    template: 'complete',
+    authorId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    comments: [],
+    versions: [],
+  };
+}
+
+function buildSalvarRelatorioBody(newsItem: NewsItem) {
+  const parecerTexto = getParecerTexto(newsItem);
+  const plainExcerpt = parecerTexto.replace(/<[^>]*>/g, '').trim();
+  return {
+    titulo: newsItem.title,
+    corpoTexto: parecerTexto,
+    resumo: plainExcerpt
+      ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
+      : newsItem.title,
+    statusPublicacao: 'draft' as ArticleStatus,
+    template: 'complete' as const,
+    comentarios: [] as EditorialArticle['comments'],
+  };
+}
 
 // Components
 import { Sidebar } from './components/Sidebar';
@@ -110,10 +161,7 @@ function AppContent() {
     localStorage.setItem('platform_specialized_checks', JSON.stringify(specializedNetworkChecks));
   }, [specializedNetworkChecks]);
 
-  const [articles, setArticles] = useState<EditorialArticle[]>(() => {
-    const saved = localStorage.getItem('platform_editorial_articles');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [articles, setArticles] = useState<EditorialArticle[]>([]);
 
   const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('platform_editor_assignments');
@@ -121,31 +169,58 @@ function AppContent() {
   });
 
   useEffect(() => {
-    localStorage.setItem('platform_editorial_articles', JSON.stringify(articles));
-  }, [articles]);
-
-  useEffect(() => {
     localStorage.setItem('platform_editor_assignments', JSON.stringify(editorAssignments));
   }, [editorAssignments]);
 
-  const handleSaveArticle = (article: EditorialArticle) => {
-    setArticles(prev => {
-      const exists = prev.find(a => a.id === article.id);
-      if (exists) {
-        return prev.map(a => a.id === article.id ? article : a);
-      }
-      return [article, ...prev];
+  const handleSaveArticle = async (article: EditorialArticle) => {
+    const saved = await apiService.salvarRelatorioPublicacao(article.newsId, {
+      titulo: article.title,
+      corpoTexto: article.content,
+      resumo: article.excerpt,
+      statusPublicacao: article.status,
+      template: article.template,
+      comentarios: article.comments,
     });
-    addAuditLog('save_article', `Matéria #${article.id}`, `Matéria salva com status: ${article.status}`);
+    setArticles((prev) => {
+      const exists = prev.some((a) => a.id === saved.id || a.newsId === saved.newsId);
+      if (exists) {
+        return prev.map((a) =>
+          a.id === saved.id || a.newsId === saved.newsId ? saved : a
+        );
+      }
+      return [saved, ...prev];
+    });
+    addAuditLog('save_article', `Matéria #${saved.id}`, `Matéria salva com status: ${saved.status}`);
   };
 
-  const handleDeleteArticle = (id: string) => {
-    setArticles(prev => prev.filter(a => a.id !== id));
+  const handleDeleteArticle = async (id: string) => {
+    if (id.startsWith('pending-')) {
+      const newsId = id.slice('pending-'.length);
+      handleMoveRedacao(newsId, false);
+      return;
+    }
+    await apiService.removerRelatorioPublicacao(id);
+    setArticles((prev) => prev.filter((a) => a.id !== id));
     addAuditLog('delete_article', `Matéria #${id}`, `Matéria removida do acervo`);
   };
 
-  const handleUpdateArticleStatus = (id: string, status: ArticleStatus) => {
-    setArticles(prev => prev.map(a => a.id === id ? { ...a, status, updatedAt: new Date().toISOString() } : a));
+  const handleUpdateArticleStatus = async (id: string, status: ArticleStatus) => {
+    if (id.startsWith('pending-')) {
+      const newsId = id.slice('pending-'.length);
+      const newsItem = news.find((n) => n.id === newsId);
+      if (!newsItem) return;
+      const saved = await apiService.salvarRelatorioPublicacao(newsId, {
+        ...buildSalvarRelatorioBody(newsItem),
+        statusPublicacao: status,
+      });
+      setArticles((prev) => [saved, ...prev.filter((a) => a.newsId !== newsId)]);
+      addAuditLog('publish_article', `Matéria #${saved.id}`, `Status atualizado para: ${status}`);
+      return;
+    }
+    const updated = await apiService.atualizarStatusRelatorioPublicacao(id, status);
+    setArticles((prev) =>
+      prev.map((a) => (a.id === id ? updated : a))
+    );
     addAuditLog('publish_article', `Matéria #${id}`, `Status atualizado para: ${status}`);
   };
 
@@ -157,10 +232,11 @@ function AppContent() {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        const [newsFromApi, labelsFromApi, usersFromApi] = await Promise.all([
+        const [newsFromApi, labelsFromApi, usersFromApi, relatoriosFromApi] = await Promise.all([
           apiService.listarConteudos(),
           apiService.listarEtiquetas(),
           apiService.listarUsuarios(),
+          apiService.listarRelatoriosPublicacao().catch(() => [] as EditorialArticle[]),
         ]);
         setNews(newsFromApi.map((n) => ({
           ...n,
@@ -168,6 +244,7 @@ function AppContent() {
         })));
         setLabels(labelsFromApi);
         setUsers(usersFromApi);
+        setArticles(relatoriosFromApi);
       } catch (err) {
         console.error('Erro ao carregar dados iniciais:', err);
         addNotification({
@@ -1032,6 +1109,21 @@ function AppContent() {
     addAuditLog('move_task', `Notícia #${newsId}`, `Moveu "${targetNews?.title}" para ${statusLabel}`);
   };
 
+  const displayArticles = useMemo(() => {
+    const merged = new Map<string, EditorialArticle>();
+    for (const article of articles) {
+      merged.set(article.newsId, article);
+    }
+    for (const item of news) {
+      if (item.status === 'completed' && item.assignedToEditor && !merged.has(item.id)) {
+        merged.set(item.id, buildDraftArticleFromNews(item, item.assignedToEditor));
+      }
+    }
+    return Array.from(merged.values()).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }, [articles, news]);
+
   const handleMoveRedacao = (newsId: string, assigned: boolean) => {
     const newsItem = news.find((n) => n.id === newsId);
     if (!newsItem) return;
@@ -1052,36 +1144,49 @@ function AppContent() {
     );
 
     if (assigned) {
-      setArticles((prev) => {
-        if (prev.some((a) => a.newsId === newsId)) return prev;
-
-        const baseText =
-          newsItem.reportStructure?.summary ||
-          newsItem.report ||
-          newsItem.content ||
-          newsItem.alegacao ||
-          '';
-        const plainExcerpt = baseText.replace(/<[^>]*>/g, '').trim();
-
-        const article: EditorialArticle = {
-          id: `art-${newsId}`,
-          newsId,
-          title: newsItem.title,
-          content: newsItem.report || (plainExcerpt ? `<p>${plainExcerpt}</p>` : ''),
-          excerpt: plainExcerpt
-            ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
-            : newsItem.title,
-          status: 'draft',
-          template: 'complete',
-          authorId: user.id,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          comments: [],
-          versions: [],
-        };
-
-        return [article, ...prev];
-      });
+      void (async () => {
+        try {
+          if (articles.some((a) => a.newsId === newsId)) return;
+          const fresh = await apiService.obterConteudo(newsId);
+          const itemWithParecer = {
+            ...newsItem,
+            report: fresh.report ?? newsItem.report,
+            reportStructure: fresh.reportStructure ?? newsItem.reportStructure,
+          };
+          setNews((prev) =>
+            prev.map((n) =>
+              n.id === newsId
+                ? {
+                    ...n,
+                    report: itemWithParecer.report,
+                    reportStructure: itemWithParecer.reportStructure,
+                  }
+                : n
+            )
+          );
+          const saved = await apiService.salvarRelatorioPublicacao(
+            newsId,
+            buildSalvarRelatorioBody(itemWithParecer)
+          );
+          setArticles((prev) => {
+            if (prev.some((a) => a.newsId === newsId)) {
+              return prev.map((a) => (a.newsId === newsId ? saved : a));
+            }
+            return [saved, ...prev];
+          });
+        } catch (err) {
+          console.error('Erro ao registrar matéria no acervo:', err);
+          addNotification({
+            title: 'Acervo editorial',
+            message:
+              err instanceof Error
+                ? err.message
+                : 'A matéria aparecerá como rascunho local até ser salva no banco.',
+            type: 'warning',
+            category: 'system',
+          });
+        }
+      })();
 
       addAuditLog(
         'assign_editor',
@@ -1089,14 +1194,17 @@ function AppContent() {
         `Atribuiu "${newsItem.title}" para redação editorial`
       );
     } else {
-      setArticles((prev) => {
-        const article = prev.find((a) => a.newsId === newsId);
-        if (!article) return prev;
-        if (article.status === 'draft' || article.status === 'in_editing') {
-          return prev.filter((a) => a.newsId !== newsId);
-        }
-        return prev;
-      });
+      const article = articles.find((a) => a.newsId === newsId);
+      if (article && (article.status === 'draft' || article.status === 'in_editing')) {
+        void (async () => {
+          try {
+            await apiService.removerRelatorioPublicacao(article.id);
+            setArticles((prev) => prev.filter((a) => a.newsId !== newsId));
+          } catch (err) {
+            console.error('Erro ao remover rascunho do acervo:', err);
+          }
+        })();
+      }
 
       addAuditLog(
         'unassign_editor',
@@ -1355,7 +1463,7 @@ function AppContent() {
                 user={user}
                 news={news}
                 labels={labels}
-                articles={articles}
+                articles={displayArticles}
                 onSaveArticle={handleSaveArticle}
                 checkPermission={checkPermission}
                 themeConfig={themeConfig}
@@ -1367,7 +1475,7 @@ function AppContent() {
               <EditorialArchive 
                 user={user}
                 news={news}
-                articles={articles}
+                articles={displayArticles}
                 onDeleteArticle={handleDeleteArticle}
                 onUpdateStatus={handleUpdateArticleStatus}
                 themeConfig={themeConfig}

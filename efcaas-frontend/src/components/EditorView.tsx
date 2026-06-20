@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -50,12 +50,22 @@ import {
 } from '../types';
 import { cn } from '../lib/utils';
 import { generateArticleSuggestions } from '../services/geminiService';
+import { apiService } from '../services/apiService';
+
+function parecerToEditorHtml(text: string): string {
+  if (!text.trim()) return '';
+  if (text.trim().startsWith('<')) return text;
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
 
 interface EditorViewProps {
   user: UserProfile;
   news: NewsItem[];
   labels: LabelConfig[];
-  onSaveArticle: (article: EditorialArticle) => void;
+  onSaveArticle: (article: EditorialArticle) => Promise<void>;
   articles: EditorialArticle[];
   checkPermission: (permId: string) => boolean;
   themeConfig: ThemeConfig;
@@ -69,54 +79,135 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
   const [showHistory, setShowHistory] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isAISuggesting, setIsAISuggesting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Find related news
   const newsItem = news.find(n => n.id === id);
-  const existingArticle = articles.find(a => a.newsId === id);
+  const [loadedArticle, setLoadedArticle] = useState<EditorialArticle | null>(null);
+  const existingArticle = loadedArticle ?? articles.find(a => a.newsId === id);
+
+  const [loadedNews, setLoadedNews] = useState<NewsItem | null>(null);
+  const [isLoadingNews, setIsLoadingNews] = useState(true);
+  const activeNews = loadedNews ?? newsItem;
 
   // Editor State
-  const [title, setTitle] = useState(existingArticle?.title || '');
-  const [content, setContent] = useState(existingArticle?.content || '');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
   const [status, setStatus] = useState<ArticleStatus>(existingArticle?.status || 'draft');
   const [template, setTemplate] = useState<ArticleTemplateType>(existingArticle?.template || 'complete');
   const [comments, setComments] = useState<EditorialComment[]>(existingArticle?.comments || []);
   const [newComment, setNewComment] = useState('');
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorInitKeyRef = useRef('');
+
+  const setEditorContent = (value: string | ((prev: string) => string)) => {
+    setContent((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      if (editorRef.current) {
+        editorRef.current.innerHTML = next;
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
-    if (!newsItem) {
+    if (!id) return;
+
+    let cancelled = false;
+    setIsLoadingNews(true);
+    editorInitKeyRef.current = '';
+    setLoadedArticle(null);
+
+    apiService.obterConteudo(id)
+      .then(async (item) => {
+        if (cancelled) return;
+        const relatorio = await apiService.obterRelatorioPublicacao(id);
+        if (cancelled) return;
+        setLoadedNews(item);
+        setLoadedArticle(relatorio);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadedNews(newsItem ?? null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingNews(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useLayoutEffect(() => {
+    if (!activeNews || isLoadingNews || !editorRef.current) return;
+
+    const initKey = `${activeNews.id}:${existingArticle?.id ?? 'new'}:${existingArticle?.updatedAt ?? activeNews.report ?? ''}`;
+    if (editorInitKeyRef.current === initKey) return;
+
+    const defaultTitle = existingArticle?.title?.trim()
+      ? existingArticle.title
+      : activeNews.title;
+    const defaultContent = existingArticle?.content?.trim()
+      ? existingArticle.content
+      : activeNews.report
+        ? parecerToEditorHtml(activeNews.report)
+        : '';
+
+    setTitle(defaultTitle);
+    setContent(defaultContent);
+    editorRef.current.innerHTML = defaultContent;
+    if (existingArticle?.status) setStatus(existingArticle.status);
+    if (existingArticle?.template) setTemplate(existingArticle.template);
+    if (existingArticle?.comments) setComments(existingArticle.comments);
+    editorInitKeyRef.current = initKey;
+  }, [activeNews, existingArticle, isLoadingNews]);
+
+  useEffect(() => {
+    if (!isLoadingNews && !activeNews) {
       navigate('/dashboard');
     }
-  }, [newsItem, navigate]);
+  }, [activeNews, isLoadingNews, navigate]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const plainExcerpt = content.replace(/<[^>]*>/g, '').trim();
     const article: EditorialArticle = {
-      id: existingArticle?.id || `art-${Math.random().toString(36).substr(2, 9)}`,
+      id: existingArticle?.id || '',
       newsId: id || '',
       title,
       content,
-      excerpt: content.substring(0, 150).replace(/<[^>]*>/g, '') + '...',
+      excerpt: plainExcerpt
+        ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
+        : title,
       status,
       template,
       authorId: user.id,
       createdAt: existingArticle?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       comments,
-      versions: existingArticle?.versions || []
+      versions: existingArticle?.versions || [],
     };
-    onSaveArticle(article);
-    navigate('/editorial-archive');
+
+    setIsSaving(true);
+    try {
+      await onSaveArticle(article);
+      navigate('/editorial-archive');
+    } catch (err) {
+      console.error('Erro ao salvar matéria:', err);
+      alert(err instanceof Error ? err.message : 'Não foi possível salvar a matéria.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAIAction = async (action: string) => {
-    if (!newsItem) return;
+    if (!activeNews) return;
     setIsAISuggesting(true);
     try {
-      const result = await generateArticleSuggestions(newsItem.title, content);
+      const result = await generateArticleSuggestions(activeNews.title, content);
       if (action === 'title') setTitle(result.titles[0]);
-      if (action === 'lead') setContent(prev => result.excerpt + '<br><br>' + prev);
-      if (action === 'summarize') setContent(result.excerpt);
+      if (action === 'lead') setEditorContent((prev) => result.excerpt + '<br><br>' + prev);
+      if (action === 'summarize') setEditorContent(result.excerpt);
     } catch (error) {
       console.error('AI Error:', error);
     } finally {
@@ -125,7 +216,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
   };
 
   const insertLabel = () => {
-    const label = newsItem?.reportStructure?.label;
+    const label = activeNews?.reportStructure?.label;
     const labelConfig = labels.find(l => l.name === label);
     if (!label) return;
 
@@ -139,14 +230,14 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
         </div>
       </div>
     `;
-    setContent(prev => prev + labelHtml);
+    setEditorContent((prev) => prev + labelHtml);
   };
 
   const insertSource = (source: string) => {
     const sourceHtml = `<p class="my-2 p-2 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800">
       <strong>Fonte:</strong> <a href="${source}" target="_blank" class="underline">${source}</a>
     </p>`;
-    setContent(prev => prev + sourceHtml);
+    setEditorContent((prev) => prev + sourceHtml);
   };
 
   const addComment = () => {
@@ -163,7 +254,15 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
     setNewComment('');
   };
 
-  if (!newsItem) return null;
+  if (isLoadingNews) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ backgroundColor: themeConfig.dashboard.background }}>
+        <p className="text-sm opacity-50">Carregando parecer...</p>
+      </div>
+    );
+  }
+
+  if (!activeNews) return null;
 
   return (
     <div className="flex h-screen overflow-hidden font-sans transition-colors duration-300" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
@@ -182,10 +281,10 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
             <div className="mt-2 text-sm font-medium p-3 border rounded-lg shadow-sm flex items-center justify-between group" style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border }}>
               <span className={cn(
                 "px-2 py-1 rounded text-white text-xs font-bold",
-                newsItem.reportStructure?.label === 'Falso' ? 'bg-red-500' :
-                newsItem.reportStructure?.label === 'Verdadeiro' ? 'bg-green-500' : 'bg-orange-500'
+                activeNews.reportStructure?.label === 'Falso' ? 'bg-red-500' :
+                activeNews.reportStructure?.label === 'Verdadeiro' ? 'bg-green-500' : 'bg-orange-500'
               )}>
-                {newsItem.reportStructure?.label || 'Não definido'}
+                {activeNews.reportStructure?.label || 'Não definido'}
               </span>
               <button 
                 onClick={insertLabel}
@@ -202,7 +301,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo da Evidência</label>
             <div className="mt-2 text-xs rounded-lg leading-relaxed p-3 border" style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
-              {newsItem.aiEvaluation?.explanation || "Aguardando processamento..."}
+              {activeNews.aiEvaluation?.explanation || "Aguardando processamento..."}
             </div>
           </div>
 
@@ -210,7 +309,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fontes de Apoio</label>
             <div className="mt-2 space-y-2">
-              {newsItem.reportStructure?.sources.map((source, idx) => (
+              {(activeNews.reportStructure?.sources ?? []).map((source, idx) => (
                 <div key={idx} className="group p-2 bg-white border border-slate-200 rounded-md text-xs flex items-center justify-between hover:border-blue-200 transition-all">
                   <span className="truncate max-w-[180px] text-slate-500">{source}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -223,7 +322,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
                   </div>
                 </div>
               ))}
-              {newsItem.evidence.map((ev) => (
+              {activeNews.evidence.map((ev) => (
                 <div key={ev.id} className="group p-2 bg-white border border-slate-200 rounded-md text-xs flex items-center justify-between hover:border-blue-200">
                   <span className="truncate max-w-[180px] text-slate-500 font-medium">{ev.title}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100">
@@ -243,7 +342,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notas Técnicas</label>
             <ul className="mt-2 space-y-2">
-              {newsItem.aiEvaluation?.characteristics.map((char, idx) => (
+              {(activeNews.aiEvaluation?.characteristics ?? []).map((char, idx) => (
                 <li key={idx} className="text-[10px] text-slate-500 flex gap-2">
                   <div className="w-1 h-1 rounded-full bg-slate-300 mt-1.5 shrink-0" />
                   {char.replace(/\*\*/g, '')}
@@ -352,10 +451,11 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
               </select>
               <button 
                 onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shadow-md hover:opacity-95"
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shadow-md hover:opacity-95 disabled:opacity-50"
                 style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
               >
-                <Save className="w-4 h-4" /> Salvar
+                <Save className="w-4 h-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
@@ -436,10 +536,11 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
                   </div>
 
                   <div 
+                    ref={editorRef}
                     contentEditable
+                    suppressContentEditableWarning
                     onInput={(e) => setContent(e.currentTarget.innerHTML)}
-                    dangerouslySetInnerHTML={{ __html: content }}
-                    className="w-full min-h-[500px] text-lg lg:text-xl font-serif text-slate-700 outline-none placeholder:text-slate-200 leading-relaxed prose prose-slate prose-lg max-w-none"
+                    className="w-full min-h-[500px] text-lg lg:text-xl font-serif text-slate-700 outline-none placeholder:text-slate-200 leading-relaxed prose prose-slate prose-lg max-w-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-200"
                     data-placeholder="Comece a escrever a sua checagem aqui..."
                   />
                 </div>

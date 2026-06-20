@@ -48,7 +48,7 @@ public class ConteudoSuspeitoMapper {
         );
     }
 
-    public ConteudoSuspeitoDto toDtoSimples(ConteudoSuspeito c, Checagem checagem, List<AnexoConteudo> anexos) {
+    public ConteudoSuspeitoDto toDtoSimples(ConteudoSuspeito c, Checagem checagem, Parecer parecer, List<AnexoConteudo> anexos) {
         return new ConteudoSuspeitoDto(
                 String.valueOf(c.getId()),
                 c.getTitulo(),
@@ -59,12 +59,16 @@ public class ConteudoSuspeitoMapper {
                 c.getDataEntrada() != null ? c.getDataEntrada().toString() : null,
                 c.getStatus(),
                 c.getPrioridade(),
-                checagem != null ? checagemMapper.toDto(checagem, null, null) : null,
+                checagem != null ? checagemMapper.toDto(checagem, parecer, null) : null,
                 null,
                 anexos != null
                         ? anexos.stream().map(a -> anexoConteudoMapper.toDto(a, c.getId())).toList()
                         : Collections.emptyList()
         );
+    }
+
+    public ConteudoSuspeitoDto toDtoSimples(ConteudoSuspeito c, Checagem checagem, List<AnexoConteudo> anexos) {
+        return toDtoSimples(c, checagem, null, anexos);
     }
 
     public ConteudoSuspeitoDto toDtoSimples(ConteudoSuspeito c, Checagem checagem) {

@@ -7,6 +7,9 @@ import {
   ReportStructure,
   AgencyConfig,
   ThemeConfig,
+  EditorialArticle,
+  ArticleStatus,
+  EditorialComment,
 } from '../types';
 
 export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
@@ -75,6 +78,38 @@ export interface ApiAnexoConteudoDto {
   contentType?: string | null;
   tamanhoBytes?: number | null;
   objectKey?: string | null;
+}
+
+export interface ApiRelatorioPublicacaoDto {
+  id: string;
+  newsId: string;
+  title: string;
+  excerpt?: string | null;
+  content?: string | null;
+  status: string;
+  template?: string | null;
+  authorId: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  comments?: ApiEditorialCommentDto[];
+}
+
+export interface ApiEditorialCommentDto {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
+  resolved: boolean;
+}
+
+export interface SalvarRelatorioPublicacaoBody {
+  titulo: string;
+  corpoTexto?: string;
+  resumo?: string;
+  statusPublicacao: ArticleStatus;
+  template?: string;
+  comentarios?: EditorialComment[];
 }
 
 export interface ApiChecagemDto {
@@ -397,6 +432,30 @@ function mapEtiqueta(dto: ApiEtiquetaDto): LabelConfig {
   };
 }
 
+function mapRelatorioPublicacao(dto: ApiRelatorioPublicacaoDto): EditorialArticle {
+  return {
+    id: dto.id,
+    newsId: dto.newsId,
+    title: dto.title ?? '',
+    excerpt: dto.excerpt ?? '',
+    content: dto.content ?? '',
+    status: (dto.status as ArticleStatus) ?? 'draft',
+    template: (dto.template as EditorialArticle['template']) ?? 'complete',
+    authorId: dto.authorId,
+    createdAt: dto.createdAt ?? new Date().toISOString(),
+    updatedAt: dto.updatedAt ?? new Date().toISOString(),
+    comments: (dto.comments ?? []).map((c) => ({
+      id: c.id,
+      userId: c.userId,
+      userName: c.userName,
+      text: c.text,
+      timestamp: c.timestamp,
+      resolved: c.resolved,
+    })),
+    versions: [],
+  };
+}
+
 function mapAgencyConfigFromApi(dto: ApiAgencyConfigDto): AgencyConfig {
   return {
     name: dto.name ?? '',
@@ -612,6 +671,49 @@ export const apiService = {
 
   async removerEvidencia(checagemId: string, evidenciaId: string): Promise<void> {
     return api.delete<void>(`/checagens/${checagemId}/evidencias/${evidenciaId}`);
+  },
+
+  // Acervo editorial (relatorio_publicacao)
+  async listarRelatoriosPublicacao(): Promise<EditorialArticle[]> {
+    const dtos = await api.get<ApiRelatorioPublicacaoDto[]>('/relatorios-publicacao');
+    return dtos.map(mapRelatorioPublicacao);
+  },
+
+  async obterRelatorioPublicacao(conteudoId: string): Promise<EditorialArticle | null> {
+    try {
+      const dto = await api.get<ApiRelatorioPublicacaoDto>(
+        `/conteudos/${conteudoId}/relatorio-publicacao`
+      );
+      return mapRelatorioPublicacao(dto);
+    } catch {
+      return null;
+    }
+  },
+
+  async salvarRelatorioPublicacao(
+    conteudoId: string,
+    body: SalvarRelatorioPublicacaoBody
+  ): Promise<EditorialArticle> {
+    const dto = await api.put<ApiRelatorioPublicacaoDto>(
+      `/conteudos/${conteudoId}/relatorio-publicacao`,
+      body
+    );
+    return mapRelatorioPublicacao(dto);
+  },
+
+  async atualizarStatusRelatorioPublicacao(
+    relatorioId: string,
+    statusPublicacao: ArticleStatus
+  ): Promise<EditorialArticle> {
+    const dto = await api.patch<ApiRelatorioPublicacaoDto>(
+      `/relatorios-publicacao/${relatorioId}/status`,
+      { statusPublicacao }
+    );
+    return mapRelatorioPublicacao(dto);
+  },
+
+  async removerRelatorioPublicacao(relatorioId: string): Promise<void> {
+    return api.delete<void>(`/relatorios-publicacao/${relatorioId}`);
   },
 
   // Auditoria
