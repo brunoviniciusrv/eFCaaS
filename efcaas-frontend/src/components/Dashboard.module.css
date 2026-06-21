@@ -490,3 +490,32 @@
   /* REMOVED from @apply (not supported): group-hover:opacity-80 */
   /* NOTE: group-hover:opacity-80 → needs parent:hover descendant rule */
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.statCard:hover .statIconWrap {
+  transform: scale(1.1);
+}
+
+.statCard:hover .statBar {
+  width: 100%;
+}
+
+.taskCard:hover .taskSidebar {
+  width: 0.5rem;
+}
+
+.taskCard:hover .taskTitle {
+  opacity: 0.8;
+}
+
+.taskCard:hover .taskTitleBlue {
+  color: #2563eb;
+}
+
+.redacaoQueue:hover .redacaoQueueTitle {
+  opacity: 0.8;
+}
+
+.queueCard:hover .analyzeBtn {
+  opacity: 1;
+}

@@ -118,3 +118,10 @@
 .footerBtn {
   @apply text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100;
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.notifItem:hover .notifLink,
+.notifItemUnread:hover .notifLink,
+.notifItemRead:hover .notifLink {
+  opacity: 1;
+}

@@ -1605,3 +1605,28 @@
 .aiBarBlue {
   @apply h-full bg-blue-500;
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.receivedCard:hover .cardTitle {
+  color: #2563eb;
+}
+
+.extractionCard:hover .extractionCardTitle {
+  color: #2563eb;
+}
+
+.triageCard:hover .triageTitle {
+  color: #2563eb;
+}
+
+.detailTaskCard:hover .detailTaskTitle {
+  color: #2563eb;
+}
+
+.receivedDetailMediaItem:hover .mediaOverlay {
+  opacity: 1;
+}
+
+.triagePreviewMediaItem:hover .triagePreviewMediaOverlay {
+  opacity: 1;
+}

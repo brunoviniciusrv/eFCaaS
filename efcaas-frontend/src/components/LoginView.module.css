@@ -158,3 +158,12 @@
 .modalFooterText {
   @apply text-[11px] font-bold text-slate-400 uppercase tracking-widest;
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.accountCard:hover .accountEmail {
+  opacity: 0.8;
+}
+
+.inputWrap:focus-within .inputIcon {
+  opacity: 1;
+}

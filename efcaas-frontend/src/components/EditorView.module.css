@@ -456,3 +456,20 @@
 .mobileFabBtn {
   @apply w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center animate-pulse;
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.sidebarSection:hover .insertBtn {
+  opacity: 1;
+}
+
+.sourceItem:hover .sourceActions {
+  opacity: 1;
+}
+
+.historyCard:hover .historyActions {
+  opacity: 1;
+}
+
+.coverArea:hover .coverLabel {
+  color: #3b82f6;
+}

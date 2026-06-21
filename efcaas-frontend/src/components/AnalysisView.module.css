@@ -1167,3 +1167,32 @@
 .saveSuccessButton {
   @apply w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90;
 }
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.uploadZone:hover .uploadIconWrapper,
+.uploadZoneDefault:hover .uploadIconWrapper {
+  transform: scale(1.1);
+}
+
+.documentWrapper:hover .removeMediaButton {
+  opacity: 1;
+}
+
+.markAsInverificavelButton:hover .markAsInverificavelIconWrapper {
+  color: #f97316;
+  background-color: rgb(255 247 237);
+}
+.markAsInverificavelButton:hover .markAsInverificavelLabel {
+  color: #c2410c;
+}
+.markAsInverificavelButton:hover .markAsInverificavelSubLabel {
+  color: #fb923c;
+}
+
+.linkZoneDefault:hover .linkIconWrapper {
+  transform: scale(1.1);
+}
+
+.evidenceItem:hover .removeEvidenceButton {
+  opacity: 1;
+}

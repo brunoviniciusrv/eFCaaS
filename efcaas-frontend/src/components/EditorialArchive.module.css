@@ -194,9 +194,7 @@
 }
 
 .actions {
-  @apply flex items-center justify-end gap-2 opacity-0 transition-opacity;
-  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
-  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+  @apply flex items-center justify-end gap-2;
 }
 
 .editBtn {
@@ -245,4 +243,8 @@
 
 .backBtn {
   @apply flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-bold hover:opacity-95 transition-all active:scale-95 shadow-md;
+}
+
+.categoryCard:hover .categoryLabel {
+  opacity: 1;
 }
