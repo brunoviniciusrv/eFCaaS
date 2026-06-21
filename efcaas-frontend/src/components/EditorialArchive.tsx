@@ -9,24 +9,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   FileText, 
   Search, 
-  Filter, 
-  ExternalLink, 
   Download, 
   Globe, 
-  MoreVertical, 
   CheckCircle2, 
   Clock, 
   AlertTriangle,
-  ChevronRight,
-  Eye,
-  Trash2,
-  Share2,
   Calendar,
   User as UserIcon,
-  Tag
+  Trash2
 } from 'lucide-react';
 import { EditorialArticle, ArticleStatus, UserProfile, NewsItem, ThemeConfig } from '../types';
 import { cn } from '../lib/utils';
+import styles from './EditorialArchive.module.css';
 
 interface EditorialArchiveProps {
   articles: EditorialArticle[];
@@ -73,6 +67,15 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
     }
   };
 
+  const getStatusBadgeClass = (status: ArticleStatus) => {
+    switch (status) {
+      case 'published': return styles.statusBadgePublished;
+      case 'approved': return styles.statusBadgeApproved;
+      case 'review': return styles.statusBadgeReview;
+      default: return styles.statusBadgeDefault;
+    }
+  };
+
   const handleExport = (article: EditorialArticle, format: 'json' | 'html' | 'txt') => {
     let content = "";
     let mimeType = "";
@@ -83,16 +86,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
       mimeType = "application/json";
       extension = "json";
     } else if (format === 'html') {
-      content = `
-        <!DOCTYPE html>
-        <html>
-        <head><title>${article.title}</title><meta charset="UTF-8"></head>
-        <body>
-          <h1>${article.title}</h1>
-          <div>${article.content}</div>
-        </body>
-        </html>
-      `;
+      content = `<!DOCTYPE html><html><head><title>${article.title}</title><meta charset="UTF-8"></head><body><h1>${article.title}</h1><div>${article.content}</div></body></html>`;
       mimeType = "text/html";
       extension = "html";
     } else {
@@ -111,22 +105,31 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
     document.body.removeChild(link);
   };
 
+  const catDotClass = (color: string) => {
+    switch (color) {
+      case 'slate': return styles.dotSlate;
+      case 'orange': return styles.dotOrange;
+      case 'blue': return styles.dotBlue;
+      default: return styles.dotGreen;
+    }
+  };
+
   return (
-    <div className="min-h-screen font-sans p-6 lg:p-10 transition-colors duration-300" style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
-      <div className="max-w-7xl mx-auto">
+    <div className={styles.page} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
+      <div className={styles.inner}>
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <header className={styles.pageHeader}>
           <div>
-            <h1 className="text-3xl font-black tracking-tight flex items-center gap-3" style={{ color: themeConfig.dashboard.text }}>
+            <h1 className={styles.pageTitle} style={{ color: themeConfig.dashboard.text }}>
               <FileText className="w-8 h-8" style={{ color: themeConfig.general.accent }} />
               Acervo Editorial
             </h1>
-            <p className="text-sm font-medium mt-1 opacity-75">Gerencie, exporte e publique suas checagens finalizadas.</p>
+            <p className={styles.pageSubtitle}>Gerencie, exporte e publique suas checagens finalizadas.</p>
           </div>
           
-          <div className="flex items-center gap-3">
-            <div className="relative group">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50">
+          <div className={styles.controls}>
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon}>
                 <Search className="w-4 h-4" />
               </span>
               <input 
@@ -134,24 +137,16 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                 placeholder="Buscar matérias..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-xl outline-none transition-all w-64 text-sm"
-                style={{ 
-                  backgroundColor: themeConfig.general.inputBackground, 
-                  borderColor: themeConfig.general.inputBorder,
-                  color: themeConfig.general.inputText
-                }}
+                className={styles.searchInput}
+                style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText }}
               />
             </div>
             
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-4 py-2 border rounded-xl outline-none text-sm font-semibold"
-              style={{ 
-                backgroundColor: themeConfig.general.inputBackground, 
-                borderColor: themeConfig.general.inputBorder,
-                color: themeConfig.general.inputText
-              }}
+              className={styles.statusSelect}
+              style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText }}
             >
               <option value="all">Todos os Status</option>
               <option value="draft">Rascunhos</option>
@@ -163,7 +158,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
         </header>
 
         {/* Categories / Tabs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className={styles.categoryGrid}>
           {[
             { id: 'draft', label: 'Rascunhos', color: 'slate', count: articles.filter(a => a.status === 'draft').length },
             { id: 'review', label: 'Em Revisão', color: 'orange', count: articles.filter(a => a.status === 'review').length },
@@ -173,106 +168,88 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
             <button 
               key={cat.id}
               onClick={() => setStatusFilter(cat.id as ArticleStatus)}
-              className={cn(
-                "p-4 rounded-2xl border text-left transition-all hover:shadow-lg group"
-              )}
+              className={styles.categoryCard}
               style={{
                 backgroundColor: themeConfig.general.cardBackground,
                 borderColor: statusFilter === cat.id ? themeConfig.general.accent : themeConfig.general.border,
                 color: themeConfig.dashboard.text
               }}
             >
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">
-                {cat.label}
-              </span>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-2xl font-black">{cat.count}</span>
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  cat.color === 'slate' ? 'bg-slate-300' :
-                  cat.color === 'orange' ? 'bg-orange-400' :
-                  cat.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'
-                )} />
+              <span className={styles.categoryLabel}>{cat.label}</span>
+              <div className={styles.categoryBottom}>
+                <span className={styles.categoryCount}>{cat.count}</span>
+                <div className={catDotClass(cat.color)} />
               </div>
             </button>
           ))}
         </div>
 
         {/* Articles List */}
-        <div className="rounded-[2.5rem] border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+        <div className={styles.tableWrap} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
               <thead>
-                <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest" style={{ color: themeConfig.general.tableHeaderText }}>Matéria</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest" style={{ color: themeConfig.general.tableHeaderText }}>Origem</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-center" style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
-                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-right" style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
+                <tr className={styles.thead} style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Matéria</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Origem</th>
+                  <th className={styles.thCenter} style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
+                  <th className={styles.thRight} style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+              <tbody className={styles.tbody} style={{ borderColor: themeConfig.general.border }}>
                 {filteredArticles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center opacity-30">
+                    <td colSpan={4} className={styles.emptyRow}>
+                      <div className={styles.emptyState}>
                         <FileText className="w-16 h-16 mb-4" />
-                        <p className="text-xl font-bold uppercase tracking-widest">Vazio</p>
-                        <p className="text-sm font-medium">Nenhuma matéria encontrada nesta categoria.</p>
+                        <p className={styles.emptyStateTitle}>Vazio</p>
+                        <p className={styles.emptyStateDesc}>Nenhuma matéria encontrada nesta categoria.</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   filteredArticles.map(article => (
-                    <tr key={article.id} className="group transition-colors" style={{ borderBottomColor: themeConfig.general.border }}>
-                      <td className="px-6 py-6">
-                        <div className="flex flex-col gap-1 max-w-sm">
-                          <span className="text-sm font-bold transition-colors line-clamp-1" style={{ color: themeConfig.dashboard.text }}>
+                    <tr key={article.id} className={styles.tableRow} style={{ borderBottomColor: themeConfig.general.border }}>
+                      <td className={styles.tdTitle}>
+                        <div className={styles.titleContent}>
+                          <span className={styles.articleTitle} style={{ color: themeConfig.dashboard.text }}>
                             {article.title}
                           </span>
-                          <span className="text-[10px] opacity-65 flex items-center gap-2">
+                          <span className={styles.articleMeta}>
                              <Calendar className="w-3 h-3" /> {new Date(article.updatedAt).toLocaleDateString('pt-BR')}
                              <span className="opacity-40">|</span>
                              <UserIcon className="w-3 h-3" /> Redator ID: {article.authorId}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-6">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-bold opacity-75 line-clamp-1">{getNewsTitle(article.newsId)}</span>
-                          <span className="text-[9px] font-black uppercase tracking-tight" style={{ color: themeConfig.general.accent }}>Ref: #{article.newsId.split('-')[1]}</span>
+                      <td className={styles.tdOrigin}>
+                        <div className={styles.originContent}>
+                          <span className={styles.originTitle}>{getNewsTitle(article.newsId)}</span>
+                          <span className={styles.originRef} style={{ color: themeConfig.general.accent }}>Ref: #{article.newsId.split('-')[1]}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-6">
-                        <div className="flex justify-center">
-                          <div className={cn(
-                            "flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest",
-                            article.status === 'published' ? "bg-green-50 border-green-100 text-green-700" :
-                            article.status === 'approved' ? "bg-blue-50 border-blue-100 text-blue-700" :
-                            article.status === 'review' ? "bg-orange-50 border-orange-100 text-orange-700" :
-                            "bg-slate-50 border-slate-100 text-slate-600"
-                          )}>
+                      <td className={styles.tdStatus}>
+                        <div className={styles.statusCenter}>
+                          <div className={getStatusBadgeClass(article.status)}>
                             {getStatusIcon(article.status)}
                             {getStatusLabel(article.status)}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-6 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className={styles.tdActions}>
+                        <div className={styles.actions}>
                           <button 
                             onClick={() => navigate(`/editor/${article.newsId}`)}
-                            className="p-2 hover:bg-white hover:text-blue-600 rounded-lg border border-transparent hover:border-slate-200 transition-all"
+                            className={styles.editBtn}
                             title="Editar"
                           >
                             <FileText className="w-4 h-4" />
                           </button>
                           
-                          <div className="relative">
+                          <div className={styles.exportWrap}>
                             <button 
                               onClick={() => setOpenExportMenuId(openExportMenuId === article.id ? null : article.id)}
-                              className={cn(
-                                "p-2 rounded-lg border transition-all",
-                                openExportMenuId === article.id ? "bg-slate-900 text-white border-slate-900" : "hover:bg-white hover:text-slate-900 border-transparent hover:border-slate-200"
-                              )}
+                              className={openExportMenuId === article.id ? styles.exportBtnOpen : styles.exportBtnClosed}
                             >
                               <Download className="w-4 h-4" />
                             </button>
@@ -283,18 +260,18 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                   animate={{ opacity: 1, scale: 1, y: 0 }}
                                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                  className="absolute right-0 top-full mt-2 w-40 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 z-30"
+                                  className={styles.exportDropdown}
                                 >
-                                  <div className="px-4 pb-2 mb-2 border-b border-slate-50">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Exportar como</span>
+                                  <div className={styles.exportDropdownHeader}>
+                                    <span className={styles.exportDropdownTitle}>Exportar como</span>
                                   </div>
-                                  <button onClick={() => { handleExport(article, 'html'); setOpenExportMenuId(null); }} className="w-full px-4 py-2 text-left text-[10px] font-bold uppercase hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors flex items-center justify-between">
+                                  <button onClick={() => { handleExport(article, 'html'); setOpenExportMenuId(null); }} className={styles.exportItem}>
                                     HTML <span>.html</span>
                                   </button>
-                                  <button onClick={() => { handleExport(article, 'json'); setOpenExportMenuId(null); }} className="w-full px-4 py-2 text-left text-[10px] font-bold uppercase hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors flex items-center justify-between">
+                                  <button onClick={() => { handleExport(article, 'json'); setOpenExportMenuId(null); }} className={styles.exportItem}>
                                     JSON <span>.json</span>
                                   </button>
-                                  <button onClick={() => { handleExport(article, 'txt'); setOpenExportMenuId(null); }} className="w-full px-4 py-2 text-left text-[10px] font-bold uppercase hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors flex items-center justify-between">
+                                  <button onClick={() => { handleExport(article, 'txt'); setOpenExportMenuId(null); }} className={styles.exportItem}>
                                     Texto <span>.txt</span>
                                   </button>
                                 </motion.div>
@@ -313,7 +290,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                                   }
                                 }
                               }}
-                              className="p-2 hover:bg-green-50 text-green-600 rounded-lg border border-transparent hover:border-green-100 transition-all font-black text-[10px] uppercase flex items-center gap-2"
+                              className={styles.publishBtn}
                             >
                               <Globe className="w-4 h-4" /> Publicar
                             </button>
@@ -329,7 +306,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                                 }
                               }
                             }}
-                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg border border-transparent hover:border-red-100 transition-all"
+                            className={styles.deleteBtn}
                             title="Excluir"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -345,10 +322,10 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-8 flex justify-center">
+        <div className={styles.footer}>
            <button 
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-bold hover:opacity-95 transition-all active:scale-95 shadow-md"
+            className={styles.backBtn}
             style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
            >
              Voltar ao Início

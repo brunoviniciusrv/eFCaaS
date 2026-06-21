@@ -1,0 +1,127 @@
+@reference "../index.css";
+
+.wrapper {
+  @apply relative;
+}
+
+.bellBtn {
+  @apply w-10 h-10 rounded-xl border flex items-center justify-center relative hover:bg-slate-50 transition-colors;
+}
+
+.bellIconActive {
+  @apply text-blue-600;
+}
+
+.bellIconInactive {
+  @apply opacity-40;
+}
+
+.badge {
+  @apply absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white;
+}
+
+.dropdown {
+  @apply absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border z-50 overflow-hidden;
+}
+
+.dropdownHeader {
+  @apply p-4 border-b flex items-center justify-between;
+}
+
+.dropdownTitle {
+  @apply font-bold text-sm;
+}
+
+.dropdownActions {
+  @apply flex gap-2;
+}
+
+.clearBtn {
+  @apply text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-900;
+}
+
+.closeBtn {
+  @apply opacity-40 hover:opacity-100;
+}
+
+.list {
+  @apply max-h-[400px] overflow-y-auto;
+}
+
+.emptyState {
+  @apply p-8 text-center opacity-40;
+}
+
+.emptyStateText {
+  @apply text-sm font-medium;
+}
+
+.divider {
+  @apply divide-y;
+}
+
+.notifItem {
+  @apply p-4 flex gap-3 cursor-pointer transition-colors relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.notifItemUnread {
+  @apply bg-slate-50/50;
+}
+
+.notifItemRead {
+  @apply hover:bg-slate-50/30;
+}
+
+.unreadBar {
+  @apply absolute left-0 top-0 bottom-0 w-1 bg-blue-500;
+}
+
+.iconWrap {
+  @apply mt-1 shrink-0;
+}
+
+.notifBody {
+  @apply flex-1 space-y-1;
+}
+
+.notifMeta {
+  @apply flex items-center justify-between;
+}
+
+.notifTitleUnread {
+  @apply text-xs font-bold leading-tight text-slate-900;
+}
+
+.notifTitleRead {
+  @apply text-xs font-bold leading-tight text-slate-600;
+}
+
+.notifTime {
+  @apply text-[10px] opacity-40 font-medium whitespace-nowrap;
+}
+
+.notifMessage {
+  @apply text-[11px] opacity-60 leading-normal line-clamp-2;
+}
+
+.notifLink {
+  @apply flex items-center gap-1 text-[10px] font-bold text-blue-600 pt-1 opacity-0 transition-opacity;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.footer {
+  @apply p-3 border-t text-center;
+}
+
+.footerBtn {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100;
+}
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.notifItem:hover .notifLink,
+.notifItemUnread:hover .notifLink,
+.notifItemRead:hover .notifLink {
+  opacity: 1;
+}

@@ -1,0 +1,73 @@
+@reference "../index.css";
+
+.listCompact {
+  @apply space-y-2;
+}
+
+.listDefault {
+  @apply space-y-2.5;
+}
+
+.moduleBtn {
+  @apply w-full p-3 border rounded-2xl flex items-center justify-between text-left transition-all;
+}
+
+.moduleBtnEnabled {
+  @apply border-emerald-600 bg-emerald-50/20 shadow-xs;
+}
+
+.moduleBtnDisabled {
+  @apply border-slate-200 hover:border-slate-200 bg-slate-50/20;
+}
+
+.iconWrap {
+  @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
+}
+
+.iconEnabled {
+  @apply text-white;
+}
+
+.iconDisabled {
+  @apply bg-slate-200 text-slate-400;
+}
+
+.labelWrap {
+  @apply flex items-center gap-3 min-w-0 pr-4;
+}
+
+.textWrap {
+  @apply truncate;
+}
+
+.moduleLabel {
+  @apply text-xs font-bold text-slate-900 block truncate;
+}
+
+.moduleDesc {
+  @apply text-[10px] text-slate-500 block truncate max-w-lg md:max-w-md;
+}
+
+.toggle {
+  @apply w-9 h-5 rounded-full relative transition-colors shrink-0;
+}
+
+.toggleEnabled {
+  @apply bg-emerald-600;
+}
+
+.toggleDisabled {
+  @apply bg-slate-300;
+}
+
+.toggleKnob {
+  @apply w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-200;
+}
+
+.toggleKnobEnabled {
+  @apply left-5;
+}
+
+.toggleKnobDisabled {
+  @apply left-[3px];
+}
