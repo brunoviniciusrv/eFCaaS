@@ -7,20 +7,18 @@ import {
   Settings, 
   ShieldCheck,
   ShieldAlert,
-  Users,
   Eye,
   FileText,
   Menu,
-  ChevronRight,
   LogOut
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { UserProfile, View, ThemeConfig, AgencyConfig } from '../types';
+import { UserProfile, ThemeConfig, AgencyConfig } from '../types';
+import styles from './Sidebar.module.css';
 
 interface SidebarProps {
   user: UserProfile;
   setUser: (user: UserProfile) => void;
-  // REMOVED currentView and setCurrentView
   setSelectedNewsId: (id: string | null) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
@@ -45,14 +43,14 @@ export const Sidebar = ({
     <motion.aside 
       animate={{ width: sidebarWidth }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="h-screen border-r flex flex-col z-50 overflow-hidden"
+      className={styles.sidebar}
       style={{ 
         backgroundColor: themeConfig.sidebar.background, 
         color: themeConfig.sidebar.text,
         borderColor: themeConfig.sidebar.border
       }}
     >
-      <div className="p-4 flex items-center justify-between border-b min-h-[73px]" style={{ borderColor: themeConfig.sidebar.border }}>
+      <div className={styles.topBar} style={{ borderColor: themeConfig.sidebar.border }}>
         <AnimatePresence mode="wait">
           {isSidebarOpen ? (
             <motion.div 
@@ -60,11 +58,11 @@ export const Sidebar = ({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              className="flex items-center gap-3 overflow-hidden whitespace-nowrap"
+              className={styles.logoFull}
             >
               <Link
                 to="/dashboard"
-                className="w-10 h-10 min-w-[40px] rounded-xl flex items-center justify-center shadow-lg overflow-hidden"
+                className={styles.logoLink}
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
@@ -73,7 +71,7 @@ export const Sidebar = ({
                   <ShieldCheck size={24} />
                 )}
               </Link>
-              <span className="font-bold text-lg tracking-tight truncate" style={{ color: themeConfig.sidebar.text }}>
+              <span className={styles.agencyName} style={{ color: themeConfig.sidebar.text }}>
                 {agencyConfig.name}
               </span>
             </motion.div>
@@ -83,11 +81,11 @@ export const Sidebar = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full flex justify-center"
+              className={styles.logoMiniWrap}
             >
               <Link 
                 to="/dashboard"
-                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md overflow-hidden"
+                className={styles.logoLinkMini}
                 style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
@@ -103,7 +101,7 @@ export const Sidebar = ({
         {isSidebarOpen && (
           <button 
             onClick={() => setIsSidebarOpen(false)}
-            className="p-1 hover:bg-black/5 rounded-md transition-colors"
+            className={styles.collapseBtn}
           >
             <Menu size={20} />
           </button>
@@ -111,10 +109,10 @@ export const Sidebar = ({
       </div>
 
       {!isSidebarOpen && (
-        <div className="flex justify-center py-4">
+        <div className={styles.expandWrap}>
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-black/5 rounded-xl transition-all border border-transparent active:scale-95"
+            className={styles.expandBtn}
             style={{ color: themeConfig.sidebar.text }}
           >
              <Menu size={24} />
@@ -122,7 +120,7 @@ export const Sidebar = ({
         </div>
       )}
       
-      <nav className={cn("flex-1 p-3 space-y-2", !isSidebarOpen && "flex flex-col items-center")}>
+      <nav className={isSidebarOpen ? styles.nav : styles.navCollapsed}>
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', permission: 'view_dashboard' },
           { id: 'curator', label: 'Curadoria', icon: Eye, path: '/curator', permission: 'view_curator' },
@@ -138,9 +136,9 @@ export const Sidebar = ({
               to={item.path}
               onClick={() => { setSelectedNewsId(null); }}
               className={({ isActive }) => cn(
-                "w-full flex items-center rounded-xl text-sm font-medium transition-all group relative",
-                isSidebarOpen ? "px-4 py-3 gap-3" : "justify-center p-3",
-                isActive ? "shadow-sm" : ""
+                styles.navLink,
+                isSidebarOpen ? styles.navLinkOpen : styles.navLinkClosed,
+                isActive ? styles.navLinkActive : ''
               )}
               style={({ isActive }) => ({ 
                 backgroundColor: isActive ? themeConfig.sidebar.activeBackground : 'transparent',
@@ -149,21 +147,21 @@ export const Sidebar = ({
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={22} className={cn("shrink-0", !isSidebarOpen && isActive && "scale-110")} />
+                  <item.icon size={22} className={!isSidebarOpen && isActive ? styles.navIconActive : styles.navIcon} />
                   <AnimatePresence>
                     {isSidebarOpen && (
                       <motion.span 
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        className="whitespace-nowrap overflow-hidden"
+                        className={styles.navLabel}
                       >
                         {item.label}
                       </motion.span>
                     )}
                   </AnimatePresence>
                   {!isSidebarOpen && (
-                    <div className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
+                    <div className={styles.tooltip}>
                       {item.label}
                     </div>
                   )}
@@ -174,36 +172,36 @@ export const Sidebar = ({
         })}
       </nav>
 
-      <div className={cn("p-3 border-t space-y-2", !isSidebarOpen && "flex flex-col items-center")} style={{ borderColor: themeConfig.sidebar.border }}>
+      <div className={isSidebarOpen ? styles.footer : styles.footerCollapsed} style={{ borderColor: themeConfig.sidebar.border }}>
         <NavLink 
           to="/profile"
           className={({ isActive }) => cn(
-            "w-full flex items-center rounded-2xl transition-all group relative overflow-hidden",
-            isSidebarOpen ? "p-3 gap-3" : "justify-center p-2",
-            isActive ? "shadow-sm" : ""
+            styles.profileLink,
+            isSidebarOpen ? styles.profileLinkOpen : styles.profileLinkClosed,
+            isActive ? styles.profileLinkActive : ''
           )}
           style={({ isActive }) => ({ 
             backgroundColor: isActive ? themeConfig.sidebar.activeBackground : 'transparent',
             color: isActive ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
           })}
         >
-          <img src={user.avatarUrl} alt="Avatar" className="w-10 h-10 min-w-[40px] rounded-full object-cover border-2 border-white shadow-sm shrink-0" />
+          <img src={user.avatarUrl} alt="Avatar" className={styles.avatarImg} />
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="flex-1 text-left min-w-0"
+                className={styles.userInfo}
               >
-                <p className="text-sm font-bold truncate">{user.name}</p>
-                <p className="text-xs truncate uppercase tracking-wider font-semibold opacity-70">{user.role}</p>
+                <p className={styles.userName}>{user.name}</p>
+                <p className={styles.userRole}>{user.role}</p>
               </motion.div>
             )}
           </AnimatePresence>
-          {isSidebarOpen && <Settings size={16} className="opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />}
+          {isSidebarOpen && <Settings size={16} className={styles.settingsIcon} />}
           {!isSidebarOpen && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
+            <div className={styles.tooltip}>
               {user.name} ({user.role})
             </div>
           )}
@@ -212,14 +210,14 @@ export const Sidebar = ({
         <button
           onClick={() => (window as any).handleAppLogout()}
           className={cn(
-            "w-full flex items-center rounded-2xl transition-all group relative overflow-hidden text-red-500 hover:bg-red-50",
-            isSidebarOpen ? "p-3 gap-3" : "justify-center p-2"
+            styles.logoutBtn,
+            isSidebarOpen ? styles.logoutBtnOpen : styles.logoutBtnClosed
           )}
         >
           <LogOut size={22} className="shrink-0" />
-          {isSidebarOpen && <span className="text-sm font-bold">Encerrar Sessão</span>}
+          {isSidebarOpen && <span className={styles.logoutLabel}>Encerrar Sessão</span>}
           {!isSidebarOpen && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-red-600 text-white text-[10px] rounded opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
+            <div className={styles.logoutTooltip}>
               Sair
             </div>
           )}

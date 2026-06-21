@@ -1,0 +1,120 @@
+@reference "../index.css";
+
+.page {
+  @apply p-8 max-w-4xl mx-auto;
+}
+
+.header {
+  @apply mb-12;
+}
+
+.title {
+  @apply text-4xl font-bold tracking-tight mb-2;
+}
+
+.subtitle {
+  @apply opacity-60;
+}
+
+.alert {
+  @apply p-4 rounded-2xl mb-8 flex items-center gap-3 text-sm font-medium border;
+}
+
+.body {
+  @apply space-y-8;
+}
+
+.section {
+  @apply rounded-3xl border shadow-sm overflow-hidden;
+}
+
+.sectionHeader {
+  @apply p-6 border-b flex items-center gap-2;
+}
+
+.sectionTitle {
+  @apply font-bold;
+}
+
+.sectionBody {
+  @apply p-8;
+}
+
+.sectionBodySmall {
+  @apply p-6 space-y-4;
+}
+
+.profileRow {
+  @apply flex flex-col md:flex-row gap-12;
+}
+
+.avatarWrap {
+  @apply flex flex-col items-center gap-4;
+}
+
+.avatarGroup {
+  @apply relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.avatarImg {
+  @apply w-32 h-32 rounded-full object-cover border-4 shadow-inner;
+}
+
+.avatarOverlay {
+  @apply absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 transition-opacity cursor-pointer;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.avatarHint {
+  @apply text-[10px] opacity-40 font-bold uppercase tracking-widest;
+}
+
+.fields {
+  @apply flex-1 space-y-6;
+}
+
+.fieldGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.fieldGroup {
+  @apply space-y-2;
+}
+
+.fieldLabel {
+  @apply text-xs font-bold opacity-50 uppercase tracking-wider;
+}
+
+.input {
+  @apply w-full px-4 py-2.5 border rounded-xl focus:outline-none transition-all;
+}
+
+.inputDisabled {
+  @apply w-full px-4 py-2.5 border rounded-xl opacity-50 cursor-not-allowed;
+}
+
+.textarea {
+  @apply w-full px-4 py-2.5 border rounded-xl focus:outline-none transition-all resize-none;
+}
+
+.saveBtn {
+  @apply px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all;
+}
+
+.securityGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-8;
+}
+
+.actionBtn {
+  @apply w-full px-4 py-2.5 rounded-xl text-sm font-bold transition-all;
+}
+
+.logoutWrap {
+  @apply pt-8 flex justify-center;
+}
+
+.logoutBtn {
+  @apply flex items-center gap-2 font-bold text-sm px-6 py-3 rounded-2xl transition-all hover:bg-red-50;
+}

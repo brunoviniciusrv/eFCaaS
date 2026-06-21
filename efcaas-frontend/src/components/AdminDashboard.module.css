@@ -1,0 +1,493 @@
+@reference "../index.css";
+
+/* ===== CONTAINER ===== */
+.container {
+  @apply p-8 max-w-7xl mx-auto space-y-8;
+}
+
+/* ===== HEADER ===== */
+.header {
+  @apply flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2;
+}
+.headerLeft {
+  @apply flex items-center gap-4;
+}
+.headerIcon {
+  @apply w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg -rotate-2;
+}
+.headerTitle {
+  @apply text-2xl font-black tracking-tight;
+}
+.headerSubtitle {
+  @apply text-xs opacity-50 font-bold uppercase tracking-wider;
+}
+.headerRight {
+  @apply flex items-center gap-3;
+}
+
+/* ===== SEARCH ===== */
+.searchWrapper {
+  @apply relative;
+  /* REMOVED from @apply (not supported): group */
+}
+.searchIcon {
+  @apply absolute left-4 top-1/2 -translate-y-1/2 opacity-20 transition-opacity;
+  /* REMOVED from @apply (not supported): group-focus-within:opacity-100 */
+  /* NOTE: group-focus-within:opacity-100 → needs parent:hover descendant rule */
+}
+.searchInput {
+  @apply pl-11 pr-5 py-2.5 border rounded-xl text-xs font-bold focus:outline-none focus:ring-4 w-60 transition-all;
+}
+
+/* ===== BUTTONS ===== */
+.addButton {
+  @apply flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0;
+}
+
+/* ===== TABS ===== */
+.tabsWrapper {
+  @apply w-full sm:w-fit;
+}
+
+/* ===== MAIN CONTENT ===== */
+.mainContent {
+  @apply duration-500;
+}
+
+/* ===== TABLE ===== */
+.tableCard {
+  @apply rounded-xl border shadow-sm overflow-hidden;
+}
+.table {
+  @apply w-full text-left border-collapse;
+}
+.tableHeadRow {
+  @apply border-b;
+}
+.th {
+  @apply px-6 py-4 text-xs font-semibold uppercase tracking-wider;
+}
+.thRight {
+  @apply px-6 py-4 text-xs font-semibold uppercase tracking-wider text-right;
+}
+.tbody {
+  @apply divide-y;
+}
+.tableRow {
+  @apply transition-colors;
+}
+.td {
+  @apply px-6 py-4;
+}
+.avatarCell {
+  @apply flex items-center gap-3;
+}
+.avatar {
+  @apply w-8 h-8 rounded-full;
+}
+.userName {
+  @apply text-sm font-semibold;
+}
+.emailCell {
+  @apply px-6 py-4 text-sm opacity-70;
+}
+.roleBadge {
+  @apply text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600;
+}
+
+/* ===== STATUS BADGE ===== */
+.statusBadge {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+}
+.statusBadgeActive {
+  @apply bg-green-100 text-green-700;
+}
+.statusBadgeSuspended {
+  @apply bg-red-100 text-red-700;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.actionsCell {
+  @apply px-6 py-4 text-right;
+}
+.actionsDiv {
+  @apply flex justify-end gap-2;
+}
+.actionBtnShield {
+  @apply p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors;
+}
+.toggleBtnBase {
+  @apply p-2 rounded-lg transition-colors;
+}
+.toggleBtnActive {
+  @apply text-slate-400 hover:text-red-600 hover:bg-red-50;
+}
+.toggleBtnSuspended {
+  @apply text-green-600 bg-green-50 hover:bg-green-100;
+}
+
+/* ===== AUDIT LOG ===== */
+.auditDateCell {
+  @apply px-6 py-4 text-xs opacity-60 font-medium;
+}
+.auditTimeCell {
+  @apply px-6 py-4 text-xs opacity-60 font-mono;
+}
+.auditNameCell {
+  @apply px-6 py-4 text-sm font-semibold;
+}
+.auditActivityCell {
+  @apply px-6 py-4 text-sm font-medium;
+}
+.activityText {
+  @apply opacity-80;
+}
+
+/* ===== SETTINGS ===== */
+.settingsContainer {
+  @apply space-y-12;
+}
+.section {
+  @apply space-y-6;
+}
+.sectionHeader {
+  @apply flex items-center gap-3;
+}
+.sectionIconBlue {
+  @apply p-2 bg-blue-50 text-blue-600 rounded-xl;
+}
+.sectionIconEmerald {
+  @apply p-2 bg-emerald-50 text-emerald-600 rounded-xl;
+}
+.sectionTitle {
+  @apply text-xl font-bold;
+}
+.sectionSubtitle {
+  @apply text-sm opacity-60;
+}
+
+/* ===== CARDS ===== */
+.card {
+  @apply bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-8;
+}
+.cardCompact {
+  @apply bg-white rounded-3xl border border-slate-200 shadow-sm p-8;
+}
+
+/* ===== GRIDS ===== */
+.twoColGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-12;
+}
+.labelsGrid {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-8;
+}
+
+/* ===== LOGO SECTION ===== */
+.logoSection {
+  @apply space-y-4;
+}
+.sectionFieldLabel {
+  @apply text-xs font-bold text-slate-500 uppercase tracking-wider;
+}
+.logoWrapper {
+  @apply flex items-center gap-6;
+}
+.logoPreviewContainer {
+  @apply relative w-24 h-24;
+  /* REMOVED from @apply (not supported): group */
+}
+.logoPreviewBox {
+  @apply w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50;
+}
+.logoImg {
+  @apply w-full h-full object-fill;
+}
+.logoPlaceholderIcon {
+  @apply text-slate-300;
+}
+.logoOverlay {
+  @apply absolute inset-0 cursor-pointer opacity-0 transition-opacity bg-black/20 flex items-center justify-center rounded-2xl;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+.hiddenInput {
+  @apply hidden;
+}
+.whiteIcon {
+  @apply text-white;
+}
+.logoInfo {
+  @apply flex-1 space-y-1;
+}
+.logoInfoTitle {
+  @apply text-sm font-semibold;
+}
+.logoInfoText {
+  @apply text-xs text-slate-500;
+}
+
+/* ===== AGENCY NAME SECTION ===== */
+.nameSection {
+  @apply space-y-4;
+}
+.nameInput {
+  @apply w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-all;
+}
+
+/* ===== AI MODULE SECTION ===== */
+.aiModuleBadge {
+  @apply text-[10px] font-black uppercase text-emerald-600 tracking-widest block mb-0.5;
+}
+.aiCard {
+  @apply bg-white rounded-3xl border border-slate-200 shadow-sm p-8;
+}
+
+/* ===== LABELS MANAGEMENT ===== */
+.labelsSection {
+  @apply space-y-6;
+}
+.labelsHeader {
+  @apply flex justify-between items-center;
+}
+.labelsHeaderLeft {
+  @apply flex items-center gap-2;
+}
+.newLabelBtn {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors;
+}
+.labelsCard {
+  @apply rounded-xl border shadow-sm overflow-hidden;
+}
+.labelsCardInner {
+  @apply divide-y;
+}
+.labelItem {
+  @apply p-4 flex items-center justify-between hover:bg-black/5 transition-colors;
+}
+.labelItemLeft {
+  @apply flex items-center gap-4;
+}
+.labelDot {
+  @apply w-3 h-3 rounded-full;
+}
+.labelName {
+  @apply text-sm font-bold;
+}
+.labelDesc {
+  @apply text-xs opacity-60;
+}
+.labelActionsDiv {
+  @apply flex gap-2;
+}
+.editBtn {
+  @apply p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors;
+}
+.deleteBtn {
+  @apply p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors;
+}
+
+/* ===== REPORT STRUCTURE ===== */
+.reportSection {
+  @apply space-y-6;
+}
+.reportSectionHeader {
+  @apply flex items-center gap-2;
+}
+.reportCard {
+  @apply rounded-xl border shadow-sm p-6 space-y-8;
+}
+.subsectionTitle {
+  @apply text-sm font-bold uppercase tracking-wider opacity-70;
+}
+.mandatoryFieldsSubsection {
+  @apply space-y-4;
+}
+.twoColFields {
+  @apply grid grid-cols-2 gap-4;
+}
+.fieldCheckLabel {
+  @apply flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors;
+}
+.fieldCheckbox {
+  @apply w-4 h-4 rounded focus:ring-2;
+}
+.fieldCheckText {
+  @apply text-sm font-medium;
+}
+.limitSection {
+  @apply space-y-4 pt-4 border-t;
+}
+.limitsContainer {
+  @apply space-y-4;
+}
+.limitRow {
+  @apply flex items-center justify-between;
+}
+.limitLabelTitle {
+  @apply text-sm font-semibold;
+}
+.limitLabelSubtitle {
+  @apply text-xs opacity-60;
+}
+.limitInput {
+  @apply w-20 px-3 py-1.5 border rounded-lg text-sm text-center focus:outline-none focus:ring-2;
+}
+.fontSection {
+  @apply space-y-4 pt-4 border-t;
+}
+.fontGrid {
+  @apply grid grid-cols-2 gap-4;
+}
+.fontBtnBase {
+  @apply px-4 py-3 rounded-xl border text-left transition-all;
+}
+.fontBtnSelected {
+  @apply ring-2;
+}
+.fontBtnUnselected {
+  @apply opacity-70 hover:opacity-100;
+}
+.warningBannerWrapper {
+  @apply pt-4 border-t;
+}
+.warningBannerInner {
+  @apply flex items-center gap-2 p-3 rounded-lg;
+}
+
+/* ===== THEME CUSTOMIZATION ===== */
+.themeSection {
+  @apply lg:col-span-2 space-y-6;
+}
+.themeSectionHeader {
+  @apply flex items-center gap-2;
+}
+.themeIcon {
+  @apply text-blue-600;
+}
+.themeTitle {
+  @apply text-lg font-bold text-slate-900;
+}
+.themeGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-8;
+}
+.themeCard {
+  @apply bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6;
+}
+.themeCardTitle {
+  @apply text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2;
+}
+.themeCardGrid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-6;
+}
+.themeCardGrid3 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+.themeCardGrid4 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+.colorField {
+  @apply space-y-2;
+}
+.colorFieldLabel {
+  @apply block text-xs font-semibold text-slate-600;
+}
+.colorInputRow {
+  @apply flex items-center gap-3;
+}
+.colorInput {
+  @apply w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5;
+}
+.colorValue {
+  @apply text-xs font-mono text-slate-400 uppercase;
+}
+.themeCardFullCol {
+  @apply lg:col-span-2 space-y-4;
+}
+.colSpanFull {
+  @apply col-span-full space-y-3;
+}
+.chartColorsGrid {
+  @apply grid grid-cols-2 sm:grid-cols-4 gap-4;
+}
+.chartColorItem {
+  @apply space-y-2;
+}
+.chartColorInputRow {
+  @apply flex items-center gap-3;
+}
+.chartColorSmall {
+  @apply w-8 h-8 rounded-lg cursor-pointer border border-slate-200 p-0.5;
+}
+.chartColorValueSmall {
+  @apply text-[10px] font-mono text-slate-400 uppercase;
+}
+.chartColorsFlexRow {
+  @apply flex flex-wrap gap-4;
+}
+.chartColorFlexItem {
+  @apply flex flex-col items-center gap-1;
+}
+
+/* ===== PERMISSIONS TAB ===== */
+.permissionsTab {
+  @apply p-8;
+}
+
+/* ===== MODALS ===== */
+.modalWrapper {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+}
+.modalBackdrop {
+  @apply absolute inset-0 backdrop-blur-sm;
+}
+.modalContainer {
+  @apply relative rounded-2xl shadow-2xl w-full max-w-md overflow-hidden;
+}
+.modalHeader {
+  @apply p-6 border-b;
+}
+.modalTitle {
+  @apply text-xl font-bold;
+}
+.modalSubtitle {
+  @apply text-sm opacity-70;
+}
+.modalBody {
+  @apply p-6 space-y-4;
+}
+.fieldGroup {
+  @apply space-y-2;
+}
+.fieldLabel {
+  @apply text-xs font-bold opacity-50 uppercase tracking-wider;
+}
+.modalInput {
+  @apply w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2;
+}
+.modalTextarea {
+  @apply w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 h-24 resize-none;
+}
+.colorPickerRow {
+  @apply flex items-center gap-3;
+}
+.labelColorPicker {
+  @apply w-12 h-12 rounded-xl cursor-pointer border-2 border-slate-100 p-0.5;
+}
+.colorPickerInfo {
+  @apply flex-1;
+}
+.colorPickerValue {
+  @apply text-sm font-mono uppercase tracking-wider opacity-60;
+}
+.colorPickerHint {
+  @apply text-[10px] opacity-40;
+}
+.modalFooter {
+  @apply p-4 flex justify-end gap-3;
+}
+.cancelBtn {
+  @apply px-4 py-2 text-sm font-medium opacity-70 hover:opacity-100;
+}
+.saveBtn {
+  @apply px-6 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors;
+}

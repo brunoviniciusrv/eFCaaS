@@ -1,0 +1,154 @@
+@reference "../index.css";
+
+.sidebar {
+  @apply h-screen border-r flex flex-col z-50 overflow-hidden;
+}
+
+.topBar {
+  @apply p-4 flex items-center justify-between border-b min-h-[73px];
+}
+
+.logoFull {
+  @apply flex items-center gap-3 overflow-hidden whitespace-nowrap;
+}
+
+.logoLink {
+  @apply w-10 h-10 min-w-[40px] rounded-xl flex items-center justify-center shadow-lg overflow-hidden;
+}
+
+.logoLinkMini {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center shadow-md overflow-hidden;
+}
+
+.logoMiniWrap {
+  @apply w-full flex justify-center;
+}
+
+.agencyName {
+  @apply font-bold text-lg tracking-tight truncate;
+}
+
+.collapseBtn {
+  @apply p-1 hover:bg-black/5 rounded-md transition-colors;
+}
+
+.expandWrap {
+  @apply flex justify-center py-4;
+}
+
+.expandBtn {
+  @apply p-2 hover:bg-black/5 rounded-xl transition-all border border-transparent active:scale-95;
+}
+
+.nav {
+  @apply flex-1 p-3 space-y-2;
+}
+
+.navCollapsed {
+  @apply flex-1 p-3 space-y-2 flex flex-col items-center;
+}
+
+.navLink {
+  @apply w-full flex items-center rounded-xl text-sm font-medium transition-all relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.navLinkOpen {
+  @apply px-4 py-3 gap-3;
+}
+
+.navLinkClosed {
+  @apply justify-center p-3;
+}
+
+.navLinkActive {
+  @apply shadow-sm;
+}
+
+.navIcon {
+  @apply shrink-0;
+}
+
+.navIconActive {
+  @apply shrink-0 scale-110;
+}
+
+.navLabel {
+  @apply whitespace-nowrap overflow-hidden;
+}
+
+.tooltip {
+  @apply absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-[10px] rounded opacity-0 invisible transition-all whitespace-nowrap z-50;
+  /* REMOVED from @apply (not supported): group-hover:visible group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.avatarImg {
+  @apply w-10 h-10 min-w-[40px] rounded-full object-cover border-2 border-white shadow-sm shrink-0;
+}
+
+.userInfo {
+  @apply flex-1 text-left min-w-0;
+}
+
+.userName {
+  @apply text-sm font-bold truncate;
+}
+
+.userRole {
+  @apply text-xs truncate uppercase tracking-wider font-semibold opacity-70;
+}
+
+.settingsIcon {
+  @apply opacity-50 transition-opacity shrink-0;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.footer {
+  @apply p-3 border-t space-y-2;
+}
+
+.footerCollapsed {
+  @apply p-3 border-t space-y-2 flex flex-col items-center;
+}
+
+.profileLink {
+  @apply w-full flex items-center rounded-2xl transition-all relative overflow-hidden;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.profileLinkOpen {
+  @apply p-3 gap-3;
+}
+
+.profileLinkClosed {
+  @apply justify-center p-2;
+}
+
+.profileLinkActive {
+  @apply shadow-sm;
+}
+
+.logoutBtn {
+  @apply w-full flex items-center rounded-2xl transition-all relative overflow-hidden text-red-500 hover:bg-red-50;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.logoutBtnOpen {
+  @apply p-3 gap-3;
+}
+
+.logoutBtnClosed {
+  @apply justify-center p-2;
+}
+
+.logoutLabel {
+  @apply text-sm font-bold;
+}
+
+.logoutTooltip {
+  @apply absolute left-full ml-4 px-2 py-1 bg-red-600 text-white text-[10px] rounded opacity-0 invisible transition-all whitespace-nowrap z-50;
+  /* REMOVED from @apply (not supported): group-hover:visible group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}

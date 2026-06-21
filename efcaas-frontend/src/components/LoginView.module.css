@@ -1,0 +1,160 @@
+@reference "../index.css";
+
+.page {
+  @apply min-h-screen flex items-center justify-center p-6 bg-slate-50 font-sans;
+}
+
+.card {
+  @apply w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100;
+}
+
+.cardBody {
+  @apply p-8 space-y-8;
+}
+
+.header {
+  @apply text-center space-y-2;
+}
+
+.logoWrap {
+  @apply w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden;
+}
+
+.logoImg {
+  @apply w-full h-full object-fill;
+}
+
+.brandName {
+  @apply text-2xl font-black tracking-tight text-slate-900;
+}
+
+.brandSub {
+  @apply text-sm text-slate-500 font-medium tracking-tight line-clamp-2;
+}
+
+.form {
+  @apply space-y-4;
+}
+
+.fieldGroup {
+  @apply space-y-2;
+}
+
+.fieldLabel {
+  @apply text-xs font-bold uppercase tracking-widest text-slate-400 ml-1;
+}
+
+.inputWrap {
+  @apply relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.inputIcon {
+  @apply absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-40 transition-opacity;
+  /* REMOVED from @apply (not supported): group-focus-within:opacity-100 */
+  /* NOTE: group-focus-within:opacity-100 → needs parent:hover descendant rule */
+}
+
+.input {
+  @apply w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 transition-all;
+}
+
+.errorMsg {
+  @apply text-xs font-bold text-red-500 text-center;
+}
+
+.submitBtn {
+  @apply w-full py-4 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.spinner {
+  @apply w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+.footerSection {
+  @apply pt-6 border-t border-slate-100 flex flex-col gap-4;
+}
+
+.onboardingCard {
+  @apply p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4;
+}
+
+.onboardingCardContent {
+  @apply min-w-0 flex-1;
+}
+
+.onboardingCardTitle {
+  @apply text-[10px] font-bold text-slate-700 uppercase tracking-wider;
+}
+
+.onboardingCardDesc {
+  @apply text-[9px] text-slate-400 mt-0.5 leading-relaxed;
+}
+
+.onboardingBtn {
+  @apply shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all shadow-sm flex items-center gap-1 hover:brightness-105 cursor-pointer;
+}
+
+.helpBtn {
+  @apply fixed bottom-8 right-8 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center transition-all hover:shadow-xl;
+}
+
+.overlay {
+  @apply fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6;
+}
+
+.modal {
+  @apply w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl;
+}
+
+.modalHeader {
+  @apply p-6 border-b border-slate-100 flex items-center justify-between;
+}
+
+.modalTitle {
+  @apply text-lg font-black tracking-tight;
+}
+
+.modalCloseBtn {
+  @apply p-2 hover:bg-slate-100 rounded-xl transition-colors;
+}
+
+.accountGrid {
+  @apply p-6 grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.accountCard {
+  @apply p-4 rounded-2xl border border-slate-100 text-left transition-all hover:bg-slate-50;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.accountCardTop {
+  @apply flex items-center gap-3 mb-2;
+}
+
+.accountIconWrap {
+  @apply w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center;
+}
+
+.accountRoleLabel {
+  @apply text-xs font-black uppercase tracking-tight text-slate-900;
+}
+
+.accountEmail {
+  @apply text-[11px] font-medium text-slate-500 truncate;
+  /* REMOVED from @apply (not supported): group-hover:opacity-80 */
+  /* NOTE: group-hover:opacity-80 → needs parent:hover descendant rule */
+}
+
+.accountHint {
+  @apply text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold;
+}
+
+.modalFooter {
+  @apply p-6 bg-slate-50 text-center;
+}
+
+.modalFooterText {
+  @apply text-[11px] font-bold text-slate-400 uppercase tracking-widest;
+}

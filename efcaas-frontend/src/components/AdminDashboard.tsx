@@ -60,6 +60,7 @@ import { ResponsiveTabs } from './ResponsiveTabs';
 import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
 import { AiEngineModulesPanel } from './AiEngineModulesPanel';
 import { AiModuleKey } from '../config/aiModules';
+import styles from './AdminDashboard.module.css';
 
 interface AdminDashboardProps {
   news: NewsItem[];
@@ -286,7 +287,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8" style={{ color: themeConfig.dashboard.text }}>
+    <div className={styles.container} style={{ color: themeConfig.dashboard.text }}>
       <style>
         {`
           .custom-table-row:hover {
@@ -296,25 +297,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </style>
       
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg -rotate-2">
+      <header className={styles.header}>
+        <div className={styles.headerLeft}>
+          <div className={styles.headerIcon}>
              <Shield size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight" style={{ color: themeConfig.header.text }}>Gestão Administrativa</h1>
-            <p className="text-xs opacity-50 font-bold uppercase tracking-wider">Painel de Controle Operacional</p>
+            <h1 className={styles.headerTitle} style={{ color: themeConfig.header.text }}>Gestão Administrativa</h1>
+            <p className={styles.headerSubtitle}>Painel de Controle Operacional</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className={styles.headerRight}>
           {(activeTab === 'users' || activeTab === 'audit') && (
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100 transition-opacity" size={16} />
+            <div className={styles.searchWrapper}>
+              <Search className={styles.searchIcon} size={16} />
               <input 
                 type="text"
                 placeholder={activeTab === 'users' ? "Filtrar integrantes..." : "Filtrar rastros..."}
-                className="pl-11 pr-5 py-2.5 border rounded-xl text-xs font-bold focus:outline-none focus:ring-4 w-60 transition-all"
+                className={styles.searchInput}
                 style={{ 
                   backgroundColor: themeConfig.general.inputBackground, 
                   color: themeConfig.general.inputText,
@@ -329,7 +330,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'users' && (
             <button 
               onClick={() => setIsAddingUser(true)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className={styles.addButton}
               style={{ 
                 backgroundColor: themeConfig.buttons.primary, 
                 color: themeConfig.buttons.primaryText,
@@ -352,7 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* Tabs - Pill style */}
-      <div className="w-full sm:w-fit">
+      <div className={styles.tabsWrapper}>
         <ResponsiveTabs
           activeTab={activeTab}
           setActiveTab={(id) => {
@@ -370,55 +371,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className={styles.mainContent}>
 
 
         {activeTab === 'users' && (
-          <div className="rounded-xl border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-            <table className="w-full text-left border-collapse">
+          <div className={styles.tableCard} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+            <table className={styles.table}>
               <thead>
-                <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>E-mail</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Função</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-right" style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
+                <tr className={styles.tableHeadRow} style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>E-mail</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Função</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
+                  <th className={styles.thRight} style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+              <tbody className={styles.tbody} style={{ borderColor: themeConfig.general.border }}>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-                        <span className="text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{user.name}</span>
+                  <tr key={user.id} className={cn("custom-table-row", styles.tableRow)} style={{ color: themeConfig.dashboard.text }}>
+                    <td className={styles.td}>
+                      <div className={styles.avatarCell}>
+                        <img src={user.avatarUrl} alt="" className={styles.avatar} />
+                        <span className={styles.userName} style={{ color: themeConfig.dashboard.text }}>{user.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm opacity-70">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                    <td className={styles.emailCell}>{user.email}</td>
+                    <td className={styles.td}>
+                      <span className={styles.roleBadge}>
                         {permissionProfiles.find(p => p.id === user.profileId)?.name || user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className={styles.td}>
                       <span className={cn(
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
-                        user.status === 'active' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        styles.statusBadge,
+                        user.status === 'active' ? styles.statusBadgeActive : styles.statusBadgeSuspended
                       )}>
                         {user.status === 'active' ? <UserCheck size={12} /> : <UserX size={12} />}
                         {user.status === 'active' ? 'Ativo' : 'Suspenso'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <td className={styles.actionsCell}>
+                      <div className={styles.actionsDiv}>
+                        <button className={styles.actionBtnShield}>
                           <Shield size={18} />
                         </button>
                         <button 
                           onClick={() => handleToggleUserStatus(user.id)}
                           className={cn(
-                            "p-2 rounded-lg transition-colors",
-                            user.status === 'active' ? "text-slate-400 hover:text-red-600 hover:bg-red-50" : "text-green-600 bg-green-50 hover:bg-green-100"
+                            styles.toggleBtnBase,
+                            user.status === 'active' ? styles.toggleBtnActive : styles.toggleBtnSuspended
                           )}
                         >
                           {user.status === 'active' ? <UserX size={18} /> : <UserCheck size={18} />}
@@ -433,17 +434,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
 
         {activeTab === 'audit' && (
-          <div className="rounded-xl border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-            <table className="w-full text-left border-collapse">
+          <div className={styles.tableCard} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+            <table className={styles.table}>
               <thead>
-                <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Data</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Hora</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Atividade</th>
+                <tr className={styles.tableHeadRow} style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Data</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Hora</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Usuário</th>
+                  <th className={styles.th} style={{ color: themeConfig.general.tableHeaderText }}>Atividade</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+              <tbody className={styles.tbody} style={{ borderColor: themeConfig.general.border }}>
                 {filteredLogs.map((log) => {
                   const dateObj = new Date(log.timestamp);
                   const date = dateObj.toLocaleDateString();
@@ -456,16 +457,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   }
 
                   return (
-                    <tr key={log.id} className="custom-table-row transition-colors" style={{ color: themeConfig.dashboard.text }}>
-                      <td className="px-6 py-4 text-xs opacity-60 font-medium">
+                    <tr key={log.id} className={cn("custom-table-row", styles.tableRow)} style={{ color: themeConfig.dashboard.text }}>
+                      <td className={styles.auditDateCell}>
                         {date}
                       </td>
-                      <td className="px-6 py-4 text-xs opacity-60 font-mono">
+                      <td className={styles.auditTimeCell}>
                         {time}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
-                      <td className="px-6 py-4 text-sm font-medium">
-                        <span className="opacity-80">{activity}</span>
+                      <td className={styles.auditNameCell} style={{ color: themeConfig.dashboard.text }}>{log.userName}</td>
+                      <td className={styles.auditActivityCell}>
+                        <span className={styles.activityText}>{activity}</span>
                       </td>
                     </tr>
                   );
@@ -476,36 +477,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
 
         {activeTab === 'settings' && (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
+          <div className={styles.settingsContainer}>
             {/* Agency Settings */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionIconBlue}>
                   <Shield size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold" style={{ color: themeConfig.dashboard.text }}>Configurações da Agência</h2>
-                  <p className="text-sm opacity-60" style={{ color: themeConfig.dashboard.text }}>Identidade e marca da sua agência de checagem</p>
+                  <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>Configurações da Agência</h2>
+                  <p className={styles.sectionSubtitle} style={{ color: themeConfig.dashboard.text }}>Identidade e marca da sua agência de checagem</p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-8" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Logo da Agência</label>
-                    <div className="flex items-center gap-6">
-                      <div className="relative group w-24 h-24">
-                        <div className="w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50" style={{ borderColor: themeConfig.general.border }}>
+              <div className={styles.card} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+                <div className={styles.twoColGrid}>
+                  <div className={styles.logoSection}>
+                    <label className={styles.sectionFieldLabel}>Logo da Agência</label>
+                    <div className={styles.logoWrapper}>
+                      <div className={styles.logoPreviewContainer}>
+                        <div className={styles.logoPreviewBox} style={{ borderColor: themeConfig.general.border }}>
                           {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-fill" />
+                            <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImg} />
                           ) : (
-                            <ImageIcon size={32} className="text-slate-300" />
+                            <ImageIcon size={32} className={styles.logoPlaceholderIcon} />
                           )}
                         </div>
-                        <label className="absolute inset-0 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 flex items-center justify-center rounded-2xl">
+                        <label className={styles.logoOverlay}>
                           <input 
                             type="file" 
-                            className="hidden" 
+                            className={styles.hiddenInput}
                             accept="image/*" 
                             onChange={(e) => {
                               const file = e.target.files?.[0];
@@ -518,23 +519,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               }
                             }} 
                           />
-                          <Plus className="text-white" size={24} />
+                          <Plus className={styles.whiteIcon} size={24} />
                         </label>
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>Alterar Logotipo</p>
-                        <p className="text-xs text-slate-500">Recomendado: PNG ou SVG com fundo transparente. Máx 1MB.</p>
+                      <div className={styles.logoInfo}>
+                        <p className={styles.logoInfoTitle} style={{ color: themeConfig.dashboard.text }}>Alterar Logotipo</p>
+                        <p className={styles.logoInfoText}>Recomendado: PNG ou SVG com fundo transparente. Máx 1MB.</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nome de Exibição</label>
+                  <div className={styles.nameSection}>
+                    <label className={styles.sectionFieldLabel}>Nome de Exibição</label>
                     <input 
                       type="text"
                       value={agencyConfig.name}
                       onChange={(e) => setAgencyConfig(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-all"
+                      className={styles.nameInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -549,26 +550,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </section>
 
             {/* AI Engine Modules */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionIconEmerald}>
                   <Sparkles size={24} />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest block mb-0.5">
+                  <span className={styles.aiModuleBadge}>
                     Módulos Inteligentes
                   </span>
-                  <h2 className="text-xl font-bold" style={{ color: themeConfig.dashboard.text }}>
+                  <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>
                     Engine de Inteligência Artificial
                   </h2>
-                  <p className="text-sm opacity-60" style={{ color: themeConfig.dashboard.text }}>
+                  <p className={styles.sectionSubtitle} style={{ color: themeConfig.dashboard.text }}>
                     Funcionalidades desativadas ficam ocultas na curadoria e na investigação.
                   </p>
                 </div>
               </div>
 
               <div
-                className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8"
+                className={styles.aiCard}
                 style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
               >
                 <AiEngineModulesPanel
@@ -580,13 +581,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className={styles.labelsGrid}>
             {/* Labels Management */}
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
+            <div className={styles.labelsSection}>
+              <div className={styles.labelsHeader}>
+                <div className={styles.labelsHeaderLeft}>
                   <Tag style={{ color: themeConfig.general.accent }} size={20} />
-                  <h2 className="text-lg font-bold" style={{ color: themeConfig.dashboard.text }}>''Gestão de Etiquet''as</h2>
+                  <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>''Gestão de Etiquet''as</h2>
                 </div>
                 <button 
                   onClick={() => {
@@ -594,7 +595,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     setEditingLabelId(null);
                     setIsAddingLabel(true);
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  className={styles.newLabelBtn}
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   <Plus size={14} />
@@ -602,31 +603,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
 
-              <div className="rounded-xl border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-                <div className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+              <div className={styles.labelsCard} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+                <div className={styles.labelsCardInner} style={{ borderColor: themeConfig.general.border }}>
                   {labels.map((label) => (
-                    <div key={label.id} className="p-4 flex items-center justify-between hover:bg-black/5 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: label.color }} />
+                    <div key={label.id} className={styles.labelItem}>
+                      <div className={styles.labelItemLeft}>
+                        <div className={styles.labelDot} style={{ backgroundColor: label.color }} />
                         <div>
-                          <h4 className="text-sm font-bold" style={{ color: themeConfig.dashboard.text }}>{label.name}</h4>
-                          <p className="text-xs opacity-60" style={{ color: themeConfig.dashboard.text }}>{label.description}</p>
+                          <h4 className={styles.labelName} style={{ color: themeConfig.dashboard.text }}>{label.name}</h4>
+                          <p className={styles.labelDesc} style={{ color: themeConfig.dashboard.text }}>{label.description}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className={styles.labelActionsDiv}>
                         <button 
                           onClick={() => {
                             setNewLabel({ name: label.name, description: label.description, color: label.color });
                             setEditingLabelId(label.id);
                             setIsAddingLabel(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className={styles.editBtn}
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDeleteLabel(label.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className={styles.deleteBtn}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -637,17 +638,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
+            <div className={styles.reportSection}>
+              <div className={styles.reportSectionHeader}>
                 <Layout style={{ color: themeConfig.general.accent }} size={20} />
-                <h2 className="text-lg font-bold" style={{ color: themeConfig.dashboard.text }}>Estrutura de Relatórios</h2>
+                <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>Estrutura de Relatórios</h2>
               </div>
 
-              <div className="rounded-xl border shadow-sm p-6 space-y-8" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+              <div className={styles.reportCard} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
                 {/* Mandatory Fields */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider opacity-70" style={{ color: themeConfig.dashboard.text }}>Campos Obrigatórios</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className={styles.mandatoryFieldsSubsection}>
+                  <h3 className={styles.subsectionTitle} style={{ color: themeConfig.dashboard.text }}>Campos Obrigatórios</h3>
+                  <div className={styles.twoColFields}>
                     {[
                       { id: 'summary', label: 'Resumo da Análise' },
                       { id: 'questions', label: 'Perguntas de Investigação' },
@@ -655,28 +656,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       { id: 'label', label: 'Etiqueta de Veracidade' },
                       { id: 'contact', label: 'Contato com Autor' },
                     ].map((field) => (
-                      <label key={field.id} className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors" style={{ borderColor: themeConfig.general.border, backgroundColor: themeConfig.general.inputBackground }}>
+                      <label key={field.id} className={styles.fieldCheckLabel} style={{ borderColor: themeConfig.general.border, backgroundColor: themeConfig.general.inputBackground }}>
                         <input 
                           type="checkbox"
                           checked={reportConfig.mandatoryFields.includes(field.id)}
                           onChange={() => handleToggleMandatoryField(field.id)}
-                          className="w-4 h-4 rounded focus:ring-2"
+                          className={styles.fieldCheckbox}
                           style={{ color: themeConfig.general.accent, '--tw-ring-color': themeConfig.general.accent } as any}
                         />
-                        <span className="text-sm font-medium" style={{ color: themeConfig.general.inputText }}>{field.label}</span>
+                        <span className={styles.fieldCheckText} style={{ color: themeConfig.general.inputText }}>{field.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 {/* Limits */}
-                <div className="space-y-4 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider opacity-70" style={{ color: themeConfig.dashboard.text }}>Limites e Restrições</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                <div className={styles.limitSection} style={{ borderColor: themeConfig.general.border }}>
+                  <h3 className={styles.subsectionTitle} style={{ color: themeConfig.dashboard.text }}>Limites e Restrições</h3>
+                  <div className={styles.limitsContainer}>
+                    <div className={styles.limitRow}>
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>Máximo de Perguntas</p>
-                        <p className="text-xs opacity-60" style={{ color: themeConfig.dashboard.text }}>Limite de questões por relatório</p>
+                        <p className={styles.limitLabelTitle} style={{ color: themeConfig.dashboard.text }}>Máximo de Perguntas</p>
+                        <p className={styles.limitLabelSubtitle} style={{ color: themeConfig.dashboard.text }}>Limite de questões por relatório</p>
                       </div>
                       <input 
                         type="number"
@@ -684,7 +685,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         max="50"
                         value={reportConfig.maxQuestions}
                         onChange={(e) => setReportConfig(prev => ({ ...prev, maxQuestions: parseInt(e.target.value) || 1 }))}
-                        className="w-20 px-3 py-1.5 border rounded-lg text-sm text-center focus:outline-none focus:ring-2"
+                        className={styles.limitInput}
                         style={{ 
                           backgroundColor: themeConfig.general.inputBackground, 
                           color: themeConfig.general.inputText,
@@ -693,10 +694,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         } as any}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className={styles.limitRow}>
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: themeConfig.dashboard.text }}>Máximo de Fontes</p>
-                        <p className="text-xs opacity-60" style={{ color: themeConfig.dashboard.text }}>Limite de fontes citadas</p>
+                        <p className={styles.limitLabelTitle} style={{ color: themeConfig.dashboard.text }}>Máximo de Fontes</p>
+                        <p className={styles.limitLabelSubtitle} style={{ color: themeConfig.dashboard.text }}>Limite de fontes citadas</p>
                       </div>
                       <input 
                         type="number"
@@ -704,7 +705,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         max="50"
                         value={reportConfig.maxSources}
                         onChange={(e) => setReportConfig(prev => ({ ...prev, maxSources: parseInt(e.target.value) || 1 }))}
-                        className="w-20 px-3 py-1.5 border rounded-lg text-sm text-center focus:outline-none focus:ring-2"
+                        className={styles.limitInput}
                         style={{ 
                           backgroundColor: themeConfig.general.inputBackground, 
                           color: themeConfig.general.inputText,
@@ -717,9 +718,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Font Selection */}
-                <div className="space-y-4 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider opacity-70" style={{ color: themeConfig.dashboard.text }}>Tipografia da Plataforma</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className={styles.fontSection} style={{ borderColor: themeConfig.general.border }}>
+                  <h3 className={styles.subsectionTitle} style={{ color: themeConfig.dashboard.text }}>Tipografia da Plataforma</h3>
+                  <div className={styles.fontGrid}>
                     {[
                       { id: 'Inter', name: 'Inter (Padrão)' },
                       { id: 'Outfit', name: 'Outfit (Moderno)' },
@@ -730,8 +731,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         key={f.id}
                         onClick={() => setThemeConfig(prev => ({ ...prev, fontFamily: f.id }))}
                         className={cn(
-                          "px-4 py-3 rounded-xl border text-left transition-all",
-                          themeConfig.fontFamily === f.id ? "ring-2" : "opacity-70 hover:opacity-100"
+                          styles.fontBtnBase,
+                          themeConfig.fontFamily === f.id ? styles.fontBtnSelected : styles.fontBtnUnselected
                         )}
                         style={{ 
                           fontFamily: f.id,
@@ -747,10 +748,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-2 p-3 rounded-lg" style={{ backgroundColor: `${themeConfig.status.warning}15`, color: themeConfig.status.warning }}>
+                <div className={styles.warningBannerWrapper} style={{ borderColor: themeConfig.general.border }}>
+                  <div className={styles.warningBannerInner} style={{ backgroundColor: `${themeConfig.status.warning}15`, color: themeConfig.status.warning }}>
                     <AlertCircle size={16} />
-                    <p className="text-xs font-medium">Estas configurações serão aplicadas automaticamente a todos os novos relatórios.</p>
+                    <p className={styles.fieldCheckText}>Estas configurações serão aplicadas automaticamente a todos os novos relatórios.</p>
                   </div>
                 </div>
               </div>
@@ -758,20 +759,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           {/* Theme Customization */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="flex items-center gap-2">
-                <Activity className="text-blue-600" size={20} />
-                <h2 className="text-lg font-bold text-slate-900">Personalização Visual da Plataforma</h2>
+            <div className={styles.themeSection}>
+              <div className={styles.themeSectionHeader}>
+                <Activity className={styles.themeIcon} size={20} />
+                <h2 className={styles.themeTitle}>Personalização Visual da Plataforma</h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className={styles.themeGrid}>
                 {/* Dashboard Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Dashboard Administrativo</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Dashboard Administrativo</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.dashboard.background}
@@ -779,14 +780,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             dashboard: { ...prev.dashboard, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.dashboard.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.dashboard.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor do Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor do Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.dashboard.text}
@@ -794,17 +795,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             dashboard: { ...prev.dashboard, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.dashboard.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.dashboard.text}</span>
                       </div>
                     </div>
-                    <div className="lg:col-span-2 space-y-4">
-                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Cores dos Gráficos</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className={styles.themeCardFullCol}>
+                      <label className={styles.colorFieldLabel}>Cores dos Gráficos</label>
+                      <div className={styles.chartColorsGrid}>
                         {themeConfig.dashboard.chartColors.map((color, idx) => (
-                          <div key={idx} className="space-y-2">
-                            <div className="flex items-center gap-3">
+                          <div key={idx} className={styles.chartColorItem}>
+                            <div className={styles.chartColorInputRow}>
                               <input 
                                 type="color" 
                                 value={color}
@@ -816,9 +817,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     dashboard: { ...prev.dashboard, chartColors: newColors }
                                   }));
                                 }}
-                                className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                                className={styles.colorInput}
                               />
-                              <span className="text-[10px] font-mono text-slate-400 uppercase">{color}</span>
+                              <span className={styles.chartColorValueSmall}>{color}</span>
                             </div>
                           </div>
                         ))}
@@ -828,12 +829,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Flow Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Fluxo de Checagem</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Fluxo de Checagem</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.background}
@@ -841,14 +842,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor do Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor do Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.text}
@@ -856,14 +857,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Pendente</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Pendente</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockPending}
@@ -871,14 +872,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockPending: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockPending}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockPending}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Em Análise</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Em Análise</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockInProgress}
@@ -886,14 +887,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockInProgress: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockInProgress}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockInProgress}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Concluído</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Concluído</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockCompleted}
@@ -901,14 +902,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockCompleted: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockCompleted}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockCompleted}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Retificação</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Retificação</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockRectify}
@@ -916,21 +917,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockRectify: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockRectify}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockRectify}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Sidebar Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Barra Lateral e Navegação</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Barra Lateral e Navegação</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.background}
@@ -938,14 +939,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor do Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor do Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.text}
@@ -953,14 +954,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo Ativo</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo Ativo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.activeBackground}
@@ -968,14 +969,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, activeBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.activeBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.activeBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto Ativo</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto Ativo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.activeText}
@@ -983,21 +984,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, activeText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.activeText}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.activeText}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Header Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Cabeçalho</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Cabeçalho</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.background}
@@ -1005,14 +1006,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor do Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor do Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.text}
@@ -1020,14 +1021,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor da Borda</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor da Borda</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.border}
@@ -1035,21 +1036,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, border: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.border}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.border}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Dashboard Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Dashboard</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Dashboard</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.dashboard.background}
@@ -1057,14 +1058,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             dashboard: { ...prev.dashboard, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.dashboard.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.dashboard.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor do Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor do Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.dashboard.text}
@@ -1072,16 +1073,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             dashboard: { ...prev.dashboard, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.dashboard.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.dashboard.text}</span>
                       </div>
                     </div>
-                    <div className="col-span-full space-y-3">
-                      <label className="block text-xs font-semibold text-slate-600">Cores dos Gráficos</label>
-                      <div className="flex flex-wrap gap-4">
+                    <div className={styles.colSpanFull}>
+                      <label className={styles.colorFieldLabel}>Cores dos Gráficos</label>
+                      <div className={styles.chartColorsFlexRow}>
                         {themeConfig.dashboard.chartColors.map((color, index) => (
-                          <div key={index} className="flex flex-col items-center gap-1">
+                          <div key={index} className={styles.chartColorFlexItem}>
                             <input 
                               type="color" 
                               value={color}
@@ -1093,9 +1094,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   dashboard: { ...prev.dashboard, chartColors: newColors }
                                 }));
                               }}
-                              className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 p-0.5"
+                              className={styles.chartColorSmall}
                             />
-                            <span className="text-[10px] font-mono text-slate-400 uppercase">{color}</span>
+                            <span className={styles.chartColorValueSmall}>{color}</span>
                           </div>
                         ))}
                       </div>
@@ -1104,12 +1105,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Sidebar Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Barra Lateral (Sidebar)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Barra Lateral (Sidebar)</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.background}
@@ -1117,14 +1118,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.text}
@@ -1132,14 +1133,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo Item Ativo</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo Item Ativo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.activeBackground}
@@ -1147,14 +1148,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, activeBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.activeBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.activeBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto Item Ativo</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto Item Ativo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.activeText}
@@ -1162,14 +1163,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, activeText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.activeText}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.activeText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Borda</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Borda</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.sidebar.border}
@@ -1177,21 +1178,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             sidebar: { ...prev.sidebar, border: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.sidebar.border}</span>
+                        <span className={styles.colorValue}>{themeConfig.sidebar.border}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Header Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Cabeçalho (Header)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Cabeçalho (Header)</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.background}
@@ -1199,14 +1200,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.text}
@@ -1214,14 +1215,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Borda</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Borda</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.header.border}
@@ -1229,21 +1230,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             header: { ...prev.header, border: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.header.border}</span>
+                        <span className={styles.colorValue}>{themeConfig.header.border}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Flow Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Fluxo de Notícias</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo do Fluxo</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Fluxo de Notícias</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo do Fluxo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.background}
@@ -1251,14 +1252,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, background: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.background}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.background}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto do Fluxo</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto do Fluxo</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.text}
@@ -1266,14 +1267,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, text: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.text}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.text}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Pendente</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Pendente</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockPending}
@@ -1281,14 +1282,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockPending: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockPending}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockPending}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco em Progresso</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco em Progresso</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockInProgress}
@@ -1296,14 +1297,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockInProgress: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockInProgress}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockInProgress}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Concluído</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Concluído</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockCompleted}
@@ -1311,14 +1312,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockCompleted: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockCompleted}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockCompleted}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Bloco Retificação</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Bloco Retificação</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.flow.blockRectify}
@@ -1326,21 +1327,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             flow: { ...prev.flow, blockRectify: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.flow.blockRectify}</span>
+                        <span className={styles.colorValue}>{themeConfig.flow.blockRectify}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Buttons Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Botões e Ações</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Primário (Fundo)</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Botões e Ações</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Primário (Fundo)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.primary}
@@ -1348,14 +1349,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, primary: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.primary}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.primary}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Primário (Texto)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Primário (Texto)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.primaryText}
@@ -1363,14 +1364,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, primaryText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.primaryText}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.primaryText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Secundário (Fundo)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Secundário (Fundo)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.secondary}
@@ -1378,14 +1379,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, secondary: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.secondary}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.secondary}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Secundário (Texto)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Secundário (Texto)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.secondaryText}
@@ -1393,14 +1394,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, secondaryText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.secondaryText}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.secondaryText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Perigo (Fundo)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Perigo (Fundo)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.danger}
@@ -1408,14 +1409,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, danger: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.danger}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.danger}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Perigo (Texto)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Perigo (Texto)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.buttons.dangerText}
@@ -1423,21 +1424,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             buttons: { ...prev.buttons, dangerText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.buttons.dangerText}</span>
+                        <span className={styles.colorValue}>{themeConfig.buttons.dangerText}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Status Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Status e Alertas</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Sucesso</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Status e Alertas</h3>
+                  <div className={styles.themeCardGrid}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Sucesso</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.status.success}
@@ -1445,14 +1446,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             status: { ...prev.status, success: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.status.success}</span>
+                        <span className={styles.colorValue}>{themeConfig.status.success}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Erro</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Erro</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.status.error}
@@ -1460,14 +1461,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             status: { ...prev.status, error: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.status.error}</span>
+                        <span className={styles.colorValue}>{themeConfig.status.error}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Aviso</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Aviso</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.status.warning}
@@ -1475,14 +1476,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             status: { ...prev.status, warning: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.status.warning}</span>
+                        <span className={styles.colorValue}>{themeConfig.status.warning}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Informação</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Informação</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.status.info}
@@ -1490,21 +1491,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             status: { ...prev.status, info: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.status.info}</span>
+                        <span className={styles.colorValue}>{themeConfig.status.info}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* General Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Geral e Superfícies</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo de Cards</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Geral e Superfícies</h3>
+                  <div className={styles.themeCardGrid3}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo de Cards</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.cardBackground}
@@ -1512,14 +1513,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, cardBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.cardBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.cardBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Borda</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Borda</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.border}
@@ -1527,14 +1528,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, border: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.border}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.border}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Cor de Destaque (Accent)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Cor de Destaque (Accent)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.accent}
@@ -1542,21 +1543,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, accent: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.accent}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.accent}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Inputs Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Campos de Entrada (Inputs)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo do Input</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Campos de Entrada (Inputs)</h3>
+                  <div className={styles.themeCardGrid4}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo do Input</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.inputBackground}
@@ -1564,14 +1565,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, inputBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.inputBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.inputBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto do Input</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto do Input</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.inputText}
@@ -1579,14 +1580,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, inputText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.inputText}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.inputText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Borda do Input</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Borda do Input</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.inputBorder}
@@ -1594,14 +1595,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, inputBorder: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.inputBorder}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.inputBorder}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Placeholder</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Placeholder</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.inputPlaceholder}
@@ -1609,21 +1610,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, inputPlaceholder: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.inputPlaceholder}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.inputPlaceholder}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Modals Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Modais</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo do Modal</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Modais</h3>
+                  <div className={styles.themeCardGrid3}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo do Modal</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.modalBackground}
@@ -1631,14 +1632,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, modalBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.modalBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.modalBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto do Modal</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto do Modal</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.modalText}
@@ -1646,14 +1647,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, modalText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.modalText}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.modalText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Sobreposição (Overlay)</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Sobreposição (Overlay)</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="text" 
                           value={themeConfig.general.modalOverlay}
@@ -1662,7 +1663,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             general: { ...prev.general, modalOverlay: e.target.value }
                           }))}
                           placeholder="rgba(0,0,0,0.5)"
-                          className="w-full px-3 py-2 border rounded-lg text-xs font-mono"
+                          className={styles.limitInput}
                         />
                       </div>
                     </div>
@@ -1670,12 +1671,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Tables Theme */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Tabelas</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Fundo do Cabeçalho</label>
-                      <div className="flex items-center gap-3">
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Tabelas</h3>
+                  <div className={styles.themeCardGrid3}>
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Fundo do Cabeçalho</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.tableHeaderBackground}
@@ -1683,14 +1684,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, tableHeaderBackground: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.tableHeaderBackground}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.tableHeaderBackground}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Texto do Cabeçalho</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Texto do Cabeçalho</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.tableHeaderText}
@@ -1698,14 +1699,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, tableHeaderText: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.tableHeaderText}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.tableHeaderText}</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-600">Hover da Linha</label>
-                      <div className="flex items-center gap-3">
+                    <div className={styles.colorField}>
+                      <label className={styles.colorFieldLabel}>Hover da Linha</label>
+                      <div className={styles.colorInputRow}>
                         <input 
                           type="color" 
                           value={themeConfig.general.tableRowHover}
@@ -1713,9 +1714,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             ...prev,
                             general: { ...prev.general, tableRowHover: e.target.value }
                           }))}
-                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 p-0.5"
+                          className={styles.colorInput}
                         />
-                        <span className="text-xs font-mono text-slate-400 uppercase">{themeConfig.general.tableRowHover}</span>
+                        <span className={styles.colorValue}>{themeConfig.general.tableRowHover}</span>
                       </div>
                     </div>
                   </div>
@@ -1727,7 +1728,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Permissions Tab */}
         {activeTab === 'permissions' && (
-          <div className="p-8">
+          <div className={styles.permissionsTab}>
             <PermissionsManager 
               profiles={permissionProfiles}
               onUpdateProfile={onUpdateProfile}
@@ -1742,34 +1743,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Add/Edit Label Modal */}
       <AnimatePresence>
         {isAddingLabel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalWrapper}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAddingLabel(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className={styles.modalContainer}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>
                   {editingLabelId ? 'Editar Etiqueta' : 'Nova Etiqueta'}
                 </h2>
-                <p className="text-sm opacity-70">Defina como as notícias serão classificadas</p>
+                <p className={styles.modalSubtitle}>Defina como as notícias serão classificadas</p>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Nome da Etiqueta</label>
+              <div className={styles.modalBody}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Nome da Etiqueta</label>
                   <input 
                     type="text"
-                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                    className={styles.modalInput}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1781,10 +1782,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setNewLabel(prev => ({ ...prev, name: e.target.value as any }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Descrição</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Descrição</label>
                   <textarea 
-                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 h-24 resize-none"
+                    className={styles.modalTextarea}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1796,28 +1797,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setNewLabel(prev => ({ ...prev, description: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider" style={{ color: themeConfig.general.modalText }}>Cor de Identificação</label>
-                  <div className="flex items-center gap-3">
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel} style={{ color: themeConfig.general.modalText }}>Cor de Identificação</label>
+                  <div className={styles.colorPickerRow}>
                     <input 
                       type="color" 
                       value={newLabel.color.startsWith('bg-') ? '#94a3b8' : newLabel.color}
                       onChange={(e) => setNewLabel(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-12 h-12 rounded-xl cursor-pointer border-2 border-slate-100 p-0.5"
+                      className={styles.labelColorPicker}
                     />
-                    <div className="flex-1">
-                      <p className="text-sm font-mono uppercase tracking-wider opacity-60">
+                    <div className={styles.colorPickerInfo}>
+                      <p className={styles.colorPickerValue}>
                         {newLabel.color.startsWith('bg-') ? '#94a3b8' : newLabel.color}
                       </p>
-                      <p className="text-[10px] opacity-40">Escolha uma cor para esta etiqueta</p>
+                      <p className={styles.colorPickerHint}>Escolha uma cor para esta etiqueta</p>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setIsAddingLabel(false)}
-                  className="px-4 py-2 text-sm font-medium opacity-70 hover:opacity-100"
+                  className={styles.cancelBtn}
                   style={{ color: themeConfig.general.modalText }}
                 >
                   Cancelar
@@ -1825,7 +1826,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button 
                   onClick={handleSaveLabel}
                   disabled={!newLabel.name || !newLabel.description}
-                  className="px-6 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors"
+                  className={styles.saveBtn}
                   style={{ backgroundColor: themeConfig.buttons.secondary, color: themeConfig.buttons.secondaryText }}
                 >
                   {editingLabelId ? 'Salvar Alterações' : 'Criar Etiqueta'}
@@ -1839,32 +1840,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Add User Modal */}
       <AnimatePresence>
         {isAddingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalWrapper}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAddingUser(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className={styles.modalContainer}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">Cadastrar Novo Usuário</h2>
-                <p className="text-sm opacity-70">Um convite será enviado para o e-mail informado</p>
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>Cadastrar Novo Usuário</h2>
+                <p className={styles.modalSubtitle}>Um convite será enviado para o e-mail informado</p>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Nome Completo</label>
+              <div className={styles.modalBody}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Nome Completo</label>
                   <input 
                     type="text"
-                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                    className={styles.modalInput}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1876,11 +1877,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">E-mail</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>E-mail</label>
                   <input 
                     type="email"
-                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                    className={styles.modalInput}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1892,10 +1893,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Perfil de Acesso</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Perfil de Acesso</label>
                   <select 
-                    className="w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                    className={styles.modalInput}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1913,10 +1914,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </select>
                 </div>
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setIsAddingUser(false)}
-                  className="px-4 py-2 text-sm font-medium opacity-70 hover:opacity-100"
+                  className={styles.cancelBtn}
                   style={{ color: themeConfig.general.modalText }}
                 >
                   Cancelar
@@ -1924,7 +1925,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button 
                   onClick={handleAddUser}
                   disabled={!newUser.name || !newUser.email}
-                  className="px-6 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors"
+                  className={styles.saveBtn}
                   style={{ backgroundColor: themeConfig.buttons.secondary, color: themeConfig.buttons.secondaryText }}
                 >
                   Enviar Convite

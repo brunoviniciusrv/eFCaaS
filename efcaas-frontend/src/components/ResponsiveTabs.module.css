@@ -1,0 +1,35 @@
+@reference "../index.css";
+
+.wrapper {
+  @apply flex flex-col gap-2 mb-6 sm:mb-0 w-full sm:w-fit;
+}
+
+.mobileWrapper {
+  @apply sm:hidden w-full;
+}
+
+.mobileSelect {
+  @apply w-full p-3 rounded-2xl border outline-none font-bold text-sm appearance-none;
+}
+
+.desktopWrapper {
+  @apply hidden sm:flex p-1 rounded-2xl border w-fit overflow-x-auto;
+  /* hide-scrollbar equivalent */
+  scrollbar-width: none;
+}
+
+.desktopWrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.tabBtn {
+  @apply flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap;
+}
+
+.tabBtnActive {
+  @apply shadow-sm;
+}
+
+.tabBtnInactive {
+  @apply opacity-40 hover:opacity-100;
+}
