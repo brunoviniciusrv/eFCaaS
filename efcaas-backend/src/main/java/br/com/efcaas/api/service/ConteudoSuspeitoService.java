@@ -52,8 +52,11 @@ public class ConteudoSuspeitoService {
         return conteudos.stream()
                 .map(c -> {
                     Checagem ch = checagemRepo.findByConteudoId(c.getId()).orElse(null);
+                    Parecer parecer = ch != null
+                            ? parecerRepo.findByChecagemId(ch.getId()).orElse(null)
+                            : null;
                     List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(c.getId());
-                    return mapper.toDtoSimples(c, ch, anexos);
+                    return mapper.toDtoSimples(c, ch, parecer, anexos);
                 })
                 .toList();
     }

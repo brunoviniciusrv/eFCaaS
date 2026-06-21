@@ -32,8 +32,8 @@ interface EditorialArchiveProps {
   articles: EditorialArticle[];
   news: NewsItem[];
   user: UserProfile;
-  onDeleteArticle: (id: string) => void;
-  onUpdateStatus: (id: string, status: ArticleStatus) => void;
+  onDeleteArticle: (id: string) => Promise<void>;
+  onUpdateStatus: (id: string, status: ArticleStatus) => Promise<void>;
   themeConfig: ThemeConfig;
 }
 
@@ -304,9 +304,13 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
 
                           {article.status !== 'published' && (
                             <button 
-                              onClick={() => {
+                              onClick={async () => {
                                 if (confirm('Publicar esta checagem oficialmente?')) {
-                                  onUpdateStatus(article.id, 'published');
+                                  try {
+                                    await onUpdateStatus(article.id, 'published');
+                                  } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Erro ao publicar.');
+                                  }
                                 }
                               }}
                               className="p-2 hover:bg-green-50 text-green-600 rounded-lg border border-transparent hover:border-green-100 transition-all font-black text-[10px] uppercase flex items-center gap-2"
@@ -316,9 +320,13 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                           )}
 
                           <button 
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm('Deseja excluir este artigo permanentemente?')) {
-                                onDeleteArticle(article.id);
+                                try {
+                                  await onDeleteArticle(article.id);
+                                } catch (err) {
+                                  alert(err instanceof Error ? err.message : 'Erro ao excluir.');
+                                }
                               }
                             }}
                             className="p-2 hover:bg-red-50 text-red-500 rounded-lg border border-transparent hover:border-red-100 transition-all"
