@@ -1,0 +1,356 @@
+@reference "../index.css";
+
+.page {
+  @apply fixed inset-0 z-[100] bg-slate-50 flex flex-col justify-between p-4 md:p-8 overflow-y-auto font-sans selection:bg-slate-900 selection:text-white;
+}
+
+.bgBlob1 {
+  @apply absolute inset-0 z-0 pointer-events-none overflow-hidden;
+}
+
+.bgGrad1 {
+  @apply absolute top-0 right-0 w-[600px] h-[600px] bg-blue-100/20 rounded-full blur-[100px] -mr-48 -mt-48;
+}
+
+.bgGrad2 {
+  @apply absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-100/10 rounded-full blur-[100px] -ml-40 -mb-40;
+}
+
+.topBar {
+  @apply relative z-10 max-w-5xl w-full mx-auto flex items-center justify-between pb-4 border-b border-slate-200/60 shrink-0;
+}
+
+.brand {
+  @apply flex items-center gap-2.5;
+}
+
+.brandIcon {
+  @apply w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center;
+}
+
+.brandTitle {
+  @apply text-xs font-black uppercase tracking-widest leading-none block;
+}
+
+.brandSub {
+  @apply text-[9px] font-bold text-slate-400 uppercase tracking-wider block;
+}
+
+.stepper {
+  @apply flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl;
+}
+
+.stepActive {
+  @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-900 text-white shadow-sm;
+}
+
+.stepDone {
+  @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-800;
+}
+
+.stepPending {
+  @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400;
+}
+
+.stepNumActive {
+  @apply w-4 h-4 rounded-full flex items-center justify-center text-[9px] bg-white text-slate-900 font-extrabold;
+}
+
+.stepNumDone {
+  @apply w-4 h-4 rounded-full flex items-center justify-center text-[9px] bg-slate-300 text-slate-800;
+}
+
+.stepNumPending {
+  @apply w-4 h-4 rounded-full flex items-center justify-center text-[9px] bg-slate-200 text-slate-400;
+}
+
+.stepLabel {
+  @apply hidden sm:inline text-[10px] uppercase tracking-wider;
+}
+
+.centerWrap {
+  @apply relative z-10 flex-1 max-w-5xl w-full mx-auto my-6 flex flex-col justify-center shrink-0;
+}
+
+.stepGrid {
+  @apply grid grid-cols-1 lg:grid-cols-12 gap-8 w-full;
+}
+
+.leftCard {
+  @apply lg:col-span-7 bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-100/50 space-y-6;
+}
+
+.cardSectionLabel {
+  @apply text-[10px] font-black uppercase tracking-widest block mb-1;
+}
+
+.cardTitle {
+  @apply text-2xl font-black uppercase tracking-tight text-slate-900;
+}
+
+.cardDesc {
+  @apply text-xs text-slate-500 mt-1;
+}
+
+.formSection {
+  @apply space-y-4;
+}
+
+.fieldGroup {
+  @apply space-y-1;
+}
+
+.fieldLabel {
+  @apply text-[10px] font-bold uppercase tracking-widest text-slate-400 block;
+}
+
+.textInput {
+  @apply w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold text-slate-900 text-base;
+}
+
+.twoCol {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.select {
+  @apply w-full px-4 py-3 rounded-xl border border-slate-200 outline-none font-bold text-slate-700 bg-white;
+}
+
+.logoSection {
+  @apply pt-2;
+}
+
+.logoDropzone {
+  @apply flex items-center gap-4 p-4 border border-slate-200 rounded-2xl bg-slate-50/50 hover:bg-slate-50 transition-colors;
+}
+
+.logoThumb {
+  @apply relative w-16 h-16 shrink-0 bg-white rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.logoImg {
+  @apply w-full h-full object-contain p-2;
+}
+
+.logoOverlay {
+  @apply absolute inset-0 cursor-pointer opacity-0 hover:opacity-100 bg-black/60 transition-opacity flex items-center justify-center text-white text-[10px] font-bold;
+}
+
+.logoInfo {
+  @apply min-w-0 flex-1;
+}
+
+.logoTitle {
+  @apply text-xs font-bold text-slate-700;
+}
+
+.logoHint {
+  @apply text-[10px] text-slate-400;
+}
+
+.logoLink {
+  @apply inline-block mt-1.5 text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer;
+}
+
+.rightCard {
+  @apply lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-100/50 space-y-6 flex flex-col justify-between;
+}
+
+.themeList {
+  @apply grid grid-cols-1 gap-2;
+}
+
+.themeBtn {
+  @apply flex items-center justify-between p-3 rounded-xl border text-left transition-all;
+}
+
+.themeBtnActive {
+  @apply border-slate-900 bg-slate-50 shadow-sm;
+}
+
+.themeBtnInactive {
+  @apply border-slate-100 hover:border-slate-200 bg-white;
+}
+
+.themeBtnInner {
+  @apply flex items-center gap-3 min-w-0;
+}
+
+.themeSwatches {
+  @apply flex gap-1 shrink-0 p-1 rounded-lg border border-slate-200/80;
+}
+
+.themeSwatch {
+  @apply w-4 h-4 rounded-full border shadow-inner;
+}
+
+.themeInfo {
+  @apply min-w-0;
+}
+
+.themeName {
+  @apply text-xs font-bold block text-slate-900 truncate;
+}
+
+.themeDarkBadge {
+  @apply ml-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500;
+}
+
+.themeDesc {
+  @apply text-[10px] text-slate-400 block truncate;
+}
+
+.themeCheck {
+  @apply w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-extrabold shrink-0 ml-2;
+}
+
+.fontGrid {
+  @apply grid grid-cols-3 gap-2;
+}
+
+.fontBtnActive {
+  @apply p-2.5 rounded-xl border text-center transition-all border-slate-900 bg-slate-50 shadow-sm font-bold text-slate-900;
+}
+
+.fontBtnInactive {
+  @apply p-2.5 rounded-xl border text-center transition-all border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 text-slate-600;
+}
+
+.fontName {
+  @apply text-[11px] block text-ellipsis overflow-hidden whitespace-nowrap;
+}
+
+.tip {
+  @apply bg-slate-50 p-4 rounded-2xl border border-slate-100 mt-4;
+}
+
+.tipText {
+  @apply text-[10px] text-slate-500 leading-relaxed font-semibold;
+}
+
+.governanceList {
+  @apply space-y-3;
+}
+
+.optionBtnActive {
+  @apply w-full p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 border-slate-900 bg-slate-50;
+}
+
+.optionBtnInactive {
+  @apply w-full p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 border-slate-100 bg-white hover:border-slate-200;
+}
+
+.optionIconActive {
+  @apply p-2 rounded-xl mt-0.5 bg-slate-900 text-white;
+}
+
+.optionIconInactive {
+  @apply p-2 rounded-xl mt-0.5 bg-slate-100 text-slate-500;
+}
+
+.optionTitle {
+  @apply text-xs font-bold text-slate-900;
+}
+
+.recommendedBadge {
+  @apply text-[8px] bg-slate-900 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider;
+}
+
+.optionDesc {
+  @apply text-[10px] text-slate-500 mt-1;
+}
+
+.infoNote {
+  @apply bg-slate-50/80 p-4 rounded-2xl border border-slate-100 text-slate-500 text-[10px] font-semibold leading-relaxed;
+}
+
+.launchCard {
+  @apply max-w-xl mx-auto w-full bg-white rounded-3xl border border-slate-200 p-8 shadow-2xl relative overflow-hidden text-center space-y-6;
+}
+
+.launchStripe {
+  @apply absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-indigo-500;
+}
+
+.launchIcon {
+  @apply w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner;
+}
+
+.launchTagline {
+  @apply text-[9px] font-black uppercase text-slate-400 tracking-widest block;
+}
+
+.launchTitle {
+  @apply text-2xl font-black uppercase tracking-tight text-slate-900 mt-1;
+}
+
+.launchDesc {
+  @apply text-xs text-slate-500 mt-2;
+}
+
+.identityBadge {
+  @apply p-4 border border-slate-200 rounded-2xl bg-slate-50 flex items-center gap-4 text-left;
+}
+
+.identityLogoWrap {
+  @apply w-12 h-12 rounded-xl flex items-center justify-center font-black overflow-hidden shrink-0;
+}
+
+.identityLogoImg {
+  @apply w-full h-full object-contain p-1.5;
+}
+
+.identityName {
+  @apply font-extrabold text-sm text-slate-800 leading-tight;
+}
+
+.identityMeta {
+  @apply flex items-center gap-2 mt-1;
+}
+
+.identityActiveBadge {
+  @apply text-[8px] bg-slate-900 text-white font-extrabold px-1.5 py-0.5 rounded-sm uppercase tracking-wider;
+}
+
+.identityLocale {
+  @apply text-[10px] text-slate-400 uppercase font-bold;
+}
+
+.confirmBtn {
+  @apply w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_20px_40px_-5px_rgba(15,23,42,0.15)] active:scale-[0.99];
+}
+
+.footer {
+  @apply relative z-10 max-w-5xl w-full mx-auto pt-4 border-t border-slate-200/60 mt-4 flex items-center justify-between shrink-0;
+}
+
+.footerLeft {
+  @apply flex items-center gap-3;
+}
+
+.exitBtn {
+  @apply flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors text-red-500 hover:text-red-700 hover:bg-red-50;
+}
+
+.prevBtnVisible {
+  @apply flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors text-slate-500 hover:text-slate-900 hover:bg-slate-100;
+}
+
+.prevBtnHidden {
+  @apply flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-widest transition-colors opacity-0 pointer-events-none;
+}
+
+.nextBtn {
+  @apply flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.nextBtnIcon {
+  @apply transition-transform;
+  /* REMOVED from @apply (not supported): group-hover:translate-x-0.5 */
+}
+
+.footerSpacer {
+  @apply w-10 h-10;
+}

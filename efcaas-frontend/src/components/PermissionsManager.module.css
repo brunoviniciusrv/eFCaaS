@@ -1,0 +1,248 @@
+@reference "../index.css";
+
+.page {
+  @apply space-y-6;
+}
+
+.pageHeader {
+  @apply flex items-center justify-between;
+}
+
+.pageTitle {
+  @apply text-xl font-black tracking-tight;
+}
+
+.pageSubtitle {
+  @apply text-sm opacity-60;
+}
+
+.newProfileBtn {
+  @apply flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all;
+}
+
+.layout {
+  @apply grid grid-cols-1 lg:grid-cols-3 gap-6;
+}
+
+.profileList {
+  @apply lg:col-span-1 space-y-3;
+}
+
+.profileCard {
+  @apply w-full p-4 rounded-2xl border text-left transition-all relative overflow-hidden;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.profileCardActive {
+  @apply ring-2 ring-offset-2;
+}
+
+.profileCardInactive {
+  @apply hover:border-slate-300;
+}
+
+.profileCardTop {
+  @apply flex items-center justify-between mb-1;
+}
+
+.profileCardName {
+  @apply flex items-center gap-2;
+}
+
+.profileName {
+  @apply font-black text-sm uppercase tracking-tight;
+}
+
+.profileDefault {
+  @apply text-[10px] font-bold uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full opacity-60;
+}
+
+.profileDesc {
+  @apply text-[11px] opacity-60 line-clamp-1;
+}
+
+.profileFooter {
+  @apply mt-3 flex items-center gap-2;
+}
+
+.profileCount {
+  @apply text-[10px] font-bold opacity-40 uppercase tracking-widest;
+}
+
+.profileChevron {
+  @apply ml-auto transition-transform;
+}
+
+.profileChevronActive {
+  @apply rotate-90;
+}
+
+.profileChevronInactive {
+  /* group-only apply removed */
+  /* REMOVED from @apply (not supported): group-hover:translate-x-1 */
+  /* NOTE: group-hover:translate-x-1 → needs parent:hover descendant rule */
+}
+
+.editorWrap {
+  @apply lg:col-span-2;
+}
+
+.editor {
+  @apply rounded-3xl border overflow-hidden;
+}
+
+.editorHeader {
+  @apply p-6 border-b flex items-center justify-between;
+}
+
+.editorHeaderLeft {
+  @apply flex items-center gap-3;
+}
+
+.editorIconWrap {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center;
+}
+
+.editorTitle {
+  @apply font-black text-sm uppercase tracking-tight;
+}
+
+.editorSubtitle {
+  @apply text-[11px] opacity-60 uppercase tracking-widest font-bold;
+}
+
+.editorHeaderRight {
+  @apply flex items-center gap-2;
+}
+
+.deleteBtn {
+  @apply p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors;
+}
+
+.closeBtn {
+  @apply p-2 opacity-40 hover:opacity-100 rounded-xl transition-all;
+}
+
+.editorBody {
+  @apply p-6 space-y-6;
+}
+
+.formGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.formGroup {
+  @apply space-y-2;
+}
+
+.formLabel {
+  @apply text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1;
+}
+
+.formInput {
+  @apply w-full px-4 py-3 bg-slate-50 border rounded-2xl text-sm focus:outline-none focus:ring-2 transition-all;
+}
+
+.permissionsWrap {
+  @apply space-y-4;
+}
+
+.permissionsHeader {
+  @apply flex items-center justify-between pb-2 border-b;
+}
+
+.permissionsTitle {
+  @apply text-xs font-black uppercase tracking-widest;
+}
+
+.permissionsCount {
+  @apply text-[10px] font-bold opacity-40 uppercase tracking-widest;
+}
+
+.categoryList {
+  @apply space-y-6;
+}
+
+.category {
+  @apply space-y-3;
+}
+
+.categoryTitle {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2;
+}
+
+.categoryDot {
+  @apply w-1.5 h-1.5 rounded-full;
+}
+
+.permGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-3;
+}
+
+.permBtn {
+  @apply flex items-start gap-3 p-3 rounded-xl border text-left transition-all;
+}
+
+.permBtnActive {
+  @apply bg-blue-50/50;
+}
+
+.permBtnInactive {
+  @apply hover:bg-slate-50;
+}
+
+.checkbox {
+  @apply mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all;
+}
+
+.checkboxChecked {
+  @apply text-white;
+}
+
+.checkboxUnchecked {
+  @apply bg-white;
+}
+
+.permName {
+  @apply text-xs font-bold leading-none mb-1 text-slate-900;
+}
+
+.permNameInactive {
+  @apply text-xs font-bold leading-none mb-1 text-slate-600;
+}
+
+.permDesc {
+  @apply text-[10px] opacity-50 leading-tight;
+}
+
+.editorFooter {
+  @apply p-6 bg-slate-50 border-t flex items-center justify-between;
+}
+
+.editorFooterNote {
+  @apply flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest;
+}
+
+.saveBtn {
+  @apply flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-tight shadow-lg shadow-blue-200 transition-all hover:scale-105 active:scale-95;
+}
+
+.emptyEditor {
+  @apply h-full flex flex-col items-center justify-center p-12 text-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50;
+}
+
+.emptyIconWrap {
+  @apply w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 opacity-40;
+}
+
+.emptyTitle {
+  @apply font-black text-sm uppercase tracking-tight text-slate-400;
+}
+
+.emptyDesc {
+  @apply text-xs text-slate-400 mt-2 max-w-xs;
+}
+
+.createBtn {
+  @apply mt-6 flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all border border-slate-200 bg-white hover:bg-slate-100;
+}

@@ -4,5 +4,9 @@ public record EvidenciaDto(
         String id,
         String tipo,
         String linkArquivo,
-        String descricao
+        String descricao,
+        String nomeArquivo,
+        Long tamanhoBytes,
+        String contentType,
+        String objectKey
 ) {}

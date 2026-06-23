@@ -1,0 +1,250 @@
+@reference "../index.css";
+
+.page {
+  @apply min-h-screen font-sans p-6 lg:p-10 transition-colors duration-300;
+}
+
+.inner {
+  @apply max-w-7xl mx-auto;
+}
+
+.pageHeader {
+  @apply flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10;
+}
+
+.pageTitle {
+  @apply text-3xl font-black tracking-tight flex items-center gap-3;
+}
+
+.pageSubtitle {
+  @apply text-sm font-medium mt-1 opacity-75;
+}
+
+.controls {
+  @apply flex items-center gap-3;
+}
+
+.searchWrap {
+  @apply relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.searchIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 opacity-50;
+}
+
+.searchInput {
+  @apply pl-10 pr-4 py-2 border rounded-xl outline-none transition-all w-64 text-sm;
+}
+
+.statusSelect {
+  @apply px-4 py-2 border rounded-xl outline-none text-sm font-semibold;
+}
+
+.categoryGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8;
+}
+
+.categoryCard {
+  @apply p-4 rounded-2xl border text-left transition-all hover:shadow-lg;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.categoryLabel {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-60 transition-opacity;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.categoryBottom {
+  @apply flex items-center justify-between mt-1;
+}
+
+.categoryCount {
+  @apply text-2xl font-black;
+}
+
+.dotSlate {
+  @apply w-2 h-2 rounded-full bg-slate-300;
+}
+
+.dotOrange {
+  @apply w-2 h-2 rounded-full bg-orange-400;
+}
+
+.dotBlue {
+  @apply w-2 h-2 rounded-full bg-blue-500;
+}
+
+.dotGreen {
+  @apply w-2 h-2 rounded-full bg-green-500;
+}
+
+.tableWrap {
+  @apply rounded-[2.5rem] border shadow-sm overflow-hidden;
+}
+
+.tableScroll {
+  @apply overflow-x-auto;
+}
+
+.table {
+  @apply w-full text-left;
+}
+
+.thead {
+  @apply border-b;
+}
+
+.th {
+  @apply px-6 py-4 text-[10px] font-black uppercase tracking-widest;
+}
+
+.thCenter {
+  @apply px-6 py-4 text-[10px] font-black uppercase tracking-widest text-center;
+}
+
+.thRight {
+  @apply px-6 py-4 text-[10px] font-black uppercase tracking-widest text-right;
+}
+
+.tbody {
+  @apply divide-y;
+}
+
+.emptyRow {
+  @apply px-6 py-20 text-center;
+}
+
+.emptyState {
+  @apply flex flex-col items-center opacity-30;
+}
+
+.emptyStateTitle {
+  @apply text-xl font-bold uppercase tracking-widest;
+}
+
+.emptyStateDesc {
+  @apply text-sm font-medium;
+}
+
+.tableRow {
+  @apply transition-colors;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.tdTitle {
+  @apply px-6 py-6;
+}
+
+.titleContent {
+  @apply flex flex-col gap-1 max-w-sm;
+}
+
+.articleTitle {
+  @apply text-sm font-bold transition-colors line-clamp-1;
+}
+
+.articleMeta {
+  @apply text-[10px] opacity-65 flex items-center gap-2;
+}
+
+.tdOrigin {
+  @apply px-6 py-6;
+}
+
+.originContent {
+  @apply flex flex-col gap-1;
+}
+
+.originTitle {
+  @apply text-[10px] font-bold opacity-75 line-clamp-1;
+}
+
+.originRef {
+  @apply text-[9px] font-black uppercase tracking-tight;
+}
+
+.tdStatus {
+  @apply px-6 py-6;
+}
+
+.statusCenter {
+  @apply flex justify-center;
+}
+
+.statusBadgePublished {
+  @apply flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-green-50 border-green-100 text-green-700;
+}
+
+.statusBadgeApproved {
+  @apply flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-blue-50 border-blue-100 text-blue-700;
+}
+
+.statusBadgeReview {
+  @apply flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-orange-50 border-orange-100 text-orange-700;
+}
+
+.statusBadgeDefault {
+  @apply flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-100 text-slate-600;
+}
+
+.tdActions {
+  @apply px-6 py-6 text-right;
+}
+
+.actions {
+  @apply flex items-center justify-end gap-2;
+}
+
+.editBtn {
+  @apply p-2 hover:bg-white hover:text-blue-600 rounded-lg border border-transparent hover:border-slate-200 transition-all;
+}
+
+.exportWrap {
+  @apply relative;
+}
+
+.exportBtnOpen {
+  @apply p-2 rounded-lg border transition-all bg-slate-900 text-white border-slate-900;
+}
+
+.exportBtnClosed {
+  @apply p-2 rounded-lg border transition-all hover:bg-white hover:text-slate-900 border-transparent hover:border-slate-200;
+}
+
+.exportDropdown {
+  @apply absolute right-0 top-full mt-2 w-40 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 z-30;
+}
+
+.exportDropdownHeader {
+  @apply px-4 pb-2 mb-2 border-b border-slate-50;
+}
+
+.exportDropdownTitle {
+  @apply text-[9px] font-black uppercase tracking-widest text-slate-400;
+}
+
+.exportItem {
+  @apply w-full px-4 py-2 text-left text-[10px] font-bold uppercase hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors flex items-center justify-between;
+}
+
+.publishBtn {
+  @apply p-2 hover:bg-green-50 text-green-600 rounded-lg border border-transparent hover:border-green-100 transition-all font-black text-[10px] uppercase flex items-center gap-2;
+}
+
+.deleteBtn {
+  @apply p-2 hover:bg-red-50 text-red-500 rounded-lg border border-transparent hover:border-red-100 transition-all;
+}
+
+.footer {
+  @apply mt-8 flex justify-center;
+}
+
+.backBtn {
+  @apply flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-bold hover:opacity-95 transition-all active:scale-95 shadow-md;
+}
+
+.categoryCard:hover .categoryLabel {
+  opacity: 1;
+}

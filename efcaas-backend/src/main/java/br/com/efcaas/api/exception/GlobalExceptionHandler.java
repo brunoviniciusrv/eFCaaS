@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.net.URI;
@@ -77,6 +78,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         pd.setType(URI.create("https://efcaas.com/errors/conflict"));
         pd.setProperty("timestamp", Instant.now());
         return pd;
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(
+                HttpStatus.PAYLOAD_TOO_LARGE, "Arquivo excede o limite de 200 MB.");
+        pd.setTitle("Arquivo muito grande");
+        pd.setType(URI.create("https://efcaas.com/errors/payload-too-large"));
+        pd.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(pd);
     }
 
     @Override

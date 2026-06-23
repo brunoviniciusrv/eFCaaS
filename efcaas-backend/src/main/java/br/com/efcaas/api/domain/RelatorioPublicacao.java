@@ -33,8 +33,20 @@ public class RelatorioPublicacao {
     @Column(name = "status_publicacao", length = 30)
     private String statusPublicacao = "draft";
 
+    @Column(length = 30)
+    private String template = "complete";
+
+    @Column(columnDefinition = "TEXT")
+    private String resumo;
+
+    @Column(name = "comentarios_json", columnDefinition = "TEXT")
+    private String comentariosJson;
+
     @Column(name = "data_criacao")
     private LocalDateTime dataCriacao = LocalDateTime.now();
+
+    @Column(name = "data_atualizacao")
+    private LocalDateTime dataAtualizacao = LocalDateTime.now();
 
     @Column(name = "data_publicacao")
     private LocalDateTime dataPublicacao;

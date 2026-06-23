@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, LogIn, Settings, HelpCircle, X, Shield, User, Search, CheckCircle } from 'lucide-react';
 import { ThemeConfig } from '../types';
-import { cn } from '../lib/utils';
+import styles from './LoginView.module.css';
 
 interface LoginViewProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -51,35 +51,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
   const accentColor = themeConfig.general.accent;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 font-sans" style={{ backgroundColor: `${accentColor}05` }}>
+    <div className={styles.page} style={{ backgroundColor: `${accentColor}05` }}>
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100"
+        className={styles.card}
       >
-        <div className="p-8 space-y-8">
+        <div className={styles.cardBody}>
           {/* Header */}
-          <div className="text-center space-y-2">
+          <div className={styles.header}>
             <div 
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden"
+              className={styles.logoWrap}
               style={{ backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}30` }}
             >
               {agencyConfig?.logoUrl ? (
-                <img src={agencyConfig.logoUrl} alt="Logo" className="w-full h-full object-fill" />
+                <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImg} />
               ) : (
                 <Shield className="text-white" size={32} />
               )}
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">{brandName}</h1>
-            {brandSub && <p className="text-sm text-slate-500 font-medium tracking-tight line-clamp-2">{brandSub}</p>}
+            <h1 className={styles.brandName}>{brandName}</h1>
+            {brandSub && <p className={styles.brandSub}>{brandSub}</p>}
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">E-mail</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+          <form onSubmit={handleLogin} className={styles.form}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>E-mail</label>
+              <div className={styles.inputWrap}>
+                <div className={styles.inputIcon}>
                   <Mail size={18} />
                 </div>
                 <input 
@@ -87,17 +87,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Seu e-mail de acesso"
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 transition-all"
+                  className={styles.input}
                   style={{ '--tw-ring-color': `${accentColor}30` } as any}
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Senha</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Senha</label>
+              <div className={styles.inputWrap}>
+                <div className={styles.inputIcon}>
                   <Lock size={18} />
                 </div>
                 <input 
@@ -105,7 +105,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 transition-all"
+                  className={styles.input}
                   style={{ '--tw-ring-color': `${accentColor}30` } as any}
                   required
                 />
@@ -116,7 +116,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
               <motion.p 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-xs font-bold text-red-500 text-center"
+                className={styles.errorMsg}
               >
                 {error}
               </motion.p>
@@ -125,11 +125,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+              className={styles.submitBtn}
               style={{ backgroundColor: accentColor, boxShadow: `0 10px 25px ${accentColor}40` }}
             >
               {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className={styles.spinner} />
               ) : (
                 <>
                   ACESSAR SISTEMA
@@ -140,16 +140,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
           </form>
 
           {/* Footer Actions */}
-          <div className="pt-6 border-t border-slate-50 flex flex-col gap-4">
-            <button 
-              onClick={onOpenOnboarding}
-              className="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest"
-              onMouseEnter={(e) => (e.currentTarget.style.color = accentColor)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '')}
-            >
-              <Settings size={14} />
-              Configurar Agência
-            </button>
+          <div className={styles.footerSection}>
+            <div className={styles.onboardingCard}>
+              <div className={styles.onboardingCardContent}>
+                <p className={styles.onboardingCardTitle}>Identidade Corporativa</p>
+                <p className={styles.onboardingCardDesc}>Personalize a identidade visual, governança e ferramentas de IA da sua agência.</p>
+              </div>
+              <button 
+                onClick={onOpenOnboarding}
+                className={styles.onboardingBtn}
+                style={{ backgroundColor: accentColor }}
+              >
+                <Settings size={10} strokeWidth={3} />
+                Ajustar
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -157,7 +162,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
       {/* Help Button */}
       <button 
         onClick={() => setShowHelp(true)}
-        className="fixed bottom-8 right-8 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:shadow-xl transition-all"
+        className={styles.helpBtn}
+        style={{ color: themeConfig.general.accent }}
       >
         <HelpCircle size={24} />
       </button>
@@ -165,44 +171,45 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
       {/* Help Modal */}
       <AnimatePresence>
         {showHelp && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className={styles.overlay}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl"
+              className={styles.modal}
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg font-black tracking-tight">Perfis de Teste</h2>
-                <button onClick={() => setShowHelp(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <div className={styles.modalHeader}>
+                <h2 className={styles.modalTitle}>Perfis de Teste</h2>
+                <button onClick={() => setShowHelp(false)} className={styles.modalCloseBtn}>
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={styles.accountGrid}>
                 {TEST_ACCOUNTS.map((account) => (
                   <button 
                     key={account.email}
                     onClick={() => fillCredentials(account.email)}
-                    className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all group"
+                    className={styles.accountCard}
+                    style={{ borderColor: `${themeConfig.general.accent}20` }}
                   >
-                    <div className="flex items-center gap-3 mb-2">
-                       <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
+                    <div className={styles.accountCardTop}>
+                       <div className={styles.accountIconWrap}>
                           {account.role === 'admin'   && <Shield      size={16} className="text-red-500" />}
-                          {account.role === 'curator' && <Search      size={16} className="text-blue-500" />}
+                          {account.role === 'curator' && <Search      size={16} style={{ color: themeConfig.general.accent }} />}
                           {account.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
                           {account.role === 'editor'  && <User        size={16} className="text-slate-500" />}
                        </div>
                        <div className="flex-1">
-                          <p className="text-xs font-black uppercase tracking-tight text-slate-900">{account.role}</p>
+                          <p className={styles.accountRoleLabel}>{account.role}</p>
                        </div>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600 truncate">{account.email}</p>
-                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Clique para preencher</p>
+                    <p className={styles.accountEmail}>{account.email}</p>
+                    <p className={styles.accountHint}>Clique para preencher</p>
                   </button>
                 ))}
               </div>
-              <div className="p-6 bg-slate-50 text-center">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              <div className={styles.modalFooter}>
+                <p className={styles.modalFooterText}>
                   Senha padrão para todos: <span className="text-slate-900">Admin@2026!</span>
                 </p>
               </div>

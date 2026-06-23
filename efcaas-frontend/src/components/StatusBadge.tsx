@@ -1,9 +1,8 @@
 import React from 'react';
 import { Clock, AlertCircle, CheckCircle } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { NewsStatus } from '../types';
-
 import { ThemeConfig } from '../types';
+import styles from './StatusBadge.module.css';
 
 interface StatusBadgeProps {
   status: NewsStatus;
@@ -23,7 +22,7 @@ export const StatusBadge = ({ status, themeConfig }: StatusBadgeProps) => {
   const { color, icon: Icon, label } = config;
   return (
     <span 
-      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
+      className={styles.badge}
       style={{ 
         backgroundColor: `${color}15`, 
         color: color,

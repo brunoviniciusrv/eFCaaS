@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -45,6 +46,10 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/configuracao/agencia").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/configuracao/agencia").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/checagens/*/evidencias/*/download").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/conteudos/*/anexos/*/download").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
@@ -66,7 +71,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
+        config.setExposedHeaders(List.of(
+                "Authorization", "Accept-Ranges", "Content-Range", "Content-Length"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

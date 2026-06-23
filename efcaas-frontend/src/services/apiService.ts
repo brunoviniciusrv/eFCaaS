@@ -5,7 +5,35 @@ import {
   LabelConfig,
   Evidence,
   ReportStructure,
+  AgencyConfig,
+  ThemeConfig,
+  EditorialArticle,
+  ArticleStatus,
+  EditorialComment,
 } from '../types';
+
+export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
+  summary: '',
+  questions: [''],
+  sources: [''],
+  isInverifiable: false,
+  contactWithAuthor: { hadContact: null },
+};
+
+export function normalizeReportStructure(
+  rs?: Partial<ReportStructure> | null
+): ReportStructure {
+  return {
+    ...DEFAULT_REPORT_STRUCTURE,
+    ...rs,
+    questions: rs?.questions?.length ? rs.questions : [''],
+    sources: rs?.sources?.length ? rs.sources : [''],
+    contactWithAuthor: {
+      ...DEFAULT_REPORT_STRUCTURE.contactWithAuthor,
+      ...rs?.contactWithAuthor,
+    },
+  };
+}
 
 // ─────────────────────────────────────────────
 // Tipos espelho dos DTOs do backend
@@ -39,6 +67,49 @@ export interface ApiConteudoDto {
   prioridade: string;
   checagem: ApiChecagemDto | null;
   analiseIa: unknown | null;
+  anexos?: ApiAnexoConteudoDto[];
+}
+
+export interface ApiAnexoConteudoDto {
+  id: string;
+  tipo: string;
+  urlAcesso: string;
+  nomeArquivo?: string | null;
+  contentType?: string | null;
+  tamanhoBytes?: number | null;
+  objectKey?: string | null;
+}
+
+export interface ApiRelatorioPublicacaoDto {
+  id: string;
+  newsId: string;
+  title: string;
+  excerpt?: string | null;
+  content?: string | null;
+  status: string;
+  template?: string | null;
+  authorId: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  comments?: ApiEditorialCommentDto[];
+}
+
+export interface ApiEditorialCommentDto {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
+  resolved: boolean;
+}
+
+export interface SalvarRelatorioPublicacaoBody {
+  titulo: string;
+  corpoTexto?: string;
+  resumo?: string;
+  statusPublicacao: ArticleStatus;
+  template?: string;
+  comentarios?: EditorialComment[];
 }
 
 export interface ApiChecagemDto {
@@ -111,11 +182,37 @@ export interface ApiAuditoriaDto {
   timestamp: string;
 }
 
+export interface ApiAgencyConfigDto {
+  name: string;
+  logoUrl: string;
+  isOnboardingCompleted: boolean;
+  language: string;
+  country: string;
+  timezone: string;
+  enableAI?: boolean;
+  enableSpecializedNetwork?: boolean;
+  enableSocialSearch?: boolean;
+  enableTrendAnalyzer?: boolean;
+  enableMisinfoRisk?: boolean;
+  enableIllicitRisk?: boolean;
+  useDefaultProfiles?: boolean;
+  templateId?: string;
+}
+
+export interface ApiConfiguracaoAgenciaDto {
+  agency: ApiAgencyConfigDto;
+  theme: ThemeConfig;
+}
+
 export interface ApiEvidenciaDto {
   id: string;
   tipo: string;
   linkArquivo: string;
   descricao: string;
+  nomeArquivo?: string | null;
+  tamanhoBytes?: number | null;
+  contentType?: string | null;
+  objectKey?: string | null;
 }
 
 // ─────────────────────────────────────────────
@@ -252,7 +349,7 @@ function mapUsuario(dto: ApiUsuarioDto): UserProfile {
 
 function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string): ReportStructure | undefined {
   if (!inv && !etiquetaNome) return undefined;
-  return {
+  return normalizeReportStructure({
     summary: inv?.resumoMetodologia ?? '',
     questions: inv?.perguntas?.length ? inv.perguntas : [''],
     sources: inv?.fontes?.length ? inv.fontes : [''],
@@ -263,7 +360,7 @@ function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string):
       justification: inv?.justificativaSemContato ?? undefined,
     },
     label: etiquetaNome,
-  };
+  });
 }
 
 function mapEvidencias(evidencias: ApiEvidenciaDto[]): Evidence[] {
@@ -271,10 +368,26 @@ function mapEvidencias(evidencias: ApiEvidenciaDto[]): Evidence[] {
     id: ev.id,
     type: (ev.tipo as Evidence['type']) ?? 'link',
     url: ev.linkArquivo ?? '',
-    title: ev.descricao ?? ev.linkArquivo ?? '',
+    title: ev.nomeArquivo ?? ev.descricao ?? ev.linkArquivo ?? '',
     description: ev.descricao ?? undefined,
     timestamp: new Date().toLocaleString(),
   }));
+}
+
+function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media'] {
+  return (anexos ?? []).map((anexo) => {
+    const tipo = anexo.tipo as 'image' | 'video' | 'audio' | 'document';
+    const type =
+      tipo === 'image' || tipo === 'video' || tipo === 'audio' || tipo === 'document'
+        ? tipo
+        : 'document';
+    return {
+      id: anexo.id,
+      type,
+      url: anexo.urlAcesso ?? '',
+      title: anexo.nomeArquivo ?? undefined,
+    };
+  });
 }
 
 function mapConteudo(dto: ApiConteudoDto): NewsItem {
@@ -306,6 +419,7 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
     ),
     report: ch?.parecer?.textoParecer ?? undefined,
     assignmentHistory: [],
+    media: mapAnexos(dto.anexos),
   };
 }
 
@@ -315,6 +429,68 @@ function mapEtiqueta(dto: ApiEtiquetaDto): LabelConfig {
     name: dto.nome,
     description: dto.descricao ?? '',
     color: dto.cor ?? '#6b7280',
+  };
+}
+
+function mapRelatorioPublicacao(dto: ApiRelatorioPublicacaoDto): EditorialArticle {
+  return {
+    id: dto.id,
+    newsId: dto.newsId,
+    title: dto.title ?? '',
+    excerpt: dto.excerpt ?? '',
+    content: dto.content ?? '',
+    status: (dto.status as ArticleStatus) ?? 'draft',
+    template: (dto.template as EditorialArticle['template']) ?? 'complete',
+    authorId: dto.authorId,
+    createdAt: dto.createdAt ?? new Date().toISOString(),
+    updatedAt: dto.updatedAt ?? new Date().toISOString(),
+    comments: (dto.comments ?? []).map((c) => ({
+      id: c.id,
+      userId: c.userId,
+      userName: c.userName,
+      text: c.text,
+      timestamp: c.timestamp,
+      resolved: c.resolved,
+    })),
+    versions: [],
+  };
+}
+
+function mapAgencyConfigFromApi(dto: ApiAgencyConfigDto): AgencyConfig {
+  return {
+    name: dto.name ?? '',
+    logoUrl: dto.logoUrl ?? '',
+    isOnboardingCompleted: dto.isOnboardingCompleted ?? false,
+    language: dto.language ?? 'pt-BR',
+    country: dto.country ?? 'Brasil',
+    timezone: dto.timezone ?? 'America/Sao_Paulo',
+    enableAI: dto.enableAI,
+    enableSpecializedNetwork: dto.enableSpecializedNetwork,
+    enableSocialSearch: dto.enableSocialSearch,
+    enableTrendAnalyzer: dto.enableTrendAnalyzer,
+    enableMisinfoRisk: dto.enableMisinfoRisk,
+    enableIllicitRisk: dto.enableIllicitRisk,
+    useDefaultProfiles: dto.useDefaultProfiles,
+    templateId: dto.templateId,
+  };
+}
+
+function mapAgencyConfigToApi(agency: AgencyConfig): ApiAgencyConfigDto {
+  return {
+    name: agency.name,
+    logoUrl: agency.logoUrl,
+    isOnboardingCompleted: agency.isOnboardingCompleted ?? false,
+    language: agency.language ?? 'pt-BR',
+    country: agency.country ?? 'Brasil',
+    timezone: agency.timezone ?? 'America/Sao_Paulo',
+    enableAI: agency.enableAI,
+    enableSpecializedNetwork: agency.enableSpecializedNetwork,
+    enableSocialSearch: agency.enableSocialSearch,
+    enableTrendAnalyzer: agency.enableTrendAnalyzer,
+    enableMisinfoRisk: agency.enableMisinfoRisk,
+    enableIllicitRisk: agency.enableIllicitRisk,
+    useDefaultProfiles: agency.useDefaultProfiles,
+    templateId: agency.templateId,
   };
 }
 
@@ -333,6 +509,29 @@ export const apiService = {
   async getMe(): Promise<UserProfile> {
     const dto = await api.get<ApiUsuarioDto>('/me');
     return mapUsuario(dto);
+  },
+
+  async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const dto = await api.get<ApiConfiguracaoAgenciaDto>('/configuracao/agencia');
+    const theme = dto.theme && Object.keys(dto.theme).length > 0 ? dto.theme : undefined;
+    return {
+      agency: mapAgencyConfigFromApi(dto.agency),
+      theme: theme as ThemeConfig,
+    };
+  },
+
+  async salvarConfiguracaoAgencia(
+    agency: AgencyConfig,
+    theme: ThemeConfig
+  ): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const dto = await api.put<ApiConfiguracaoAgenciaDto>('/configuracao/agencia', {
+      agency: mapAgencyConfigToApi(agency),
+      theme,
+    });
+    return {
+      agency: mapAgencyConfigFromApi(dto.agency),
+      theme: dto.theme as ThemeConfig,
+    };
   },
 
   // Usuários
@@ -385,6 +584,16 @@ export const apiService = {
     };
     const dto = await api.post<ApiConteudoDto>('/conteudos', apiBody);
     return mapConteudo(dto);
+  },
+
+  async uploadAnexoConteudo(conteudoId: string, file: File): Promise<ApiAnexoConteudoDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.upload<ApiAnexoConteudoDto>(`/conteudos/${conteudoId}/anexos/upload`, formData);
+  },
+
+  async removerAnexoConteudo(conteudoId: string, anexoId: string): Promise<void> {
+    return api.delete<void>(`/conteudos/${conteudoId}/anexos/${anexoId}`);
   },
 
   async obterConteudo(id: string): Promise<NewsItem> {
@@ -449,8 +658,62 @@ export const apiService = {
     return api.post<ApiEvidenciaDto>(`/checagens/${checagemId}/evidencias`, body);
   },
 
+  async uploadEvidenciaArquivo(
+    checagemId: string,
+    file: File,
+    descricao?: string
+  ): Promise<ApiEvidenciaDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (descricao) formData.append('descricao', descricao);
+    return api.upload<ApiEvidenciaDto>(`/checagens/${checagemId}/evidencias/upload`, formData);
+  },
+
   async removerEvidencia(checagemId: string, evidenciaId: string): Promise<void> {
     return api.delete<void>(`/checagens/${checagemId}/evidencias/${evidenciaId}`);
+  },
+
+  // Acervo editorial (relatorio_publicacao)
+  async listarRelatoriosPublicacao(): Promise<EditorialArticle[]> {
+    const dtos = await api.get<ApiRelatorioPublicacaoDto[]>('/relatorios-publicacao');
+    return dtos.map(mapRelatorioPublicacao);
+  },
+
+  async obterRelatorioPublicacao(conteudoId: string): Promise<EditorialArticle | null> {
+    try {
+      const dto = await api.get<ApiRelatorioPublicacaoDto>(
+        `/conteudos/${conteudoId}/relatorio-publicacao`
+      );
+      return mapRelatorioPublicacao(dto);
+    } catch {
+      return null;
+    }
+  },
+
+  async salvarRelatorioPublicacao(
+    conteudoId: string,
+    body: SalvarRelatorioPublicacaoBody
+  ): Promise<EditorialArticle> {
+    const dto = await api.put<ApiRelatorioPublicacaoDto>(
+      `/conteudos/${conteudoId}/relatorio-publicacao`,
+      body
+    );
+    return mapRelatorioPublicacao(dto);
+  },
+
+  async atualizarStatusRelatorioPublicacao(
+    relatorioId: string,
+    statusPublicacao: ArticleStatus
+  ): Promise<EditorialArticle> {
+    const dto = await api.patch<ApiRelatorioPublicacaoDto>(
+      `/relatorios-publicacao/${relatorioId}/status`,
+      { statusPublicacao }
+    );
+    return mapRelatorioPublicacao(dto);
+  },
+
+  async removerRelatorioPublicacao(relatorioId: string): Promise<void> {
+    return api.delete<void>(`/relatorios-publicacao/${relatorioId}`);
   },
 
   // Auditoria

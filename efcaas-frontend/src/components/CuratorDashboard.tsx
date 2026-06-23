@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Layout, 
   Users, 
@@ -59,14 +59,17 @@ import {
   NewsStatus, 
   AssignmentHistory,
   ReceivedNewsItem,
-  ReceivedNewsStatus
+  ReceivedNewsStatus,
+  AgencyConfig,
 } from '../types';
+import { isAiModuleEnabled } from '../config/aiModules';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
 import { apiService, YoutubeResultadoDto } from '../services/apiService';
+import styles from './CuratorDashboard.module.css';
 
 import { 
   DragDropContext, 
@@ -98,6 +101,7 @@ interface CuratorDashboardProps {
   onSendToSpecializedNetwork: (newsId: string) => void;
   specializedNetworkChecks: any[];
   onMoveTask?: (newsId: string, newStatus: NewsStatus) => Promise<void>;
+  agencyConfig: AgencyConfig;
 }
 
 type CuratorTab = 'triage' | 'received' | 'trends' | 'list' | 'kanban' | 'workload' | 'reviews' | 'specialized_network';
@@ -125,8 +129,11 @@ export const CuratorDashboard = ({
   onSendToSpecializedNetwork,
   specializedNetworkChecks,
   onMoveTask,
+  agencyConfig,
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
+  const socialSearchEnabled = isAiModuleEnabled(agencyConfig, 'enableSocialSearch');
+  const specializedNetworkEnabled = isAiModuleEnabled(agencyConfig, 'enableSpecializedNetwork');
   const [activeTab, setActiveTab] = useState<CuratorTab>(
     checkPermission('manage_received') ? 'received' : 
     checkPermission('review_and_approve') ? 'reviews' : 'list'
@@ -150,14 +157,14 @@ export const CuratorDashboard = ({
 
   const getSourceIcon = (source: string) => {
     const s = source?.toLowerCase() || '';
-    if (s.includes('whatsapp')) return <MessageCircle size={16} className="text-green-500" />;
-    if (s.includes('facebook')) return <FacebookIcon size={16} className="text-blue-600" />;
-    if (s.includes('instagram')) return <InstagramIcon size={16} className="text-pink-600" />;
-    if (s.includes('telegram')) return <Send size={16} className="text-sky-500" />;
-    if (s.includes('e-mail') || s.includes('email')) return <Mail size={16} className="text-slate-500" />;
-    if (s.includes('tiktok')) return <TrendingUp size={16} className="text-black" />;
-    if (s.includes('twitter') || s.includes('x')) return <Info size={16} className="text-slate-800" />;
-    return <Inbox size={16} className="text-slate-500" />;
+    if (s.includes('whatsapp')) return <MessageCircle size={16} className={styles.iconGreen} />;
+    if (s.includes('facebook')) return <FacebookIcon size={16} className={styles.iconBlue600} />;
+    if (s.includes('instagram')) return <InstagramIcon size={16} className={styles.iconPink} />;
+    if (s.includes('telegram')) return <Send size={16} className={styles.iconSky} />;
+    if (s.includes('e-mail') || s.includes('email')) return <Mail size={16} className={styles.iconSlate} />;
+    if (s.includes('tiktok')) return <TrendingUp size={16} className={styles.iconBlack} />;
+    if (s.includes('twitter') || s.includes('x')) return <Info size={16} className={styles.iconDark} />;
+    return <Inbox size={16} className={styles.iconSlate} />;
   };
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -192,6 +199,58 @@ export const CuratorDashboard = ({
   });
   const [isExtracting, setIsExtracting] = useState(false);
   const [detailedCheckerId, setDetailedCheckerId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (socialSearchEnabled) return;
+    setExtractionParams((prev) => ({
+      ...prev,
+      platforms: {
+        youtube: false,
+        reddit: false,
+        facebook: false,
+        telegram: false,
+      },
+    }));
+    setIsExtractionModalOpen(false);
+  }, [socialSearchEnabled]);
+
+  React.useEffect(() => {
+    if (specializedNetworkEnabled) return;
+    if (activeTab === 'specialized_network') {
+      setActiveTab(checkPermission('manage_received') ? 'received' : 'triage');
+    }
+  }, [specializedNetworkEnabled, activeTab, checkPermission]);
+
+  const extractionPlatforms = useMemo(
+    () =>
+      socialSearchEnabled
+        ? [
+            { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
+            { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
+            { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
+            { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' },
+          ]
+        : [],
+    [socialSearchEnabled]
+  );
+
+  const curatorTabs = useMemo(
+    () =>
+      [
+        { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
+        { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+        ...(specializedNetworkEnabled
+          ? [{ id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' }]
+          : []),
+        { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
+        { id: 'list', label: 'Publicações', icon: Activity },
+        { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
+        { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
+        { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' },
+      ].filter((tab) => !tab.permission || checkPermission(tab.permission)),
+    [specializedNetworkEnabled, checkPermission]
+  );
+
   const [newNews, setNewNews] = useState({
     title: '',
     alegacao: '',
@@ -202,6 +261,9 @@ export const CuratorDashboard = ({
     assignedTo: '',
     briefing: ''
   });
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const registerFileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_ATTACHMENT_BYTES = 200 * 1024 * 1024;
   const [selectedStatus, setSelectedStatus] = useState<NewsStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'assignedTo'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -364,8 +426,9 @@ export const CuratorDashboard = ({
       alert("Título é obrigatório.");
       return;
     }
-    onAddNews(newNews);
+    onAddNews({ ...newNews, attachments: pendingAttachments });
     setIsRegisterModalOpen(false);
+    setPendingAttachments([]);
     setNewNews({ 
       title: '',
       alegacao: '',
@@ -392,6 +455,39 @@ export const CuratorDashboard = ({
       ? [{ type: 'image' as const, url: dto.thumbnailHigh }]
       : [],
   });
+
+  const formatAttachmentSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const addPendingAttachments = (files: FileList | File[]) => {
+    const incoming = Array.from(files);
+    const valid: File[] = [];
+    for (const file of incoming) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        alert(`"${file.name}" excede o limite de 200 MB.`);
+        continue;
+      }
+      valid.push(file);
+    }
+    if (valid.length === 0) return;
+    setPendingAttachments((prev) => {
+      const names = new Set(prev.map((f) => `${f.name}-${f.size}`));
+      return [...prev, ...valid.filter((f) => !names.has(`${f.name}-${f.size}`))];
+    });
+  };
+
+  const handleRegisterFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) addPendingAttachments(e.target.files);
+    e.target.value = '';
+  };
+
+  const handleRegisterDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files?.length) addPendingAttachments(e.dataTransfer.files);
+  };
 
   const handleExecuteExtraction = async () => {
     if (!extractionParams.query.trim()) {
@@ -488,18 +584,18 @@ export const CuratorDashboard = ({
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8" style={{ color: themeConfig.dashboard.text }}>
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
-        <div className="flex items-center gap-4">
-           <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg rotate-2">
+    <div className={styles.wrapper} style={{ color: themeConfig.dashboard.text }}>
+      <header className={styles.header}>
+        <div className={styles.headerLeft}>
+           <div className={styles.headerIcon}>
              <Activity size={24} />
            </div>
            <div>
-             <h1 className="text-2xl font-black tracking-tight">Curadoria de Conteúdo</h1>
-             <p className="text-xs opacity-50 font-bold uppercase tracking-wider">Gestão e Distribuição Editorial</p>
+             <h1 className={styles.headerTitle}>Curadoria de Conteúdo</h1>
+             <p className={styles.headerSubtitle}>Gestão e Distribuição Editorial</p>
            </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className={styles.headerActions}>
           <NotificationBell 
             notifications={notifications}
             onMarkAsRead={onMarkNotifAsRead}
@@ -511,40 +607,31 @@ export const CuratorDashboard = ({
       </header>
 
       {/* Tabs */}
-      <div className="w-full sm:w-fit">
+      <div className={styles.tabsWrapper}>
         <ResponsiveTabs
           activeTab={activeTab}
           setActiveTab={setActiveTab as any}
           themeConfig={themeConfig}
-          tabs={[
-            { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
-            { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
-            { id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' },
-            { id: 'triage', label: 'Triagem', icon: List, permission: 'manage_triage' },
-            { id: 'list', label: 'Publicações', icon: Activity },
-            { id: 'kanban', label: 'Fluxo', icon: Kanban, permission: 'assign_tasks' },
-            { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
-            { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' }
-          ].filter(tab => !tab.permission || checkPermission(tab.permission))}
+          tabs={curatorTabs}
         />
       </div>
 
-      {/* Triage View */}
+      {/* Received View */}
       {activeTab === 'received' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+        <div className={styles.tabPanel}>
           {!showExtractionResults ? (
             <>
-              <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar nos Recebidos</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+              <div className={styles.filterRow}>
+                <div className={styles.filterField}>
+                  <label className={styles.fieldLabel}>Buscar nos Recebidos</label>
+                  <div className={styles.inputWrapper}>
+                    <Search className={styles.searchIcon} size={18} />
                     <input 
                       type="text"
                       value={receivedSearchQuery}
                       onChange={(e) => setReceivedSearchQuery(e.target.value)}
                       placeholder="Título, conteúdo ou remetente..."
-                      className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                      className={styles.searchInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -554,26 +641,28 @@ export const CuratorDashboard = ({
                     />
                   </div>
                 </div>
-                <div className="w-full md:w-auto flex gap-2">
+                <div className={styles.filterActionsWrapper}>
+                  {socialSearchEnabled && (
                   <button 
                     onClick={() => setIsExtractionModalOpen(true)}
-                    className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    className={styles.extractionButton}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Zap size={16} />
                     Busca e Extração
                   </button>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium opacity-60">
+              <div className={styles.listMetaRow}>
+                <p className={styles.listCount}>
                   {filteredReceivedNews.length} conteúdos recebidos externos
                 </p>
-                <div className="flex items-center gap-2">
+                <div className={styles.sortActionsRow}>
                   <button 
                     onClick={() => setSortReceivedOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors hover:bg-slate-50"
+                    className={styles.sortButton}
                     style={{ borderColor: themeConfig.general.border }}
                   >
                     {sortReceivedOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigas'}
@@ -582,65 +671,69 @@ export const CuratorDashboard = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={styles.cardGrid}>
                 {filteredReceivedNews.map(item => (
                   <div 
                     key={item.id}
-                    className="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 group relative"
+                    className={styles.receivedCard}
                     style={{ 
                       backgroundColor: themeConfig.general.cardBackground, 
                       borderColor: themeConfig.general.border
                     }}
                   >
                     {item.status === 'received' && (
-                      <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                      <div className={styles.newDot} />
                     )}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.cardContent}>
+                      <div className={styles.cardTop}>
+                        <div className={styles.sourceBadge} style={{ borderColor: themeConfig.general.border }}>
                           {getSourceIcon(item.sourceType)}
-                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{item.sourceType}</span>
+                          <span className={styles.sourceBadgeText}>{item.sourceType}</span>
                         </div>
-                        <span className="text-[10px] opacity-40 font-medium">{new Date(item.receivedAt).toLocaleString()}</span>
+                        <span className={styles.cardDate}>{new Date(item.receivedAt).toLocaleString()}</span>
                       </div>
                       
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                        <p className="text-sm opacity-60 line-clamp-2">{item.excerpt}</p>
+                      <div className={styles.cardTitleBlock}>
+                        <h3 className={styles.cardTitle}>{item.title}</h3>
+                        <p className={styles.cardExcerpt}>{item.excerpt}</p>
                       </div>
 
-                      <div className="flex items-center gap-3 pt-2">
-                        <div className="flex -space-x-1">
+                      <div className={styles.cardMeta}>
+                        <div className={styles.mediaStack}>
                           {item.media?.map((m, i) => (
-                            <div key={i} className="w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center">
-                              {m.type === 'image' && <Upload size={10} className="text-blue-500" />}
-                              {m.type === 'video' && <TrendingUp size={10} className="text-red-500" />}
-                              {m.type === 'audio' && <Bell size={10} className="text-green-500" />}
-                              {m.type === 'document' && <FileText size={10} className="text-slate-500" />}
+                            <div key={i} className={styles.mediaThumb}>
+                              {m.type === 'image' && <Upload size={10} className={styles.iconBlue500} />}
+                              {m.type === 'video' && <TrendingUp size={10} className={styles.iconRed500} />}
+                              {m.type === 'audio' && <Bell size={10} className={styles.iconGreen} />}
+                              {m.type === 'document' && <FileText size={10} className={styles.iconSlate} />}
                             </div>
                           ))}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Remetente</span>
-                          <span className="text-xs font-medium">{item.senderName || 'Desconhecido'}</span>
+                        <div className={styles.senderBlock}>
+                          <span className={styles.senderLabel}>Remetente</span>
+                          <span className={styles.senderNameText}>{item.senderName || 'Desconhecido'}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.cardActions} style={{ borderColor: themeConfig.general.border }}>
                       <button 
                         onClick={() => {
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                        className={styles.viewButton}
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                        }}
                       >
                         <Eye size={14} />
                         Visualizar
                       </button>
                       <button 
                         onClick={() => onForwardToTriage(item)}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                        className={styles.triageButton}
                         style={{ backgroundColor: `${themeConfig.general.accent}15`, color: themeConfig.general.accent }}
                       >
                         <ArrowUpRight size={14} />
@@ -648,7 +741,7 @@ export const CuratorDashboard = ({
                       </button>
                       <button 
                         onClick={() => onDeleteReceivedNews(item.id)}
-                        className="p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                        className={styles.deleteButton}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -658,34 +751,34 @@ export const CuratorDashboard = ({
               </div>
 
               {filteredReceivedNews.length === 0 && (
-                <div className="text-center py-20 opacity-40">
-                  <Inbox size={48} className="mx-auto mb-4" />
-                  <p className="text-lg font-bold">Nenhum conteúdo recebido</p>
-                  <p className="text-sm">Não há conteúdo externo correspondente aos filtros.</p>
+                <div className={styles.emptyState}>
+                  <Inbox size={48} className={styles.emptyStateIcon} />
+                  <p className={styles.emptyTitle}>Nenhum conteúdo recebido</p>
+                  <p className={styles.emptySubtext}>Não há conteúdo externo correspondente aos filtros.</p>
                 </div>
               )}
             </>
           ) : (
             <>
-              <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className={styles.filterRow}>
                 <button 
                   onClick={() => setShowExtractionResults(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 hover:bg-slate-50 transition-all"
+                  className={styles.backButton}
                   style={{ borderColor: themeConfig.general.border }}
                 >
                   <ArrowLeft size={16} />
                   Voltar
                 </button>
-                <div className="flex-1 space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Localizar Publicações Encontradas</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+                <div className={styles.filterField}>
+                  <label className={styles.fieldLabel}>Localizar Publicações Encontradas</label>
+                  <div className={styles.inputWrapper}>
+                    <Search className={styles.searchIcon} size={18} />
                     <input 
                       type="text"
                       value={extractionSearchQuery}
                       onChange={(e) => setExtractionSearchQuery(e.target.value)}
                       placeholder="Filtrar resultados da busca..."
-                      className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                      className={styles.searchInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -697,68 +790,62 @@ export const CuratorDashboard = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-md">
+              <div className={styles.extractionResultsHeader}>
+                <div className={styles.extractionResultsBadgeBlock}>
+                  <div className={styles.extractionResultsIconBadge}>
                     <Zap size={14} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">Resultados da Busca Automática</p>
-                    <p className="text-[10px] opacity-50 uppercase font-black tracking-widest">{filteredExtractionResults.length} Encontrados</p>
+                    <p className={styles.extractionResultsTitle}>Resultados da Busca Automática</p>
+                    <p className={styles.extractionResultsCount}>{filteredExtractionResults.length} Encontrados</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={styles.cardGrid}>
                 {filteredExtractionResults.map(item => (
                   <div 
                     key={item.id}
-                    className="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 group relative bg-blue-50/20"
+                    className={styles.extractionCard}
                     style={{ 
                       borderColor: themeConfig.general.border
                     }}
                   >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white border" style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.cardContent}>
+                      <div className={styles.cardTop}>
+                        <div className={styles.extractionWhiteBadge} style={{ borderColor: themeConfig.general.border }}>
                           {getSourceIcon(item.sourceType)}
-                          <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{item.sourceType}</span>
+                          <span className={styles.sourceBadgeText}>{item.sourceType}</span>
                         </div>
-                        <span className="text-[10px] opacity-40 font-medium">Extraído às {new Date(item.receivedAt).toLocaleTimeString()}</span>
+                        <span className={styles.cardDate}>Extraído às {new Date(item.receivedAt).toLocaleTimeString()}</span>
                       </div>
                       
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-lg leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.title}</h3>
-                        <p className="text-sm opacity-60 line-clamp-3 leading-relaxed">{item.content}</p>
+                      <div className={styles.cardTitleBlock}>
+                        <h3 className={styles.extractionCardTitle}>{item.title}</h3>
+                        <p className={styles.extractionCardExcerpt}>{item.content}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.cardActions} style={{ borderColor: themeConfig.general.border }}>
                       <button 
                         onClick={() => {
                           setSelectedReceivedItem(item);
                           setIsReceivedDetailOpen(true);
                         }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-white border hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        style={{ borderColor: themeConfig.general.border }}
+                        className={styles.extractionViewButton}
+                        style={{
+                          backgroundColor: themeConfig.general.mutedBackground,
+                          color: themeConfig.general.mutedText,
+                          borderColor: themeConfig.general.border,
+                        }}
                       >
                         <Eye size={14} />
                         Detalhes
                       </button>
-                      <button
-                        onClick={() => {
-                          onAddNews({
-                            title: item.title,
-                            alegacao: item.content,
-                            descricao: item.excerpt,
-                            link: item.originalLink,
-                            fonte: item.senderName,
-                            priority: 'medium',
-                          });
-                          setExtractionResults(prev => prev.filter(r => r.id !== item.id));
-                        }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                      <button 
+                        onClick={() => onForwardToTriage(item)}
+                        className={styles.extractionTriageButton}
+                        style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                       >
                         <ArrowUpRight size={14} />
                         Triagem
@@ -769,10 +856,10 @@ export const CuratorDashboard = ({
               </div>
 
               {filteredExtractionResults.length === 0 && (
-                <div className="text-center py-20 opacity-40">
-                  <SearchIcon size={48} className="mx-auto mb-4" />
-                  <p className="text-lg font-bold">Nenhum resultado corresponde ao filtro</p>
-                  <p className="text-sm">Tente outro termo de busca.</p>
+                <div className={styles.emptyState}>
+                  <SearchIcon size={48} className={styles.emptyStateIcon} />
+                  <p className={styles.emptyTitle}>Nenhum resultado corresponde ao filtro</p>
+                  <p className={styles.emptySubtext}>Tente outro termo de busca.</p>
                 </div>
               )}
             </>
@@ -790,18 +877,18 @@ export const CuratorDashboard = ({
 
       {/* Triage View */}
       {activeTab === 'triage' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar Notícias</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+        <div className={styles.tabPanel}>
+          <div className={styles.filterRow}>
+            <div className={styles.filterField}>
+              <label className={styles.fieldLabel}>Buscar Notícias</label>
+              <div className={styles.inputWrapper}>
+                <Search className={styles.searchIcon} size={18} />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Título, conteúdo ou fonte..."
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                  className={styles.searchInput}
                   style={{ 
                     backgroundColor: themeConfig.general.inputBackground, 
                     borderColor: themeConfig.general.inputBorder,
@@ -811,9 +898,9 @@ export const CuratorDashboard = ({
                 />
               </div>
             </div>
-            <div className="w-full md:w-32 space-y-2">
+            <div className={styles.filterFieldSmall}>
               <label 
-                className="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300"
+                className={styles.rangeLabel}
                 style={{ color: gravityFilter > 10 ? themeConfig.status.error : 'inherit', opacity: gravityFilter > 10 ? 1 : 0.5 }}
               >
                 Gravidade ({gravityFilter}%)
@@ -824,15 +911,15 @@ export const CuratorDashboard = ({
                 max="100"
                 value={gravityFilter}
                 onChange={(e) => setGravityFilter(parseInt(e.target.value))}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer transition-all hover:h-2"
+                className={styles.rangeInput}
                 style={{ 
                   background: `linear-gradient(to right, ${themeConfig.status.error} 0%, ${themeConfig.status.error} ${gravityFilter}%, #e2e8f0 ${gravityFilter}%, #e2e8f0 100%)`,
                 }}
               />
             </div>
-            <div className="w-full md:w-32 space-y-2">
+            <div className={styles.filterFieldSmall}>
               <label 
-                className="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300"
+                className={styles.rangeLabel}
                 style={{ color: urgencyFilter > 10 ? themeConfig.status.warning : 'inherit', opacity: urgencyFilter > 10 ? 1 : 0.5 }}
               >
                 Urgência ({urgencyFilter}%)
@@ -843,15 +930,15 @@ export const CuratorDashboard = ({
                 max="100"
                 value={urgencyFilter}
                 onChange={(e) => setUrgencyFilter(parseInt(e.target.value))}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer transition-all hover:h-2"
+                className={styles.rangeInput}
                 style={{ 
                   background: `linear-gradient(to right, ${themeConfig.status.warning} 0%, ${themeConfig.status.warning} ${urgencyFilter}%, #e2e8f0 ${urgencyFilter}%, #e2e8f0 100%)`,
                 }}
               />
             </div>
-            <div className="w-full md:w-32 space-y-2">
+            <div className={styles.filterFieldSmall}>
               <label 
-                className="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300"
+                className={styles.rangeLabel}
                 style={{ color: trendFilter > 10 ? themeConfig.status.info : 'inherit', opacity: trendFilter > 10 ? 1 : 0.5 }}
               >
                 Tendência ({trendFilter}%)
@@ -862,7 +949,7 @@ export const CuratorDashboard = ({
                 max="100"
                 value={trendFilter}
                 onChange={(e) => setTrendFilter(parseInt(e.target.value))}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer transition-all hover:h-2"
+                className={styles.rangeInput}
                 style={{ 
                   background: `linear-gradient(to right, ${themeConfig.status.info} 0%, ${themeConfig.status.info} ${trendFilter}%, #e2e8f0 ${trendFilter}%, #e2e8f0 100%)`,
                 }}
@@ -870,14 +957,14 @@ export const CuratorDashboard = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <p className="text-sm font-medium opacity-60">{filteredNews.length} notícias pendentes de triagem</p>
+          <div className={styles.triageToolbar}>
+            <div className={styles.triageToolbarLeft}>
+              <p className={styles.listCount}>{filteredNews.length} notícias pendentes de triagem</p>
               {checkPermission('create_news') && (
                 <button 
                   onClick={() => setIsRegisterModalOpen(true)}
-                  className="px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2"
-                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                  className={styles.registerNewsButton}
+                  style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                 >
                   <Plus size={18} />
                   Registrar Notícia
@@ -885,11 +972,11 @@ export const CuratorDashboard = ({
               )}
             </div>
             {selectedNewsIds.length > 0 && (
-              <div className="flex items-center gap-3 animate-in zoom-in">
-                <span className="text-sm font-bold" style={{ color: themeConfig.general.accent }}>{selectedNewsIds.length} selecionadas</span>
+              <div className={styles.bulkActionsRow}>
+                <span className={styles.bold} style={{ color: themeConfig.general.accent }}>{selectedNewsIds.length} selecionadas</span>
                 <button 
                   onClick={() => handleOpenAssign()}
-                  className="px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2"
+                  className={styles.bulkAssignButton}
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   <UserPlus size={18} />
@@ -899,13 +986,13 @@ export const CuratorDashboard = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className={styles.triageList}>
             {filteredNews.map(item => (
               <div 
                 key={item.id}
                 className={cn(
-                  "p-6 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-start gap-6 cursor-pointer hover:shadow-md",
-                  selectedNewsIds.includes(item.id) ? "ring-2" : ""
+                  styles.triageCard,
+                  selectedNewsIds.includes(item.id) ? styles.triageCardSelected : ''
                 )}
                 style={{ 
                   backgroundColor: themeConfig.general.cardBackground, 
@@ -917,7 +1004,7 @@ export const CuratorDashboard = ({
                   setIsTriagePreviewOpen(true);
                 }}
               >
-                <div className="flex items-start gap-4 flex-1 overflow-hidden">
+                <div className={styles.triageCardLeft}>
                   <input 
                     type="checkbox"
                     checked={selectedNewsIds.includes(item.id)}
@@ -925,60 +1012,60 @@ export const CuratorDashboard = ({
                       e.stopPropagation();
                       handleToggleSelection(item.id);
                     }}
-                    className="w-5 h-5 mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className={styles.triageCheckbox}
                   />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className={styles.triageCardInfo}>
+                    <div className={styles.triageCardMetaRow}>
                       <StatusBadge status={item.status} themeConfig={themeConfig} />
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
+                      <div className={styles.triageSourceBadge} style={{ borderColor: themeConfig.general.border }}>
                         {getSourceIcon(item.source)}
-                        <span className="text-[10px] font-bold uppercase opacity-60">{item.source}</span>
+                        <span className={styles.triageSourceText}>{item.source}</span>
                       </div>
-                      <span className="text-xs opacity-40">{item.date}</span>
+                      <span className={styles.triageDate}>{item.date}</span>
                     </div>
-                    <h3 className="text-lg font-bold leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                    <p className="text-sm opacity-70 line-clamp-2">{item.content}</p>
-                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <h3 className={styles.triageTitle}>{item.title}</h3>
+                    <p className={styles.triageContent}>{item.content}</p>
+                    <div className={styles.triageCardFooter}>
                       {(item.senderName || item.senderAddress) && (
-                        <div className="flex items-center gap-1">
-                          <User size={12} className="opacity-40" />
-                          <span className="text-[10px] font-medium opacity-50">
+                        <div className={styles.triageSenderBlock}>
+                          <User size={12} className={styles.iconMuted} />
+                          <span className={styles.triageSenderText}>
                             {item.senderName || 'Remetente'} {item.senderAddress ? `(${item.senderAddress})` : ''}
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Box size={10} className="opacity-30" />
-                        <span className="text-[10px] font-mono opacity-30">{item.id}</span>
+                      <div className={styles.triageIdBlock}>
+                        <Box size={10} className={styles.iconVeryMuted} />
+                        <span className={styles.triageId}>{item.id}</span>
                       </div>
                       {item.receivedAt && (
-                        <div className="flex items-center gap-1 opacity-30">
+                        <div className={styles.triageTimeBlock}>
                           <Clock size={10} />
-                          <span className="text-[10px] font-bold">{new Date(item.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className={styles.triageTimeText}>{new Date(item.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-between gap-4 w-full md:w-[280px] shrink-0">
-                  <div className="space-y-3 p-4 rounded-2xl bg-slate-50/50 border" style={{ borderColor: themeConfig.general.border }}>
-                    <div className="space-y-2">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                <div className={styles.triageCardRight}>
+                  <div className={styles.aiScoresPanel} style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.aiScoresInner}>
+                      <div className={styles.aiScoreItem}>
+                        <div className={styles.aiScoreHeader}>
                           <span>Gravidade</span>
                           {item.isAIProcessing ? (
-                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                            <span className={styles.calculatingLabel}>Calculando...</span>
                           ) : (
                             <span>{item.aiScores?.gravity}%</span>
                           )}
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div className={styles.aiScoreBarBg}>
                           {item.isAIProcessing ? (
-                            <div className="h-full w-1/3 bg-blue-400 animate-loading-shimmer" />
+                            <div className={styles.aiLoadingBar1} />
                           ) : (
                             <div 
-                              className="h-full transition-all duration-1000" 
+                              className={styles.aiScoreBarFill}
                               style={{ 
                                 width: `${item.aiScores?.gravity}%`, 
                                 backgroundColor: (item.aiScores?.gravity || 0) > 70 ? themeConfig.status.error : themeConfig.status.warning 
@@ -987,21 +1074,21 @@ export const CuratorDashboard = ({
                           )}
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                      <div className={styles.aiScoreItem}>
+                        <div className={styles.aiScoreHeader}>
                           <span>Urgência</span>
                           {item.isAIProcessing ? (
-                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                            <span className={styles.calculatingLabel}>Calculando...</span>
                           ) : (
                             <span>{item.aiScores?.urgency}%</span>
                           )}
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div className={styles.aiScoreBarBg}>
                           {item.isAIProcessing ? (
-                            <div className="h-full w-1/2 bg-blue-400 animate-loading-shimmer" />
+                            <div className={styles.aiLoadingBar2} />
                           ) : (
                             <div 
-                              className="h-full transition-all duration-1000" 
+                              className={styles.aiScoreBarFill}
                               style={{ 
                                 width: `${item.aiScores?.urgency}%`, 
                                 backgroundColor: themeConfig.status.warning 
@@ -1010,21 +1097,21 @@ export const CuratorDashboard = ({
                           )}
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50">
+                      <div className={styles.aiScoreItem}>
+                        <div className={styles.aiScoreHeader}>
                           <span>Tendência</span>
                           {item.isAIProcessing ? (
-                            <span className="animate-pulse text-blue-500">Calculando...</span>
+                            <span className={styles.calculatingLabel}>Calculando...</span>
                           ) : (
                             <span>{item.aiScores?.trend}%</span>
                           )}
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div className={styles.aiScoreBarBg}>
                           {item.isAIProcessing ? (
-                            <div className="h-full w-2/3 bg-blue-400 animate-loading-shimmer" />
+                            <div className={styles.aiLoadingBar3} />
                           ) : (
                             <div 
-                              className="h-full transition-all duration-1000" 
+                              className={styles.aiScoreBarFill}
                               style={{ 
                                 width: `${item.aiScores?.trend}%`, 
                                 backgroundColor: themeConfig.status.info 
@@ -1040,19 +1127,20 @@ export const CuratorDashboard = ({
                       e.stopPropagation();
                       handleOpenAssign(item.id);
                     }}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2"
+                    className={styles.triageAssignButton}
                     style={{ borderColor: themeConfig.general.border } as any}
                   >
                     <UserPlus size={14} />
                     Atribuir Checador
                   </button>
+                  {specializedNetworkEnabled && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       onSendToSpecializedNetwork(item.id);
                     }}
                     disabled={item.sentToSpecializedNetwork}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2"
+                    className={styles.triageAssignButton}
                     style={{ 
                       borderColor: themeConfig.general.border, 
                       backgroundColor: item.sentToSpecializedNetwork ? '#f1f5f9' : 'transparent',
@@ -1062,6 +1150,7 @@ export const CuratorDashboard = ({
                     <Globe size={14} />
                     {item.sentToSpecializedNetwork ? 'Encaminhado pra Rede' : 'Rede Especializada'}
                   </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1080,18 +1169,18 @@ export const CuratorDashboard = ({
 
       {/* Listagem de Publicações View */}
       {activeTab === 'list' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Buscar Publicações</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+        <div className={styles.listView}>
+          <div className={styles.filterRow}>
+            <div className={styles.filterField}>
+              <label className={styles.fieldLabel}>Buscar Publicações</label>
+              <div className={styles.inputWrapper}>
+                <Search className={styles.searchIcon} size={18} />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Título, fonte ou conteúdo..."
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                  className={styles.searchInput}
                   style={{ 
                     backgroundColor: themeConfig.general.inputBackground, 
                     borderColor: themeConfig.general.inputBorder,
@@ -1101,12 +1190,12 @@ export const CuratorDashboard = ({
                 />
               </div>
             </div>
-            <div className="w-full md:w-48 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider opacity-50">Status</label>
+            <div className={styles.statusSelectWrapper}>
+              <label className={styles.fieldLabel}>Status</label>
               <select 
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value as any)}
-                className="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2"
+                className={styles.statusSelect}
                 style={{ 
                   backgroundColor: themeConfig.general.inputBackground, 
                   borderColor: themeConfig.general.inputBorder,
@@ -1124,33 +1213,33 @@ export const CuratorDashboard = ({
             </div>
           </div>
 
-          <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
-            <table className="w-full text-left border-collapse">
+          <div className={styles.tableWrapper} style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}>
+            <table className={styles.table}>
               <thead>
-                <tr className="border-b" style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Publicação</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>
+                <tr className={styles.tableHeaderRow} style={{ backgroundColor: themeConfig.general.tableHeaderBackground, borderColor: themeConfig.general.border }}>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>Publicação</th>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>
                     <button onClick={() => {
                       setSortBy('priority');
                       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                    }} className="flex items-center gap-1 hover:opacity-80">
+                    }} className={styles.tableSortButton}>
                       Prioridade <ArrowUpDown size={12} />
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>Status</th>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>
                     <button onClick={() => {
                       setSortBy('assignedTo');
                       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                    }} className="flex items-center gap-1 hover:opacity-80">
+                    }} className={styles.tableSortButton}>
                       Responsável <ArrowUpDown size={12} />
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: themeConfig.general.tableHeaderText }}>SLA / Início</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-right" style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>SLA / Início</th>
+                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+              <tbody className={styles.tableBody} style={{ borderColor: themeConfig.general.border }}>
                 {filteredNews.map((item) => {
                   const assignedUser = users.find(u => u.id === item.assignedTo);
                   const sla = getSLAStatus(item.startTime);
@@ -1158,59 +1247,61 @@ export const CuratorDashboard = ({
                   return (
                     <tr 
                       key={item.id} 
-                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                      className={styles.tableRow}
                       onClick={() => setSelectedNewsId(item.id)}
                     >
-                      <td className="px-6 py-4">
-                        <div className="max-w-md">
-                          <h3 className="text-sm font-semibold line-clamp-1">{item.title}</h3>
-                          <p className="text-xs opacity-60 mt-1">{item.source} • {item.date}</p>
+                      <td className={styles.tableCell}>
+                        <div className={styles.tableTitleMax}>
+                          <h3 className={styles.tableTitle}>{item.title}</h3>
+                          <p className={styles.tableSubtext}>{item.source} • {item.date}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
-                          item.priority === 'high' ? 'text-red-600 bg-red-50' :
-                          item.priority === 'medium' ? 'text-amber-600 bg-amber-50' :
-                          'text-slate-600 bg-slate-50'
-                        }`}>
+                      <td className={styles.tableCell}>
+                        <span className={cn(
+                          styles.priorityBadge,
+                          item.priority === 'high' ? styles.priorityHigh :
+                          item.priority === 'medium' ? styles.priorityMedium :
+                          styles.priorityLow
+                        )}>
                           {item.priority || 'low'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={styles.tableCell}>
                         <StatusBadge status={item.status} themeConfig={themeConfig} />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={styles.tableCell}>
                         {assignedUser ? (
-                          <div className="flex items-center gap-2">
-                            <img src={assignedUser.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
-                            <span className="text-sm">{assignedUser.name}</span>
+                          <div className={styles.assignedRow}>
+                            <img src={assignedUser.avatarUrl} alt="" className={styles.assignedAvatar} />
+                            <span className={styles.slaTime}>{assignedUser.name}</span>
                           </div>
                         ) : (
-                          <span className="text-xs opacity-40 italic">Não atribuído</span>
+                          <span className={styles.unassignedText}>Não atribuído</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={styles.tableCell}>
                         {item.startTime ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs">
+                          <div className={styles.slaBlock}>
+                            <span className={styles.slaTime}>
                               {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {sla && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase w-fit ${sla.color}`}>
+                              <span className={cn(styles.slaLabel, sla.color)}>
                                 {sla.label}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs opacity-30">-</span>
+                          <span className={styles.slaPlaceholder}>-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
+                      <td className={styles.tableRightCell}>
+                        <div className={styles.tableActionsRow}>
                           {checkPermission('assign_tasks') && (
                             <button 
                               onClick={() => handleOpenAssign(item.id)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className={styles.tableActionButton}
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Atribuir / Redistribuir"
                             >
                               <UserPlus size={18} />
@@ -1219,7 +1310,8 @@ export const CuratorDashboard = ({
                           {item.status === 'completed' && checkPermission('review_and_approve') && (
                             <button 
                               onClick={() => setReopeningNewsId(item.id)}
-                              className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              className={styles.tableActionButton}
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Reabrir para Revisão"
                             >
                               <RotateCcw size={18} />
@@ -1228,7 +1320,8 @@ export const CuratorDashboard = ({
                           {checkPermission('manage_triage') && item.status === 'pending' && (
                             <button
                               onClick={() => handleOpenEdit(item)}
-                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className={styles.tableActionButton}
+                              style={{ color: themeConfig.general.mutedText }}
                               title="Editar Conteúdo"
                             >
                               <FileText size={18} />
@@ -1239,7 +1332,8 @@ export const CuratorDashboard = ({
                               setSelectedNewsId(item.id);
                               navigate(`/analysis/${item.id}`);
                             }}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className={styles.tableActionButton}
+                            style={{ color: themeConfig.general.mutedText }}
                             title="Visualizar Conteúdo"
                           >
                             <ExternalLink size={18} />
@@ -1252,24 +1346,25 @@ export const CuratorDashboard = ({
               </tbody>
             </table>
             {filteredNews.length === 0 && (
-              <div className="text-center py-20 opacity-40">
-                <Search size={48} className="mx-auto mb-4" />
-                <p className="text-lg font-bold">Nenhuma publicação encontrada</p>
-                <p className="text-sm">Tente ajustar seus filtros de busca.</p>
+              <div className={styles.emptyState}>
+                <Search size={48} className={styles.emptyStateIcon} />
+                <p className={styles.emptyTitle}>Nenhuma publicação encontrada</p>
+                <p className={styles.emptySubtext}>Tente ajustar seus filtros de busca.</p>
               </div>
             )}
           </div>
         </div>
       )}
+
       {activeTab === 'kanban' && (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className={styles.kanbanGrid}>
             {kanbanColumns.map(col => (
-              <div key={col.id} className="flex flex-col h-[700px]">
-                <div className="flex items-center justify-between mb-4 px-2">
-                  <h3 className="font-bold flex items-center gap-2">
+              <div key={col.id} className={styles.kanbanColumn}>
+                <div className={styles.kanbanColumnHeader}>
+                  <h3 className={styles.kanbanColumnTitle}>
                     {col.title}
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 opacity-60">
+                    <span className={styles.kanbanColumnCount}>
                       {news.filter(n => n.status === col.status).length}
                     </span>
                   </h3>
@@ -1280,8 +1375,8 @@ export const CuratorDashboard = ({
                       {...provided.droppableProps}
                       ref={provided.innerRef}
                       className={cn(
-                        "flex-1 rounded-3xl border p-4 space-y-4 overflow-y-auto transition-colors",
-                        snapshot.isDraggingOver ? "bg-slate-100/50" : ""
+                        styles.kanbanDropzone,
+                        snapshot.isDraggingOver ? styles.kanbanDropzoneActive : ''
                       )}
                       style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}
                     >
@@ -1297,8 +1392,8 @@ export const CuratorDashboard = ({
                                 navigate(`/analysis/${item.id}`);
                               }}
                               className={cn(
-                                "p-4 rounded-2xl border shadow-sm space-y-3 group cursor-grab active:cursor-grabbing hover:shadow-md transition-all",
-                                snapshot.isDragging ? "rotate-2 shadow-2xl z-50" : ""
+                                styles.kanbanCard,
+                                snapshot.isDragging ? styles.kanbanCardDragging : ''
                               )}
                               style={{ 
                                 backgroundColor: themeConfig.general.cardBackground, 
@@ -1306,32 +1401,32 @@ export const CuratorDashboard = ({
                                 ...provided.draggableProps.style
                               }}
                             >
-                              <div className="flex justify-between items-start">
-                                <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">{item.source}</span>
-                                <TrendingUp size={14} className="opacity-30" />
+                              <div className={styles.kanbanCardHeader}>
+                                <span className={styles.kanbanCardSource}>{item.source}</span>
+                                <TrendingUp size={14} className={styles.iconVeryMuted} />
                               </div>
-                              <h4 className="text-sm font-bold leading-tight line-clamp-2">{item.title}</h4>
+                              <h4 className={styles.kanbanCardTitle}>{item.title}</h4>
                               
                               {item.assignedTo && (
-                                <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: themeConfig.general.border }}>
+                                <div className={styles.kanbanCardAssignee} style={{ borderColor: themeConfig.general.border }}>
                                   <img 
                                     src={users.find(u => u.id === item.assignedTo)?.avatarUrl} 
                                     alt="" 
-                                    className="w-5 h-5 rounded-full" 
+                                    className={styles.kanbanCardAvatar}
                                   />
-                                  <span className="text-[10px] font-medium opacity-60">
+                                  <span className={styles.kanbanCardAssigneeName}>
                                     {users.find(u => u.id === item.assignedTo)?.name}
                                   </span>
                                 </div>
                               )}
 
-                              <div className="flex items-center justify-between pt-1">
-                                <div className="flex gap-1">
-                                  <div className="w-1 h-2 rounded-full bg-red-500" style={{ opacity: Math.max(0.2, (item.aiScores?.gravity || 0) / 100) }}></div>
-                                  <div className="w-1 h-2 rounded-full bg-orange-500" style={{ opacity: Math.max(0.2, (item.aiScores?.urgency || 0) / 100) }}></div>
-                                  <div className="w-1 h-2 rounded-full bg-blue-500" style={{ opacity: Math.max(0.2, (item.aiScores?.trend || 0) / 100) }}></div>
+                              <div className={styles.kanbanCardFooter}>
+                                <div className={styles.kanbanScores}>
+                                  <div className={styles.kanbanScoreRed} style={{ opacity: Math.max(0.2, (item.aiScores?.gravity || 0) / 100) }}></div>
+                                  <div className={styles.kanbanScoreOrange} style={{ opacity: Math.max(0.2, (item.aiScores?.urgency || 0) / 100) }}></div>
+                                  <div className={styles.kanbanScoreBlue} style={{ opacity: Math.max(0.2, (item.aiScores?.trend || 0) / 100) }}></div>
                                 </div>
-                                <span className="text-[10px] opacity-40">{item.date}</span>
+                                <span className={styles.kanbanDate}>{item.date}</span>
                               </div>
                             </div>
                           )}
@@ -1349,7 +1444,7 @@ export const CuratorDashboard = ({
 
       {/* Workload View */}
       {activeTab === 'workload' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
+        <div className={styles.workloadGrid}>
           {checkers.map(checker => {
             const checkerTasks = news.filter(n => n.assignedTo === checker.id);
             const pending = checkerTasks.filter(n => n.status === 'pending').length;
@@ -1360,57 +1455,61 @@ export const CuratorDashboard = ({
             return (
               <div 
                 key={checker.id}
-                className="p-6 rounded-3xl border shadow-sm space-y-6"
+                className={styles.checkerCard}
                 style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
               >
-                <div className="flex items-center gap-4">
-                  <img src={checker.avatarUrl} alt="" className="w-16 h-16 rounded-2xl object-cover" />
+                <div className={styles.checkerHeader}>
+                  <img src={checker.avatarUrl} alt="" className={styles.checkerAvatar} />
                   <div>
-                    <h3 className="font-bold text-lg">{checker.name}</h3>
-                    <p className="text-xs opacity-60">{checker.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">Disponível</span>
+                    <h3 className={styles.checkerName}>{checker.name}</h3>
+                    <p className={styles.checkerEmail}>{checker.email}</p>
+                    <div className={styles.checkerOnlineRow}>
+                      <span className={styles.checkerOnlineDot}></span>
+                      <span className={styles.checkerOnlineText}>Disponível</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-2xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Total Ativas</p>
-                    <p className="text-2xl font-black">{inProgress + pending + review}</p>
+                <div className={styles.checkerStatsGrid}>
+                  <div className={styles.checkerStatBox} style={{ borderColor: themeConfig.general.border }}>
+                    <p className={styles.checkerStatLabel}>Total Ativas</p>
+                    <p className={styles.checkerStatValue}>{inProgress + pending + review}</p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Concluídas</p>
-                    <p className="text-2xl font-black">{completed}</p>
+                  <div className={styles.checkerStatBox} style={{ borderColor: themeConfig.general.border }}>
+                    <p className={styles.checkerStatLabel}>Concluídas</p>
+                    <p className={styles.checkerStatValue}>{completed}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider opacity-50">Distribuição de Status</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-2"><Clock size={12} className="text-blue-500" /> Em Andamento</span>
-                      <span className="font-bold">{inProgress}</span>
+                <div className={styles.checkerDistribBlock}>
+                  <h4 className={styles.checkerDistribTitle}>Distribuição de Status</h4>
+                  <div className={styles.checkerDistribItems}>
+                    <div className={styles.checkerDistribRow}>
+                      <span className={styles.checkerDistribItem}><Clock size={12} className={styles.iconBlue500} /> Em Andamento</span>
+                      <span className={styles.bold}>{inProgress}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500" style={{ width: `${(inProgress / (checkerTasks.length || 1)) * 100}%` }} />
+                    <div className={styles.checkerDistribBarBg}>
+                      <div className={styles.checkerBarBlue} style={{ width: `${(inProgress / (checkerTasks.length || 1)) * 100}%` }} />
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-2"><AlertTriangle size={12} className="text-amber-500" /> Revisão Final</span>
-                      <span className="font-bold">{review}</span>
+                    <div className={styles.checkerDistribRow}>
+                      <span className={styles.checkerDistribItem}><AlertTriangle size={12} className={styles.iconAmber} /> Revisão Final</span>
+                      <span className={styles.bold}>{review}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-500" style={{ width: `${(review / (checkerTasks.length || 1)) * 100}%` }} />
+                    <div className={styles.checkerDistribBarBg}>
+                      <div className={styles.checkerBarAmber} style={{ width: `${(review / (checkerTasks.length || 1)) * 100}%` }} />
                     </div>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setDetailedCheckerId(checker.id)}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:bg-slate-50"
-                  style={{ borderColor: themeConfig.general.border }}
+                  className={styles.checkerViewButton}
+                  style={{
+                    borderColor: themeConfig.general.border,
+                    backgroundColor: themeConfig.general.mutedBackground,
+                    color: themeConfig.general.mutedText,
+                  }}
                 >
                   Ver Tarefas Detalhadas
                   <ChevronRight size={14} />
@@ -1423,37 +1522,37 @@ export const CuratorDashboard = ({
 
       {/* Reviews View */}
       {activeTab === 'reviews' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <div className="grid grid-cols-1 gap-4">
+        <div className={styles.reviewsPanel}>
+          <div className={styles.reviewsList}>
             {filteredNews.map(item => (
               <div 
                 key={item.id}
-                className="p-6 rounded-3xl border shadow-sm flex flex-col md:flex-row gap-6"
+                className={styles.reviewCard}
                 style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
               >
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                <div className={styles.reviewCardLeft}>
+                  <div className={styles.reviewCardTop}>
+                    <div className={styles.reviewMetaLeft}>
                       <StatusBadge status={item.status} themeConfig={themeConfig} />
-                      <span className="text-xs opacity-50">Checador: {users.find(u => u.id === item.assignedTo)?.name}</span>
+                      <span className={styles.reviewCheckerName}>Checador: {users.find(u => u.id === item.assignedTo)?.name}</span>
                     </div>
-                    <span className="text-xs opacity-40">{item.date}</span>
+                    <span className={styles.reviewDate}>{item.date}</span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-dashed" style={{ borderColor: themeConfig.general.border }}>
-                      <p className="text-sm font-bold mb-1 flex items-center gap-2">
-                        <CheckCircle size={16} className="text-green-500" /> Parecer do Checador:
+                    <h3 className={styles.reviewTitle}>{item.title}</h3>
+                    <div className={styles.reviewReportBox} style={{ borderColor: themeConfig.general.border }}>
+                      <p className={styles.reviewReportTitle}>
+                        <CheckCircle size={16} className={styles.iconGreen} /> Parecer do Checador:
                       </p>
-                      <p className="text-sm opacity-70 italic">"{item.report || 'Nenhum parecer enviado.'}"</p>
+                      <p className={styles.reviewReportText}>"{item.report || 'Nenhum parecer enviado.'}"</p>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col justify-center gap-3 min-w-[180px]">
+                <div className={styles.reviewCardRight}>
                   <button 
                     onClick={() => setReviewingNewsId(item.id)}
-                    className="w-full py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                    style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                    className={styles.reviewNowButton}
+                    style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                   >
                     <Search size={18} />
                     Revisar Agora
@@ -1462,10 +1561,10 @@ export const CuratorDashboard = ({
               </div>
             ))}
             {filteredNews.length === 0 && (
-              <div className="text-center py-20 opacity-40">
-                <CheckCircle size={48} className="mx-auto mb-4" />
-                <p className="text-lg font-bold">Nenhuma revisão pendente</p>
-                <p className="text-sm">Tudo em dia por aqui!</p>
+              <div className={styles.emptyState}>
+                <CheckCircle size={48} className={styles.emptyStateIcon} />
+                <p className={styles.emptyTitle}>Nenhuma revisão pendente</p>
+                <p className={styles.emptySubtext}>Tudo em dia por aqui!</p>
               </div>
             )}
           </div>
@@ -1474,48 +1573,48 @@ export const CuratorDashboard = ({
 
       {/* Extraction Modal */}
       <AnimatePresence>
-        {isExtractionModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {isExtractionModalOpen && socialSearchEnabled && (
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsExtractionModalOpen(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className={styles.modal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg">
+              <div className={styles.modalHeaderFlexBig} style={{ borderColor: themeConfig.general.border }}>
+                <div className={styles.extractionModalHeaderLeft}>
+                  <div className={styles.extractionModalIcon}>
                     <Zap size={24} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight">Busca e Extração de Conteúdos</h2>
-                    <p className="text-xs opacity-50 font-bold uppercase tracking-wider">Monitoramento Multi-Plataforma em Tempo Real</p>
+                    <h2 className={styles.extractionModalTitle}>Busca e Extração de Conteúdos</h2>
+                    <p className={styles.extractionModalSubtitle}>Monitoramento Multi-Plataforma em Tempo Real</p>
                   </div>
                 </div>
-                <button onClick={() => setIsExtractionModalOpen(false)} className="p-2 opacity-40 hover:opacity-100"><X size={24} /></button>
+                <button onClick={() => setIsExtractionModalOpen(false)} className={styles.modalCloseButton}><X size={24} /></button>
               </div>
 
-              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className={styles.modalBodyBig}>
                 {/* Unified Search Field */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Termo de Busca / Palavras-chave</label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Termo de Busca / Palavras-chave</label>
+                  <div className={styles.inputWrapper}>
+                    <Search className={styles.searchIconLeft4} size={18} />
                     <input 
                       type="text"
                       placeholder="Ex: vacinas, eleições 2024, fraude pix..."
                       value={extractionParams.query}
                       onChange={(e) => setExtractionParams({...extractionParams, query: e.target.value})}
-                      className="w-full pl-12 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.extractionInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1526,10 +1625,10 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={styles.extractionGrid}>
                   {/* User Limit */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50 flex items-center gap-2">
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.extractionLimitLabel}>
                       <Users size={14} /> Limite de Registros
                     </label>
                     <input 
@@ -1538,7 +1637,7 @@ export const CuratorDashboard = ({
                       max="1000"
                       value={extractionParams.userLimit}
                       onChange={(e) => setExtractionParams({...extractionParams, userLimit: parseInt(e.target.value)})}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.extractionNumberInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1546,19 +1645,14 @@ export const CuratorDashboard = ({
                         '--tw-ring-color': themeConfig.general.accent
                       } as any}
                     />
-                    <p className="text-[10px] opacity-40 italic">Máximo sugerido: 1000 registros por extração.</p>
+                    <p className={styles.extractionLimitNote}>Máximo sugerido: 1000 registros por extração.</p>
                   </div>
 
                   {/* Platform Selection */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Onde Buscar</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'youtube', label: 'YouTube', icon: YoutubeIcon, color: 'text-red-600 bg-red-50' },
-                        { id: 'reddit', label: 'Reddit', icon: Globe, color: 'text-orange-600 bg-orange-50' },
-                        { id: 'facebook', label: 'Facebook', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
-                        { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-600 bg-sky-50' }
-                      ].map(platform => (
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Onde Buscar</label>
+                    <div className={styles.platformsGrid}>
+                      {extractionPlatforms.map(platform => (
                         <button
                           key={platform.id}
                           onClick={() => setExtractionParams({
@@ -1569,10 +1663,10 @@ export const CuratorDashboard = ({
                             }
                           })}
                           className={cn(
-                            "flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold transition-all",
+                            styles.platformButton,
                             extractionParams.platforms[platform.id as keyof typeof extractionParams.platforms] 
                               ? `${platform.color} border-current` 
-                              : "opacity-40 hover:opacity-100"
+                              : styles.platformButtonInactive
                           )}
                         >
                           <platform.icon size={14} />
@@ -1583,15 +1677,15 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={styles.extractionGrid}>
                   {/* Date Range */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Data Inicial</label>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Data Inicial</label>
                     <input 
                       type="date"
                       value={extractionParams.startDate}
                       onChange={(e) => setExtractionParams({...extractionParams, startDate: e.target.value})}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.extractionNumberInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1600,13 +1694,13 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Data Final</label>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Data Final</label>
                     <input 
                       type="date"
                       value={extractionParams.endDate}
                       onChange={(e) => setExtractionParams({...extractionParams, endDate: e.target.value})}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.extractionNumberInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1618,14 +1712,14 @@ export const CuratorDashboard = ({
                 </div>
 
                 {/* Comments */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Observações de Contexto (Opcional)</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Observações de Contexto (Opcional)</label>
                   <textarea 
                     placeholder="Instruções adicionais para a IA de extração..."
                     value={extractionParams.comments}
                     onChange={(e) => setExtractionParams({...extractionParams, comments: e.target.value})}
                     rows={3}
-                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    className={styles.briefingTextarea}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1636,24 +1730,24 @@ export const CuratorDashboard = ({
                 </div>
               </div>
 
-              <div className="p-8 flex items-center justify-between border-t" style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
-                <p className="text-xs opacity-50 max-w-sm font-medium">A extração utiliza IA para filtrar ruídos e identificar padrões de desinformação automaticamente.</p>
-                <div className="flex gap-4">
+              <div className={styles.extractionModalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
+                <p className={styles.extractionModalFooterNote}>A extração utiliza IA para filtrar ruídos e identificar padrões de desinformação automaticamente.</p>
+                <div className={styles.extractionModalButtons}>
                   <button 
                     onClick={() => setIsExtractionModalOpen(false)}
-                    className="px-6 py-3 text-sm font-bold opacity-60 hover:opacity-100"
+                    className={styles.extractionModalCancelButton}
                   >
                     Cancelar
                   </button>
                   <button 
                     onClick={handleExecuteExtraction}
                     disabled={isExtracting || !extractionParams.query.trim() || !Object.values(extractionParams.platforms).some(v => v)}
-                    className="px-10 py-3 rounded-2xl text-sm font-bold shadow-xl transition-all disabled:opacity-50 flex items-center gap-2"
+                    className={styles.extractionSubmitButton}
                     style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                   >
                     {isExtracting ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className={styles.extractionModalSpinner} />
                         Processando...
                       </>
                     ) : (
@@ -1673,33 +1767,33 @@ export const CuratorDashboard = ({
       {/* Detailed Tasks Modal */}
       <AnimatePresence>
         {detailedCheckerId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDetailedCheckerId(null)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className={styles.modal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
-                <div className="flex items-center gap-4">
-                  <img src={users.find(u => u.id === detailedCheckerId)?.avatarUrl} alt="" className="w-10 h-10 rounded-xl" />
+              <div className={styles.modalHeaderFlex} style={{ borderColor: themeConfig.general.border }}>
+                <div className={styles.detailModalHeaderLeft}>
+                  <img src={users.find(u => u.id === detailedCheckerId)?.avatarUrl} alt="" className={styles.detailCheckerAvatar} />
                   <div>
-                    <h2 className="text-xl font-bold">Tarefas de {users.find(u => u.id === detailedCheckerId)?.name}</h2>
-                    <p className="text-sm opacity-70">Lista detalhada de atribuições correntes.</p>
+                    <h2 className={styles.detailModalTitle}>Tarefas de {users.find(u => u.id === detailedCheckerId)?.name}</h2>
+                    <p className={styles.detailModalSubtitle}>Lista detalhada de atribuições correntes.</p>
                   </div>
                 </div>
-                <button onClick={() => setDetailedCheckerId(null)} className="p-2 opacity-40 hover:opacity-100"><X size={24} /></button>
+                <button onClick={() => setDetailedCheckerId(null)} className={styles.modalCloseButton}><X size={24} /></button>
               </div>
-              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className={styles.detailContent}>
                 {news.filter(n => n.assignedTo === detailedCheckerId).length > 0 ? (
                   news.filter(n => n.assignedTo === detailedCheckerId).map(item => (
                     <div 
@@ -1708,37 +1802,37 @@ export const CuratorDashboard = ({
                         setSelectedNewsId(item.id);
                         navigate(`/analysis/${item.id}`);
                       }}
-                      className="p-4 rounded-2xl border hover:bg-slate-50 transition-all cursor-pointer group"
+                      className={styles.detailTaskCard}
                       style={{ borderColor: themeConfig.general.border }}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                      <div className={styles.detailTaskInner}>
+                        <div className={styles.detailTaskInfo}>
+                          <div className={styles.detailTaskMeta}>
                             <StatusBadge status={item.status} themeConfig={themeConfig} />
-                            <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">{item.source}</span>
+                            <span className={styles.detailTaskSource}>{item.source}</span>
                           </div>
-                          <h4 className="text-sm font-bold group-hover:text-blue-600 transition-colors">{item.title}</h4>
+                          <h4 className={styles.detailTaskTitle}>{item.title}</h4>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[10px] opacity-40">{item.date}</p>
-                          <div className="flex gap-1 mt-1 justify-end">
-                            <div className="w-2 h-0.5 rounded-full bg-red-500" style={{ opacity: (item.aiScores?.gravity || 0) / 100 }}></div>
-                            <div className="w-2 h-0.5 rounded-full bg-orange-500" style={{ opacity: (item.aiScores?.urgency || 0) / 100 }}></div>
+                        <div className={styles.detailTaskRight}>
+                          <p className={styles.detailTaskDate}>{item.date}</p>
+                          <div className={styles.detailTaskScores}>
+                            <div className={styles.detailScoreRed} style={{ opacity: (item.aiScores?.gravity || 0) / 100 }}></div>
+                            <div className={styles.detailScoreOrange} style={{ opacity: (item.aiScores?.urgency || 0) / 100 }}></div>
                           </div>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-12 opacity-30">
-                     <p className="font-bold">Nenhuma tarefa atribuída</p>
+                  <div className={styles.detailEmptyState}>
+                     <p className={styles.bold}>Nenhuma tarefa atribuída</p>
                   </div>
                 )}
               </div>
-              <div className="p-4 flex justify-end" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.detailModalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setDetailedCheckerId(null)}
-                  className="px-8 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-lg transition-all"
+                  className={styles.detailCloseButton}
                 >
                   Fechar
                 </button>
@@ -1751,49 +1845,49 @@ export const CuratorDashboard = ({
       {/* Assign Modal */}
       <AnimatePresence>
         {isAssignModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAssignModalOpen(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className={styles.modalLg}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">Atribuir Tarefa</h2>
-                <p className="text-sm opacity-70">
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>Atribuir Tarefa</h2>
+                <p className={styles.modalSubtitle}>
                   {assigningNewsId ? 'Selecione um checador para esta notícia.' : `Atribuindo ${selectedNewsIds.length} notícias selecionadas.`}
                 </p>
               </div>
-              <div className="p-6 space-y-6">
-                <div className="space-y-3">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Selecionar Checador</label>
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2">
+              <div className={styles.modalBody}>
+                <div className={styles.formSection}>
+                  <label className={styles.fieldLabel}>Selecionar Checador</label>
+                  <div className={styles.checkerList}>
                     {checkers.map(checker => (
                       <button
                         key={checker.id}
                         onClick={() => setSelectedCheckerId(checker.id)}
                         className={cn(
-                          "flex items-center gap-3 p-3 rounded-2xl border transition-all text-left",
-                          selectedCheckerId === checker.id ? "ring-2" : "hover:bg-slate-50"
+                          styles.checkerOption,
+                          selectedCheckerId === checker.id ? styles.checkerOptionSelected : styles.checkerOptionDefault
                         )}
                         style={{ 
                           borderColor: selectedCheckerId === checker.id ? themeConfig.general.accent : themeConfig.general.border,
                           '--tw-ring-color': themeConfig.general.accent
                         } as any}
                       >
-                        <img src={checker.avatarUrl} alt="" className="w-10 h-10 rounded-xl" />
-                        <div className="flex-1">
-                          <h4 className="text-sm font-bold">{checker.name}</h4>
-                          <p className="text-[10px] opacity-60">{checker.activeTasksCount || 0} tarefas ativas</p>
+                        <img src={checker.avatarUrl} alt="" className={styles.checkerOptionAvatar} />
+                        <div className={styles.checkerOptionInfo}>
+                          <h4 className={styles.checkerOptionName}>{checker.name}</h4>
+                          <p className={styles.checkerOptionTasks}>{checker.activeTasksCount || 0} tarefas ativas</p>
                         </div>
                         {selectedCheckerId === checker.id && <Check size={18} style={{ color: themeConfig.general.accent }} />}
                       </button>
@@ -1801,14 +1895,14 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Briefing / Orientações (Opcional)</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Briefing / Orientações (Opcional)</label>
                   <textarea 
                     value={briefing}
                     onChange={(e) => setBriefing(e.target.value)}
                     placeholder="Adicione contexto ou instruções específicas para o checador..."
                     rows={4}
-                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    className={styles.briefingTextarea}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1818,26 +1912,26 @@ export const CuratorDashboard = ({
                   />
                 </div>
                 {assignError && (
-                  <p className="text-xs font-bold text-red-500">{assignError}</p>
+                  <p className={styles.assignError}>{assignError}</p>
                 )}
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setIsAssignModalOpen(false)}
                   disabled={isAssigning}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100 disabled:opacity-40"
+                  className={styles.modalCancelDisabled}
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={executeAssign}
                   disabled={!selectedCheckerId || isAssigning}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                  className={styles.modalSubmitButton}
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   {isAssigning ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className={styles.assignSpinner} />
                       Atribuindo...
                     </>
                   ) : (
@@ -1853,52 +1947,52 @@ export const CuratorDashboard = ({
       {/* Review Modal */}
       <AnimatePresence>
         {reviewingNewsId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setReviewingNewsId(null)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className={styles.modal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
+              <div className={styles.modalHeaderFlex} style={{ borderColor: themeConfig.general.border }}>
                 <div>
-                  <h2 className="text-xl font-bold">Revisão Final</h2>
-                  <p className="text-sm opacity-70">Avalie a qualidade e precisão da checagem realizada.</p>
+                  <h2 className={styles.modalTitle}>Revisão Final</h2>
+                  <p className={styles.modalSubtitle}>Avalie a qualidade e precisão da checagem realizada.</p>
                 </div>
-                <button onClick={() => setReviewingNewsId(null)} className="p-2 opacity-40 hover:opacity-100"><X size={24} /></button>
+                <button onClick={() => setReviewingNewsId(null)} className={styles.modalCloseButton}><X size={24} /></button>
               </div>
-              <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
-                    <h4 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-2">Notícia Original</h4>
-                    <p className="text-sm font-bold mb-1">{news.find(n => n.id === reviewingNewsId)?.title}</p>
-                    <p className="text-xs opacity-70 line-clamp-3">{news.find(n => n.id === reviewingNewsId)?.content}</p>
+              <div className={styles.modalBodyScrollable}>
+                <div className={styles.formSection}>
+                  <div className={styles.reviewOriginalBox} style={{ borderColor: themeConfig.general.border }}>
+                    <h4 className={styles.reviewBoxLabel}>Notícia Original</h4>
+                    <p className={styles.reviewNewsTitle}>{news.find(n => n.id === reviewingNewsId)?.title}</p>
+                    <p className={styles.reviewNewsExcerpt}>{news.find(n => n.id === reviewingNewsId)?.content}</p>
                   </div>
 
-                  <div className="p-4 rounded-2xl border" style={{ borderColor: themeConfig.general.border }}>
-                    <h4 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-2">Parecer do Checador</h4>
-                    <div className="prose prose-sm max-w-none">
+                  <div className={styles.reviewReportPanel} style={{ borderColor: themeConfig.general.border }}>
+                    <h4 className={styles.reviewBoxLabel}>Parecer do Checador</h4>
+                    <div className={styles.reviewProse}>
                       {news.find(n => n.id === reviewingNewsId)?.report}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Comentários de Revisão (Obrigatório se rejeitar)</label>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Comentários de Revisão (Obrigatório se rejeitar)</label>
                     <textarea 
                       value={reviewComments}
                       onChange={(e) => setReviewComments(e.target.value)}
                       placeholder="Adicione observações para o checador ou justificativa da aprovação..."
                       rows={3}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                      className={styles.reviewCommentTextarea}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -1909,11 +2003,11 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
               </div>
-              <div className="p-6 flex gap-4 border-t" style={{ borderColor: themeConfig.general.border }}>
+              <div className={styles.reviewActions} style={{ borderColor: themeConfig.general.border }}>
                 <button 
                   onClick={() => executeReview(false)}
                   disabled={!reviewComments.trim()}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className={styles.reviewRejectButton}
                   style={{ color: themeConfig.status.error, borderColor: themeConfig.status.error }}
                 >
                   <X size={18} />
@@ -1921,8 +2015,8 @@ export const CuratorDashboard = ({
                 </button>
                 <button 
                   onClick={() => executeReview(true)}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
-                  style={{ backgroundColor: themeConfig.status.success, color: '#fff' }}
+                  className={styles.reviewApproveButton}
+                  style={{ backgroundColor: themeConfig.status.success, color: themeConfig.buttons.primaryText }}
                 >
                   <Check size={18} />
                   Aprovar e Publicar
@@ -1932,38 +2026,39 @@ export const CuratorDashboard = ({
           </div>
         )}
       </AnimatePresence>
+
       {/* Reopen Modal */}
       <AnimatePresence>
         {reopeningNewsId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setReopeningNewsId(null)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              className={styles.modalLg}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">Reabrir para Revisão</h2>
-                <p className="text-sm opacity-70">Justifique a necessidade de reabertura desta checagem.</p>
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>Reabrir para Revisão</h2>
+                <p className={styles.modalSubtitle}>Justifique a necessidade de reabertura desta checagem.</p>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Justificativa</label>
+              <div className={styles.modalBody}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Justificativa</label>
                   <textarea 
                     value={reopenReason}
                     onChange={(e) => setReopenReason(e.target.value)}
                     placeholder="Especifique o que precisa ser corrigido ou revisado..."
                     rows={4}
-                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    className={styles.reopenTextarea}
                     style={{ 
                       backgroundColor: themeConfig.general.inputBackground, 
                       borderColor: themeConfig.general.inputBorder,
@@ -1973,18 +2068,18 @@ export const CuratorDashboard = ({
                   />
                 </div>
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
                   onClick={() => setReopeningNewsId(null)}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                  className={styles.modalCancelButton}
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleReopenAction}
                   disabled={!reopenReason.trim()}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
-                  style={{ backgroundColor: themeConfig.status.warning, color: '#fff' }}
+                  className={styles.reopenSubmitButton}
+                  style={{ backgroundColor: themeConfig.status.warning, color: themeConfig.buttons.primaryText }}
                 >
                   Confirmar Reabertura
                 </button>
@@ -1994,36 +2089,36 @@ export const CuratorDashboard = ({
         )}
 
         {isRegisterModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsRegisterModalOpen(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className={styles.modal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">Cadastrar Nova Notícia</h2>
-                <p className="text-sm opacity-70">Insira as informações da notícia para triagem ou atribuição rápida.</p>
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>Cadastrar Nova Notícia</h2>
+                <p className={styles.modalSubtitle}>Insira as informações da notícia para triagem ou atribuição rápida.</p>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Título da Notícia *</label>
+              <div className={styles.registerModalBody}>
+                <div className={styles.registerGrid}>
+                  <div className={styles.registerFieldFull}>
+                    <label className={styles.fieldLabel}>Título da Notícia *</label>
                     <input 
                       type="text"
                       value={newNews.title}
                       onChange={(e) => setNewNews({ ...newNews, title: e.target.value })}
                       placeholder="Ex: Nova variante de vírus detectada..."
-                      className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.registerInput}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -2032,14 +2127,14 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Alegação Principal</label>
+                  <div className={styles.registerFieldFull}>
+                    <label className={styles.fieldLabel}>Alegação Principal</label>
                     <textarea 
                       value={newNews.alegacao}
                       onChange={(e) => setNewNews({ ...newNews, alegacao: e.target.value })}
                       placeholder="Qual é a afirmação ou alegação que precisa ser verificada?"
                       rows={2}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                      className={styles.registerTextareaSmall}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -2048,14 +2143,14 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Descrição / Contexto</label>
+                  <div className={styles.registerFieldFull}>
+                    <label className={styles.fieldLabel}>Descrição / Contexto</label>
                     <textarea 
                       value={newNews.descricao}
                       onChange={(e) => setNewNews({ ...newNews, descricao: e.target.value })}
                       placeholder="Informações adicionais, contexto ou observações sobre o conteúdo..."
                       rows={2}
-                      className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                      className={styles.registerTextareaSmall}
                       style={{ 
                         backgroundColor: themeConfig.general.inputBackground, 
                         borderColor: themeConfig.general.inputBorder,
@@ -2064,22 +2159,22 @@ export const CuratorDashboard = ({
                       } as any}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte / Veículo</label>
+                  <div className={styles.registerInnerGrid}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel}>Fonte / Veículo</label>
                       <input
                         type="text"
                         value={newNews.source}
                         onChange={(e) => setNewNews({ ...newNews, source: e.target.value })}
                         placeholder="Ex: Portal de Notícias X"
-                        className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                        className={styles.registerInput}
                         style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider opacity-50">URL da Matéria</label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40">
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel}>URL da Matéria</label>
+                      <div className={styles.urlInputWrapper}>
+                        <div className={styles.urlInputIcon}>
                           <LinkIcon size={14} />
                         </div>
                         <input 
@@ -2087,37 +2182,88 @@ export const CuratorDashboard = ({
                           value={newNews.url}
                           onChange={(e) => setNewNews({ ...newNews, url: e.target.value })}
                           placeholder="https://..."
-                          className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                          className={styles.urlInput}
                           style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                         />
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Anexos / Mídias</label>
+                  <div className={styles.registerFieldFull}>
+                    <label className={styles.fieldLabel}>Anexos / Mídias</label>
                     <div 
-                      className="border-2 border-dashed rounded-2xl p-6 text-center transition-colors hover:bg-slate-50 cursor-pointer"
-                      style={{ borderColor: themeConfig.general.border }}
+                      className={styles.dropzone}
+                      style={{
+                        borderColor: themeConfig.general.border,
+                        backgroundColor: themeConfig.general.mutedBackground,
+                        color: themeConfig.general.mutedText,
+                      }}
+                      onClick={() => registerFileInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleRegisterDrop}
                     >
-                      <Upload size={24} className="mx-auto mb-2 opacity-40" />
-                      <p className="text-sm font-medium opacity-60">Arraste arquivos ou clique para selecionar</p>
-                      <p className="text-[10px] opacity-40 mt-1 uppercase tracking-wider">PDF, JPG, PNG, MP4 (Máx 50MB)</p>
+                      <Upload size={24} className={styles.dropzoneIcon} />
+                      <p className={styles.dropzoneTitle}>Arraste arquivos ou clique para selecionar</p>
+                      <p className={styles.dropzoneSubtext}>
+                        Documentos, imagens, vídeos ou áudio (máx. 200 MB cada)
+                      </p>
+                      <input
+                        ref={registerFileInputRef}
+                        type="file"
+                        multiple
+                        className={styles.hiddenInput}
+                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+                        onChange={handleRegisterFilesSelect}
+                      />
                     </div>
+                    {pendingAttachments.length > 0 && (
+                      <ul className={styles.attachmentsList}>
+                        {pendingAttachments.map((file, index) => (
+                          <li
+                            key={`${file.name}-${file.size}-${index}`}
+                            className={styles.attachmentItem}
+                            style={{
+                              borderColor: themeConfig.general.border,
+                              backgroundColor: themeConfig.general.cardBackground,
+                              color: themeConfig.dashboard.text,
+                            }}
+                          >
+                            <div className={styles.attachmentItemLeft}>
+                              <FileText size={16} className={styles.attachmentIcon} />
+                              <span className={styles.attachmentName}>{file.name}</span>
+                              <span className={styles.attachmentSize}>
+                                {formatAttachmentSize(file.size)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPendingAttachments((prev) => prev.filter((_, i) => i !== index))
+                              }
+                              className={styles.attachmentRemove}
+                              style={{ color: themeConfig.general.mutedText }}
+                              title="Remover arquivo"
+                            >
+                              <X size={14} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
 
-                <div className="pt-4 border-t" style={{ borderColor: themeConfig.general.border }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <UserPlus size={18} className="opacity-60" />
-                    <h3 className="text-sm font-bold uppercase tracking-wider">Atribuição Rápida (Opcional)</h3>
+                <div className={styles.quickAssignSection} style={{ borderColor: themeConfig.general.border }}>
+                  <div className={styles.quickAssignHeader}>
+                    <UserPlus size={18} className={styles.quickAssignIcon} />
+                    <h3 className={styles.quickAssignTitle}>Atribuição Rápida (Opcional)</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider opacity-50">Selecionar Checador</label>
+                  <div className={styles.quickAssignGrid}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel}>Selecionar Checador</label>
                       <select 
                         value={newNews.assignedTo}
                         onChange={(e) => setNewNews({ ...newNews, assignedTo: e.target.value })}
-                        className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                        className={styles.statusSelect}
                         style={{ 
                           backgroundColor: themeConfig.general.inputBackground, 
                           borderColor: themeConfig.general.inputBorder,
@@ -2132,14 +2278,14 @@ export const CuratorDashboard = ({
                       </select>
                     </div>
                     {newNews.assignedTo && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider opacity-50">Briefing / Orientação</label>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Briefing / Orientação</label>
                         <input 
                           type="text"
                           value={newNews.briefing}
                           onChange={(e) => setNewNews({ ...newNews, briefing: e.target.value })}
                           placeholder="Instruções para o checador..."
-                          className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                          className={styles.registerInput}
                           style={{ 
                             backgroundColor: themeConfig.general.inputBackground, 
                             borderColor: themeConfig.general.inputBorder,
@@ -2152,16 +2298,19 @@ export const CuratorDashboard = ({
                   </div>
                 </div>
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button 
-                  onClick={() => setIsRegisterModalOpen(false)}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                  onClick={() => {
+                    setIsRegisterModalOpen(false);
+                    setPendingAttachments([]);
+                  }}
+                  className={styles.modalCancelButton}
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleSaveRegister}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all"
+                  className={styles.modalSaveButton}
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   Salvar Notícia
@@ -2172,92 +2321,92 @@ export const CuratorDashboard = ({
         )}
 
         {editingNews && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setEditingNews(null)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className={styles.modal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-6 border-b" style={{ borderColor: themeConfig.general.border }}>
-                <h2 className="text-xl font-bold">Editar Conteúdo</h2>
-                <p className="text-sm opacity-70">Atualize as informações da notícia cadastrada.</p>
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h2 className={styles.modalTitle}>Editar Conteúdo</h2>
+                <p className={styles.modalSubtitle}>Atualize as informações da notícia cadastrada.</p>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[70vh] space-y-5">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Título *</label>
+              <div className={styles.editModalBody}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Título *</label>
                   <input
                     type="text"
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                    className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                    className={styles.registerInput}
                     style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Alegação Principal</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Alegação Principal</label>
                   <textarea
                     value={editForm.alegacao}
                     onChange={(e) => setEditForm({ ...editForm, alegacao: e.target.value })}
                     placeholder="Qual é a afirmação ou alegação que precisa ser verificada?"
                     rows={2}
-                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    className={styles.registerTextareaSmall}
                     style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Descrição / Contexto</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Descrição / Contexto</label>
                   <textarea
                     value={editForm.descricao}
                     onChange={(e) => setEditForm({ ...editForm, descricao: e.target.value })}
                     placeholder="Informações adicionais, contexto ou observações..."
                     rows={2}
-                    className="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none"
+                    className={styles.registerTextareaSmall}
                     style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">Fonte / Veículo</label>
+                <div className={styles.editGrid}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Fonte / Veículo</label>
                     <input
                       type="text"
                       value={editForm.source}
                       onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
                       placeholder="Ex: Portal de Notícias X"
-                      className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                      className={styles.registerInput}
                       style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider opacity-50">URL da Matéria</label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40"><LinkIcon size={14} /></div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>URL da Matéria</label>
+                    <div className={styles.urlInputWrapper}>
+                      <div className={styles.urlInputIcon}><LinkIcon size={14} /></div>
                       <input
                         type="url"
                         value={editForm.url}
                         onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
                         placeholder="https://..."
-                        className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                        className={styles.urlInput}
                         style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                       />
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider opacity-50">Prioridade</label>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Prioridade</label>
                   <select
                     value={editForm.priority}
                     onChange={(e) => setEditForm({ ...editForm, priority: e.target.value as any })}
-                    className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2"
+                    className={styles.statusSelect}
                     style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
                   >
                     <option value="low">Baixa</option>
@@ -2266,16 +2415,16 @@ export const CuratorDashboard = ({
                   </select>
                 </div>
               </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
+              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
                 <button
                   onClick={() => setEditingNews(null)}
-                  className="px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100"
+                  className={styles.modalCancelButton}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all"
+                  className={styles.modalSaveButton}
                   style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
                 >
                   Salvar Alterações
@@ -2286,99 +2435,99 @@ export const CuratorDashboard = ({
         )}
 
         {isReceivedDetailOpen && selectedReceivedItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsReceivedDetailOpen(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, x: 100 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.95, x: 100 }}
-              className="relative rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row"
+              className={styles.receivedDetailModal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setIsReceivedDetailOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <div className={styles.receivedDetailLeft}>
+                <div className={styles.receivedDetailHeaderRow}>
+                  <div className={styles.receivedDetailHeaderLeft}>
+                    <button onClick={() => setIsReceivedDetailOpen(false)} className={styles.receivedDetailBackButton} style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-50 border" style={{ borderColor: themeConfig.general.border }}>
+                    <div className={styles.receivedDetailSourceBadge} style={{ borderColor: themeConfig.general.border }}>
                       {getSourceIcon(selectedReceivedItem.sourceType)}
-                      <span className="text-xs font-bold uppercase tracking-wider">{selectedReceivedItem.sourceType}</span>
+                      <span className={styles.receivedDetailSourceText}>{selectedReceivedItem.sourceType}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs opacity-50 font-medium">{new Date(selectedReceivedItem.receivedAt).toLocaleString()}</span>
+                  <div className={styles.receivedDetailHeaderRight}>
+                    <span className={styles.receivedDetailDateTime}>{new Date(selectedReceivedItem.receivedAt).toLocaleString()}</span>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h2 className="text-3xl font-black leading-tight tracking-tight">{selectedReceivedItem.title}</h2>
+                <div>
+                  <h2 className={styles.receivedDetailTitle}>{selectedReceivedItem.title}</h2>
                   
-                  <div className="flex flex-wrap gap-4 pt-2">
-                    <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border whitespace-nowrap" style={{ borderColor: themeConfig.general.border }}>
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <div className={styles.receivedDetailMetaRow}>
+                    <div className={styles.receivedDetailMetaItem} style={{ borderColor: themeConfig.general.border }}>
+                      <div className={styles.receivedDetailMetaIconBlue}>
                         <Users size={16} />
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase font-bold opacity-40">Remetente</p>
-                        <p className="text-sm font-bold">{selectedReceivedItem.senderName || 'Não identificado'}</p>
+                        <p className={styles.receivedDetailMetaLabel}>Remetente</p>
+                        <p className={styles.receivedDetailMetaValue}>{selectedReceivedItem.senderName || 'Não identificado'}</p>
                       </div>
                     </div>
                     {selectedReceivedItem.senderAddress && (
-                      <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border whitespace-nowrap" style={{ borderColor: themeConfig.general.border }}>
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
+                      <div className={styles.receivedDetailMetaItem} style={{ borderColor: themeConfig.general.border }}>
+                        <div className={styles.receivedDetailMetaIconGray}>
                           <MessageSquare size={16} />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase font-bold opacity-40">Contato</p>
-                          <p className="text-sm font-bold">{selectedReceivedItem.senderAddress}</p>
+                          <p className={styles.receivedDetailMetaLabel}>Contato</p>
+                          <p className={styles.receivedDetailMetaValue}>{selectedReceivedItem.senderAddress}</p>
                         </div>
                       </div>
                     )}
                     {selectedReceivedItem.messageId && (
-                      <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border whitespace-nowrap" style={{ borderColor: themeConfig.general.border }}>
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
+                      <div className={styles.receivedDetailMetaItem} style={{ borderColor: themeConfig.general.border }}>
+                        <div className={styles.receivedDetailMetaIconGray}>
                           <Activity size={16} />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase font-bold opacity-40">ID Mensagem</p>
-                          <p className="text-sm font-bold">{selectedReceivedItem.messageId}</p>
+                          <p className={styles.receivedDetailMetaLabel}>ID Mensagem</p>
+                          <p className={styles.receivedDetailMetaValue}>{selectedReceivedItem.messageId}</p>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="prose prose-slate max-w-none">
-                  <p className="text-lg leading-relaxed opacity-80 whitespace-pre-wrap">{selectedReceivedItem.content}</p>
+                <div className={styles.receivedDetailProse}>
+                  <p className={styles.receivedDetailProseText}>{selectedReceivedItem.content}</p>
                 </div>
 
                 {selectedReceivedItem.media && selectedReceivedItem.media.length > 0 && (
-                  <div className="space-y-4 pt-6 border-t" style={{ borderColor: themeConfig.general.border }}>
-                    <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                      <Upload size={18} className="text-blue-500" />
+                  <div className={styles.receivedDetailMediaSection} style={{ borderColor: themeConfig.general.border }}>
+                    <h3 className={styles.receivedDetailMediaTitle}>
+                      <Upload size={18} className={styles.iconBlue500} />
                       Mídias e Anexos ({selectedReceivedItem.media.length})
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className={styles.receivedDetailMediaGrid}>
                       {selectedReceivedItem.media.map((m, i) => (
-                        <div key={i} className="group relative rounded-2xl overflow-hidden border aspect-video bg-slate-100 flex items-center justify-center" style={{ borderColor: themeConfig.general.border }}>
-                          {m.type === 'image' && <img src={m.url} alt="" className="w-full h-full object-cover" />}
-                          {m.type === 'video' && <TrendingUp size={32} className="opacity-20" />}
-                          {m.type === 'audio' && <Bell size={32} className="opacity-20" />}
-                          {m.type === 'document' && <FileText size={32} className="opacity-20" />}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <a href={m.url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-full text-black">
+                        <div key={i} className={styles.receivedDetailMediaItem} style={{ borderColor: themeConfig.general.border }}>
+                          {m.type === 'image' && <img src={m.url} alt="" className={styles.mediaImg} />}
+                          {m.type === 'video' && <TrendingUp size={32} className={styles.iconFaint} />}
+                          {m.type === 'audio' && <Bell size={32} className={styles.iconFaint} />}
+                          {m.type === 'document' && <FileText size={32} className={styles.iconFaint} />}
+                          <div className={styles.mediaOverlay}>
+                            <a href={m.url} target="_blank" rel="noopener noreferrer" className={styles.mediaOverlayLink}>
                               <ExternalLink size={16} />
                             </a>
                           </div>
-                          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-white/80 text-[10px] font-bold uppercase tracking-widest">{m.type}</div>
+                          <div className={styles.mediaTypeBadge}>{m.type}</div>
                         </div>
                       ))}
                     </div>
@@ -2386,41 +2535,41 @@ export const CuratorDashboard = ({
                 )}
 
                 {selectedReceivedItem.originalLink && (
-                  <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <LinkIcon className="text-blue-600" size={20} />
+                  <div className={styles.originalLinkBox}>
+                    <div className={styles.originalLinkLeft}>
+                      <LinkIcon className={styles.iconBlue600} size={20} />
                       <div>
-                        <p className="text-[10px] font-bold uppercase text-blue-600">Link Original</p>
-                        <p className="text-sm font-medium truncate max-w-md">{selectedReceivedItem.originalLink}</p>
+                        <p className={styles.originalLinkLabel}>Link Original</p>
+                        <p className={styles.originalLinkText}>{selectedReceivedItem.originalLink}</p>
                       </div>
                     </div>
-                    <a href={selectedReceivedItem.originalLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-600 text-white rounded-xl shadow-lg">
+                    <a href={selectedReceivedItem.originalLink} target="_blank" rel="noopener noreferrer" className={styles.originalLinkButton}>
                       <ExternalLink size={16} />
                     </a>
                   </div>
                 )}
 
                 {selectedReceivedItem.internalNotes && (
-                  <div className="space-y-2 pt-6 border-t" style={{ borderColor: themeConfig.general.border }}>
-                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-50">Observações Internas</h3>
-                    <div className="p-4 rounded-2xl bg-slate-50 border italic text-sm opacity-70" style={{ borderColor: themeConfig.general.border }}>
+                  <div className={styles.internalNotesSection} style={{ borderColor: themeConfig.general.border }}>
+                    <h3 className={styles.internalNotesTitle}>Observações Internas</h3>
+                    <div className={styles.internalNotesContent} style={{ borderColor: themeConfig.general.border }}>
                       {selectedReceivedItem.internalNotes}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="w-full md:w-80 border-l p-8 space-y-6 flex flex-col justify-between" style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider">Ações da Curadoria</h3>
+              <div className={styles.receivedDetailSidebar} style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
+                <div className={styles.sidebarActionsBlock}>
+                  <div className={styles.sidebarActionsSection}>
+                    <h3 className={styles.sidebarActionsTitle}>Ações da Curadoria</h3>
                     <button 
                       onClick={() => {
                         onForwardToTriage(selectedReceivedItem);
                         setIsReceivedDetailOpen(false);
                       }}
-                      className="w-full py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                      className={styles.sidebarPrimaryButton}
+                      style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
                     >
                       <ArrowUpRight size={24} />
                       <span>Encaminhar para Triagem</span>
@@ -2430,31 +2579,31 @@ export const CuratorDashboard = ({
                         onDeleteReceivedNews(selectedReceivedItem.id);
                         setIsReceivedDetailOpen(false);
                       }}
-                      className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                      className={styles.sidebarDeleteButton}
                     >
                       <Trash2 size={18} />
                       Excluir Notícia
                     </button>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-white border space-y-3" style={{ borderColor: themeConfig.general.border }}>
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-40 flex items-center gap-2">
+                  <div className={styles.logCard} style={{ borderColor: themeConfig.general.border }}>
+                    <h4 className={styles.logTitle}>
                       <Info size={12} />
                       Log de Recebimento
                     </h4>
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                    <div className={styles.logItems}>
+                      <div className={styles.logItem}>
+                        <div className={styles.logDotBlue} />
                         <div>
-                          <p className="text-xs font-bold">Conteúdo Recebido</p>
-                          <p className="text-[10px] opacity-50 font-medium">Auto-captura via {selectedReceivedItem.sourceType}</p>
+                          <p className={styles.logItemTitle}>Conteúdo Recebido</p>
+                          <p className={styles.logItemSubtext}>Auto-captura via {selectedReceivedItem.sourceType}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0" />
+                      <div className={styles.logItem}>
+                        <div className={styles.logDotGray} />
                         <div>
-                          <p className="text-xs font-bold">Processado pelo Sistema</p>
-                          <p className="text-[10px] opacity-50 font-medium">Metadados extraídos com sucesso</p>
+                          <p className={styles.logItemTitle}>Processado pelo Sistema</p>
+                          <p className={styles.logItemSubtext}>Metadados extraídos com sucesso</p>
                         </div>
                       </div>
                     </div>
@@ -2463,7 +2612,7 @@ export const CuratorDashboard = ({
 
                 <button 
                   onClick={() => setIsReceivedDetailOpen(false)}
-                  className="w-full py-3 rounded-2xl font-bold opacity-60 hover:opacity-100 transition-opacity border"
+                  className={styles.receivedDetailBackButton2}
                   style={{ borderColor: themeConfig.general.border }}
                 >
                   Voltar para Lista
@@ -2477,51 +2626,52 @@ export const CuratorDashboard = ({
       {/* Triage Preview Modal */}
       <AnimatePresence>
         {isTriagePreviewOpen && currentTriageItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={styles.modalOverlay}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsTriagePreviewOpen(false)}
-              className="absolute inset-0 backdrop-blur-sm"
+              className={styles.modalBackdrop}
               style={{ backgroundColor: themeConfig.general.modalOverlay }}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+              className={styles.triagePreviewModal}
               style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
             >
-              <div className="p-8 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
-                 <div className="flex items-center gap-4">
-                    <button onClick={() => setIsTriagePreviewOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <div className={styles.triagePreviewHeader} style={{ borderColor: themeConfig.general.border }}>
+                 <div className={styles.triagePreviewHeaderLeft}>
+                    <button onClick={() => setIsTriagePreviewOpen(false)} className={styles.triagePreviewBackButton} style={{ color: themeConfig.general.mutedText }}>
                       <ArrowLeft size={20} />
                     </button>
                     <div>
-                      <h2 className="text-xl font-black tracking-tight">Pré-visualização da Notícia</h2>
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Status: {currentTriageItem.status}</p>
+                      <h2 className={styles.triagePreviewTitle}>Pré-visualização da Notícia</h2>
+                      <p className={styles.triagePreviewStatus}>Status: {currentTriageItem.status}</p>
                     </div>
                  </div>
-                 <div className="flex items-center gap-3">
+                 <div className={styles.triagePreviewHeaderRight}>
                     <button 
                       onClick={() => {
                         handleOpenAssign(currentTriageItem.id);
                         setIsTriagePreviewOpen(false);
                       }}
-                      className="px-6 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2"
+                      className={styles.triagePreviewAssignButton}
                       style={{ borderColor: themeConfig.general.border }}
                     >
                       <UserPlus size={16} />
                       Atribuir Checador
                     </button>
+                    {specializedNetworkEnabled && (
                     <button 
                       onClick={() => {
                         onSendToSpecializedNetwork(currentTriageItem.id);
                         setIsTriagePreviewOpen(false);
                       }}
                       disabled={currentTriageItem.sentToSpecializedNetwork}
-                      className="px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2"
+                      className={styles.extractionTriageButton}
                       style={{ 
                         backgroundColor: currentTriageItem.sentToSpecializedNetwork ? '#f1f5f9' : themeConfig.general.accent, 
                         color: currentTriageItem.sentToSpecializedNetwork ? '#94a3b8' : '#fff' 
@@ -2530,41 +2680,42 @@ export const CuratorDashboard = ({
                       <Globe size={16} />
                       {currentTriageItem.sentToSpecializedNetwork ? 'Encaminhado' : 'Rede Especializada'}
                     </button>
+                    )}
                  </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-10 flex flex-col md:flex-row gap-10">
-                <div className="flex-1 space-y-8">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
+              <div className={styles.triagePreviewBody}>
+                <div className={styles.triagePreviewLeft}>
+                  <div className={styles.triagePreviewMetaBlock}>
+                    <div className={styles.triagePreviewMetaRow}>
                        {getSourceIcon(currentTriageItem.source)}
-                       <span className="text-sm font-black uppercase tracking-widest opacity-40">{currentTriageItem.source}</span>
-                       <span className="text-sm opacity-30">•</span>
-                       <span className="text-sm opacity-40 font-medium">{currentTriageItem.date}</span>
+                       <span className={styles.triagePreviewSource}>{currentTriageItem.source}</span>
+                       <span className={styles.triagePreviewDot}>•</span>
+                       <span className={styles.triagePreviewDate}>{currentTriageItem.date}</span>
                     </div>
-                    <h1 className="text-3xl font-black tracking-tight leading-tight">{currentTriageItem.title}</h1>
+                    <h1 className={styles.triagePreviewTitle2}>{currentTriageItem.title}</h1>
                   </div>
 
-                  <div className="prose prose-slate max-w-none">
-                    <p className="text-lg leading-relaxed text-slate-600 font-medium whitespace-pre-wrap">{currentTriageItem.content}</p>
+                  <div className={styles.triagePreviewProse}>
+                    <p className={styles.triagePreviewProseText}>{currentTriageItem.content}</p>
                   </div>
 
                   {currentTriageItem.media && currentTriageItem.media.length > 0 && (
-                    <div className="space-y-4 pt-8 border-t" style={{ borderColor: themeConfig.general.border }}>
-                      <h3 className="text-sm font-black uppercase tracking-widest opacity-40 flex items-center gap-2">
+                    <div className={styles.triagePreviewMediaSection} style={{ borderColor: themeConfig.general.border }}>
+                      <h3 className={styles.triagePreviewMediaTitle}>
                         <Upload size={16} />
                         Arquivos e Mídias ({currentTriageItem.media.length})
                       </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className={styles.triagePreviewMediaGrid}>
                         {currentTriageItem.media.map((m, i) => (
-                          <div key={i} className="group relative rounded-2xl overflow-hidden border aspect-video bg-slate-50 flex items-center justify-center" style={{ borderColor: themeConfig.general.border }}>
-                            {m.type === 'image' && <img src={m.url} alt="" className="w-full h-full object-cover" />}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                               <a href={m.url} target="_blank" rel="noopener noreferrer" className="p-3 bg-white rounded-2xl text-black shadow-xl">
+                          <div key={i} className={styles.triagePreviewMediaItem} style={{ borderColor: themeConfig.general.border }}>
+                            {m.type === 'image' && <img src={m.url} alt="" className={styles.mediaImg} />}
+                            <div className={styles.triagePreviewMediaOverlay}>
+                               <a href={m.url} target="_blank" rel="noopener noreferrer" className={styles.triagePreviewMediaLink}>
                                  <ExternalLink size={18} />
                                </a>
                             </div>
-                            <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-white/90 text-[8px] font-black uppercase tracking-widest border border-slate-100">{m.type}</div>
+                            <div className={styles.triagePreviewMediaBadge}>{m.type}</div>
                           </div>
                         ))}
                       </div>
@@ -2572,35 +2723,35 @@ export const CuratorDashboard = ({
                   )}
                 </div>
 
-                <div className="w-full md:w-80 space-y-8">
-                  <div className="p-8 rounded-[2rem] border bg-slate-50 space-y-6" style={{ borderColor: themeConfig.general.border }}>
-                    <h3 className="text-sm font-black uppercase tracking-widest opacity-40">Indicadores AI</h3>
-                    <div className="space-y-4">
-                       <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                <div className={styles.triagePreviewRight}>
+                  <div className={styles.triagePreviewAiPanel} style={{ borderColor: themeConfig.general.border }}>
+                    <h3 className={styles.triagePreviewAiTitle}>Indicadores AI</h3>
+                    <div className={styles.triagePreviewAiItems}>
+                       <div className={styles.triagePreviewAiItem}>
+                          <div className={styles.triagePreviewAiHeader}>
                             <span>Gravidade</span>
                             <span>{currentTriageItem.aiScores?.gravity}%</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500" style={{ width: `${currentTriageItem.aiScores?.gravity}%` }} />
+                          <div className={styles.triagePreviewAiBarBg}>
+                            <div className={styles.aiBarRed} style={{ width: `${currentTriageItem.aiScores?.gravity}%` }} />
                           </div>
                        </div>
-                       <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                       <div className={styles.triagePreviewAiItem}>
+                          <div className={styles.triagePreviewAiHeader}>
                             <span>Urgência</span>
                             <span>{currentTriageItem.aiScores?.urgency}%</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-orange-500" style={{ width: `${currentTriageItem.aiScores?.urgency}%` }} />
+                          <div className={styles.triagePreviewAiBarBg}>
+                            <div className={styles.aiBarOrange} style={{ width: `${currentTriageItem.aiScores?.urgency}%` }} />
                           </div>
                        </div>
-                       <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                       <div className={styles.triagePreviewAiItem}>
+                          <div className={styles.triagePreviewAiHeader}>
                             <span>Tendência</span>
                             <span>{currentTriageItem.aiScores?.trend}%</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{ width: `${currentTriageItem.aiScores?.trend}%` }} />
+                          <div className={styles.triagePreviewAiBarBg}>
+                            <div className={styles.aiBarBlue} style={{ width: `${currentTriageItem.aiScores?.trend}%` }} />
                           </div>
                        </div>
                     </div>

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, Check, Mail, Info, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Bell, X, AlertTriangle, ArrowRight, Mail, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Notification, ThemeConfig, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
+import styles from './NotificationBell.module.css';
 
 interface NotificationBellProps {
   notifications: Notification[];
@@ -24,23 +25,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  // Filter notifications based on user profiles and categories
   const userNotifications = notifications.filter(n => {
-    // If targeted to a specific user, only they see it
     if (n.targetUserId) return n.targetUserId === currentUser.id;
 
-    // Checker restriction: only receives specific assignments (handled by targetUserId above)
-    // Here we handle the case where they shouldn't see general news/queue notifications
     const isChecker = currentUser.role === 'checker' || currentUser.profileId === 'p-checker';
     if (isChecker) {
-      // Checkers only see notifications meant for them personally or clearly assigned to them
       return n.targetUserId === currentUser.id;
     }
 
-    // Admin/Curator/Editor logic
     if (n.targetRole) {
       const roles = Array.isArray(n.targetRole) ? n.targetRole : [n.targetRole];
-      // Check both role (legacy) and profileId for transitions
       const userIdMatch = roles.some(r => 
         currentUser.role === r || 
         currentUser.profileId === `p-${r}` ||
@@ -49,8 +43,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       if (userIdMatch) return true;
     }
 
-    // Default to false for non-targeted notifications if we want strict behavior
-    // but keep true for general ones if needed. User requirements imply strictness.
     return false;
   }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -84,15 +76,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={styles.wrapper} ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 rounded-xl border flex items-center justify-center relative hover:bg-slate-50 transition-colors"
+        className={styles.bellBtn}
         style={{ borderColor: themeConfig.general.border }}
       >
-        <Bell size={20} className={unreadCount > 0 ? "text-blue-600" : "opacity-40"} />
+        <Bell size={20} className={unreadCount > 0 ? styles.bellIconActive : styles.bellIconInactive} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white animate-in zoom-in">
+          <span className={styles.badge}>
             {unreadCount}
           </span>
         )}
@@ -104,64 +96,59 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border z-50 overflow-hidden"
+            className={styles.dropdown}
             style={{ 
               backgroundColor: themeConfig.general.cardBackground, 
               borderColor: themeConfig.general.border 
             }}
           >
-            <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: themeConfig.general.border }}>
-              <h3 className="font-bold text-sm">Notificações</h3>
-              <div className="flex gap-2">
+            <div className={styles.dropdownHeader} style={{ borderColor: themeConfig.general.border }}>
+              <h3 className={styles.dropdownTitle}>Notificações</h3>
+              <div className={styles.dropdownActions}>
                 <button 
                   onClick={onClearAll}
-                  className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-900"
+                  className={styles.clearBtn}
                 >
                   Limpar tudo
                 </button>
-                <button onClick={() => setIsOpen(false)} className="opacity-40 hover:opacity-100">
+                <button onClick={() => setIsOpen(false)} className={styles.closeBtn}>
                   <X size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className={styles.list}>
               {userNotifications.length === 0 ? (
-                <div className="p-8 text-center opacity-40">
+                <div className={styles.emptyState}>
                   <Bell size={32} className="mx-auto mb-2" />
-                  <p className="text-sm font-medium">Nenhuma notificação</p>
+                  <p className={styles.emptyStateText}>Nenhuma notificação</p>
                 </div>
               ) : (
-                <div className="divide-y" style={{ borderColor: themeConfig.general.border }}>
+                <div className={styles.divider} style={{ borderColor: themeConfig.general.border }}>
                   {userNotifications.map(n => (
                     <div 
                       key={n.id}
                       onClick={() => handleNotificationClick(n)}
-                      className={cn(
-                        "p-4 flex gap-3 cursor-pointer transition-colors relative group",
-                        !n.isRead ? "bg-slate-50/50" : "hover:bg-slate-50/30"
-                      )}
+                      className={cn(styles.notifItem, !n.isRead ? styles.notifItemUnread : styles.notifItemRead)}
                     >
-                      {!n.isRead && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-                      )}
-                      <div className="mt-1 shrink-0">
+                      {!n.isRead && <div className={styles.unreadBar} />}
+                      <div className={styles.iconWrap}>
                         {getIcon(n.category)}
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className={cn("text-xs font-bold leading-tight", !n.isRead ? "text-slate-900" : "text-slate-600")}>
+                      <div className={styles.notifBody}>
+                        <div className={styles.notifMeta}>
+                          <p className={!n.isRead ? styles.notifTitleUnread : styles.notifTitleRead}>
                             {n.title}
                           </p>
-                          <span className="text-[10px] opacity-40 font-medium whitespace-nowrap">
+                          <span className={styles.notifTime}>
                             {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <p className="text-[11px] opacity-60 leading-normal line-clamp-2">
+                        <p className={styles.notifMessage}>
                           {n.message}
                         </p>
                         {n.link && (
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className={styles.notifLink}>
                             Ver detalhes <ArrowRight size={10} />
                           </div>
                         )}
@@ -173,9 +160,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             {userNotifications.length > 0 && (
-              <div className="p-3 border-t text-center" style={{ borderColor: themeConfig.general.border }}>
+              <div className={styles.footer} style={{ borderColor: themeConfig.general.border }}>
                 <button 
-                  className="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100"
+                  className={styles.footerBtn}
                   onClick={() => setIsOpen(false)}
                 >
                   Fechar Painel

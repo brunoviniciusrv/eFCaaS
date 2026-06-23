@@ -1,0 +1,1632 @@
+@reference "../index.css";
+
+/* ============================================================
+   Root Layout
+   ============================================================ */
+.wrapper {
+  @apply p-8 max-w-7xl mx-auto space-y-8;
+}
+
+.header {
+  @apply flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2;
+}
+
+.headerLeft {
+  @apply flex items-center gap-4;
+}
+
+.headerIcon {
+  @apply w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg rotate-2;
+}
+
+.headerTitle {
+  @apply text-2xl font-black tracking-tight;
+}
+
+.headerSubtitle {
+  @apply text-xs opacity-50 font-bold uppercase tracking-wider;
+}
+
+.headerActions {
+  @apply flex items-center gap-3;
+}
+
+.tabsWrapper {
+  @apply w-full sm:w-fit;
+}
+
+/* ============================================================
+   Common / Shared Patterns
+   ============================================================ */
+.tabPanel {
+  @apply space-y-6;
+}
+
+.filterRow {
+  @apply flex flex-col md:flex-row gap-4 items-end;
+}
+
+.filterField {
+  @apply flex-1 space-y-2;
+}
+
+.filterActionsWrapper {
+  @apply w-full md:w-auto flex gap-2;
+}
+
+.fieldLabel {
+  @apply text-xs font-bold uppercase tracking-wider opacity-50;
+}
+
+.fieldGroup {
+  @apply space-y-2;
+}
+
+.formSection {
+  @apply space-y-3;
+}
+
+.inputWrapper {
+  @apply relative;
+}
+
+.searchIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 opacity-40;
+}
+
+.searchIconLeft4 {
+  @apply absolute left-4 top-1/2 -translate-y-1/2 opacity-40;
+}
+
+.searchInput {
+  @apply w-full pl-10 pr-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2;
+}
+
+.listMetaRow {
+  @apply flex items-center justify-between;
+}
+
+.listCount {
+  @apply text-sm font-medium opacity-60;
+}
+
+.sortActionsRow {
+  @apply flex items-center gap-2;
+}
+
+.cardGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.emptyState {
+  @apply text-center py-20 opacity-40;
+}
+
+.emptyStateIcon {
+  @apply mx-auto mb-4;
+}
+
+.emptyTitle {
+  @apply text-lg font-bold;
+}
+
+.emptySubtext {
+  @apply text-sm;
+}
+
+.bold {
+  @apply font-bold;
+}
+
+.flex1 {
+  @apply flex-1;
+}
+
+/* ============================================================
+   Icon Utilities
+   ============================================================ */
+.iconGreen { @apply text-green-500; }
+.iconBlue600 { @apply text-blue-600; }
+.iconPink { @apply text-pink-600; }
+.iconSky { @apply text-sky-500; }
+.iconSlate { @apply text-slate-500; }
+.iconBlack { @apply text-black; }
+.iconDark { @apply text-slate-800; }
+.iconBlue500 { @apply text-blue-500; }
+.iconRed500 { @apply text-red-500; }
+.iconAmber { @apply text-amber-500; }
+.iconMuted { @apply opacity-40; }
+.iconVeryMuted { @apply opacity-30; }
+.iconFaint { @apply opacity-20; }
+
+/* ============================================================
+   Received Tab
+   ============================================================ */
+.sortButton {
+  @apply flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors hover:bg-slate-50;
+}
+
+.extractionButton {
+  @apply px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2;
+}
+
+.receivedCard {
+  @apply p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 relative;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.newDot {
+  @apply absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full animate-pulse;
+}
+
+.cardContent {
+  @apply space-y-3;
+}
+
+.cardTop {
+  @apply flex items-center justify-between;
+}
+
+.sourceBadge {
+  @apply flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-50 border;
+}
+
+.sourceBadgeText {
+  @apply text-[10px] font-bold uppercase tracking-wider opacity-60;
+}
+
+.cardDate {
+  @apply text-[10px] opacity-40 font-medium;
+}
+
+.cardTitleBlock {
+  @apply space-y-1;
+}
+
+.cardTitle {
+  @apply font-bold text-lg leading-tight transition-colors;
+  /* REMOVED from @apply (not supported): group-hover:text-blue-600 */
+  /* NOTE: group-hover:text-blue-600 → needs parent:hover descendant rule */
+}
+
+.cardExcerpt {
+  @apply text-sm opacity-60 line-clamp-2;
+}
+
+.cardMeta {
+  @apply flex items-center gap-3 pt-2;
+}
+
+.mediaStack {
+  @apply flex -space-x-1;
+}
+
+.mediaThumb {
+  @apply w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center;
+}
+
+.senderBlock {
+  @apply flex flex-col;
+}
+
+.senderLabel {
+  @apply text-[10px] font-bold opacity-40 uppercase tracking-widest;
+}
+
+.senderNameText {
+  @apply text-xs font-medium;
+}
+
+.cardActions {
+  @apply flex items-center gap-2 pt-4 border-t;
+}
+
+.viewButton {
+  @apply flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 hover:brightness-95;
+}
+
+.triageButton {
+  @apply flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2;
+}
+
+.deleteButton {
+  @apply p-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50;
+}
+
+/* ============================================================
+   Extraction Results
+   ============================================================ */
+.backButton {
+  @apply px-4 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 hover:bg-slate-50 transition-all;
+}
+
+.extractionResultsHeader {
+  @apply flex items-center justify-between;
+}
+
+.extractionResultsBadgeBlock {
+  @apply flex items-center gap-3;
+}
+
+.extractionResultsIconBadge {
+  @apply p-2 rounded-lg bg-blue-600 text-white shadow-md;
+}
+
+.extractionResultsTitle {
+  @apply text-sm font-bold;
+}
+
+.extractionResultsCount {
+  @apply text-[10px] opacity-50 uppercase font-black tracking-widest;
+}
+
+.extractionCard {
+  @apply p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 relative bg-blue-50/20;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.extractionWhiteBadge {
+  @apply flex items-center gap-2 px-2 py-1 rounded-lg bg-white border;
+}
+
+.extractionCardTitle {
+  @apply font-bold text-lg leading-tight transition-colors uppercase tracking-tight;
+  /* REMOVED from @apply (not supported): group-hover:text-blue-600 */
+  /* NOTE: group-hover:text-blue-600 → needs parent:hover descendant rule */
+}
+
+.extractionCardExcerpt {
+  @apply text-sm opacity-60 line-clamp-3 leading-relaxed;
+}
+
+.extractionViewButton {
+  @apply flex-1 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-2 shadow-sm hover:brightness-95;
+}
+
+.extractionTriageButton {
+  @apply flex-1 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm;
+}
+
+/* ============================================================
+   Triage Tab
+   ============================================================ */
+.filterFieldSmall {
+  @apply w-full md:w-32 space-y-2;
+}
+
+.rangeLabel {
+  @apply text-[10px] font-bold uppercase tracking-wider transition-colors duration-300;
+}
+
+.rangeInput {
+  @apply w-full h-1.5 rounded-lg appearance-none cursor-pointer transition-all hover:h-2;
+}
+
+.triageToolbar {
+  @apply flex items-center justify-between;
+}
+
+.triageToolbarLeft {
+  @apply flex items-center gap-4;
+}
+
+.registerNewsButton {
+  @apply px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2;
+}
+
+.bulkActionsRow {
+  @apply flex items-center gap-3;
+}
+
+.bulkAssignButton {
+  @apply px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2;
+}
+
+.triageList {
+  @apply grid grid-cols-1 gap-4;
+}
+
+.triageCard {
+  @apply p-6 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-start gap-6 cursor-pointer hover:shadow-md;
+}
+
+.triageCardSelected {
+  @apply ring-2;
+}
+
+.triageCardLeft {
+  @apply flex items-start gap-4 flex-1 overflow-hidden;
+}
+
+.triageCheckbox {
+  @apply w-5 h-5 mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500;
+}
+
+.triageCardInfo {
+  @apply flex-1 space-y-2;
+}
+
+.triageCardMetaRow {
+  @apply flex items-center gap-2;
+}
+
+.triageSourceBadge {
+  @apply flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 border;
+}
+
+.triageSourceText {
+  @apply text-[10px] font-bold uppercase opacity-60;
+}
+
+.triageDate {
+  @apply text-xs opacity-40;
+}
+
+.triageTitle {
+  @apply text-lg font-bold leading-tight transition-colors;
+  /* REMOVED from @apply (not supported): group-hover:text-blue-600 */
+  /* NOTE: group-hover:text-blue-600 → needs parent:hover descendant rule */
+}
+
+.triageContent {
+  @apply text-sm opacity-70 line-clamp-2;
+}
+
+.triageCardFooter {
+  @apply flex items-center gap-2 pt-1 flex-wrap;
+}
+
+.triageSenderBlock {
+  @apply flex items-center gap-1;
+}
+
+.triageSenderText {
+  @apply text-[10px] font-medium opacity-50;
+}
+
+.triageIdBlock {
+  @apply flex items-center gap-1 ml-auto;
+}
+
+.triageId {
+  @apply text-[10px] font-mono opacity-30;
+}
+
+.triageTimeBlock {
+  @apply flex items-center gap-1 opacity-30;
+}
+
+.triageTimeText {
+  @apply text-[10px] font-bold;
+}
+
+.triageCardRight {
+  @apply flex flex-col justify-between gap-4 w-full md:w-[280px] shrink-0;
+}
+
+.aiScoresPanel {
+  @apply space-y-3 p-4 rounded-2xl bg-slate-50/50 border;
+}
+
+.aiScoresInner {
+  @apply space-y-2;
+}
+
+.aiScoreItem {
+  @apply space-y-1;
+}
+
+.aiScoreHeader {
+  @apply flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-50;
+}
+
+.calculatingLabel {
+  @apply animate-pulse text-blue-500;
+}
+
+.aiScoreBarBg {
+  @apply w-full h-1.5 bg-slate-200 rounded-full overflow-hidden;
+}
+
+.aiLoadingBar1 {
+  @apply h-full w-1/3 bg-blue-400 animate-loading-shimmer;
+}
+
+.aiLoadingBar2 {
+  @apply h-full w-1/2 bg-blue-400 animate-loading-shimmer;
+}
+
+.aiLoadingBar3 {
+  @apply h-full w-2/3 bg-blue-400 animate-loading-shimmer;
+}
+
+.aiScoreBarFill {
+  @apply h-full transition-all duration-1000;
+}
+
+.triageAssignButton {
+  @apply w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2;
+}
+
+/* ============================================================
+   List View (Table)
+   ============================================================ */
+.listView {
+  @apply space-y-6;
+}
+
+.statusSelectWrapper {
+  @apply w-full md:w-48 space-y-2;
+}
+
+.statusSelect {
+  @apply w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2;
+}
+
+.tableWrapper {
+  @apply rounded-2xl border shadow-sm overflow-hidden;
+}
+
+.table {
+  @apply w-full text-left border-collapse;
+}
+
+.tableHeaderRow {
+  @apply border-b;
+}
+
+.tableHeaderCell {
+  @apply px-6 py-4 text-xs font-semibold uppercase tracking-wider;
+}
+
+.tableSortButton {
+  @apply flex items-center gap-1 hover:opacity-80;
+}
+
+.tableBody {
+  @apply divide-y;
+}
+
+.tableRow {
+  @apply hover:bg-slate-50 transition-colors cursor-pointer;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.tableCell {
+  @apply px-6 py-4;
+}
+
+.tableTitleMax {
+  @apply max-w-md;
+}
+
+.tableTitle {
+  @apply text-sm font-semibold line-clamp-1;
+}
+
+.tableSubtext {
+  @apply text-xs opacity-60 mt-1;
+}
+
+.priorityBadge {
+  @apply text-xs font-bold uppercase px-2 py-0.5 rounded;
+}
+
+.priorityHigh {
+  @apply text-red-600 bg-red-50;
+}
+
+.priorityMedium {
+  @apply text-amber-600 bg-amber-50;
+}
+
+.priorityLow {
+  @apply text-slate-600 bg-slate-50;
+}
+
+.assignedRow {
+  @apply flex items-center gap-2;
+}
+
+.assignedAvatar {
+  @apply w-6 h-6 rounded-full;
+}
+
+.unassignedText {
+  @apply text-xs opacity-40 italic;
+}
+
+.slaBlock {
+  @apply flex flex-col gap-1;
+}
+
+.slaTime {
+  @apply text-xs;
+}
+
+.slaPlaceholder {
+  @apply text-xs opacity-30;
+}
+
+.slaLabel {
+  @apply text-[10px] px-1.5 py-0.5 rounded font-bold uppercase w-fit;
+}
+
+.tableRightCell {
+  @apply px-6 py-4 text-right;
+}
+
+.tableActionsRow {
+  @apply flex justify-end gap-1;
+}
+
+.tableActionButton {
+  @apply p-2 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)];
+}
+
+/* ============================================================
+   Kanban View
+   ============================================================ */
+.kanbanGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+
+.kanbanColumn {
+  @apply flex flex-col h-[700px];
+}
+
+.kanbanColumnHeader {
+  @apply flex items-center justify-between mb-4 px-2;
+}
+
+.kanbanColumnTitle {
+  @apply font-bold flex items-center gap-2;
+}
+
+.kanbanColumnCount {
+  @apply text-xs px-2 py-0.5 rounded-full bg-slate-100 opacity-60;
+}
+
+.kanbanDropzone {
+  @apply flex-1 rounded-3xl border p-4 space-y-4 overflow-y-auto transition-colors;
+}
+
+.kanbanDropzoneActive {
+  @apply bg-slate-100/50;
+}
+
+.kanbanCard {
+  @apply p-4 rounded-2xl border shadow-sm space-y-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.kanbanCardDragging {
+  @apply rotate-2 shadow-2xl z-50;
+}
+
+.kanbanCardHeader {
+  @apply flex justify-between items-start;
+}
+
+.kanbanCardSource {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-40;
+}
+
+.kanbanCardTitle {
+  @apply text-sm font-bold leading-tight line-clamp-2;
+}
+
+.kanbanCardAssignee {
+  @apply flex items-center gap-2 pt-2 border-t;
+}
+
+.kanbanCardAvatar {
+  @apply w-5 h-5 rounded-full;
+}
+
+.kanbanCardAssigneeName {
+  @apply text-[10px] font-medium opacity-60;
+}
+
+.kanbanCardFooter {
+  @apply flex items-center justify-between pt-1;
+}
+
+.kanbanScores {
+  @apply flex gap-1;
+}
+
+.kanbanScoreRed {
+  @apply w-1 h-2 rounded-full bg-red-500;
+}
+
+.kanbanScoreOrange {
+  @apply w-1 h-2 rounded-full bg-orange-500;
+}
+
+.kanbanScoreBlue {
+  @apply w-1 h-2 rounded-full bg-blue-500;
+}
+
+.kanbanDate {
+  @apply text-[10px] opacity-40;
+}
+
+/* ============================================================
+   Workload View
+   ============================================================ */
+.workloadGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.checkerCard {
+  @apply p-6 rounded-3xl border shadow-sm space-y-6;
+}
+
+.checkerHeader {
+  @apply flex items-center gap-4;
+}
+
+.checkerAvatar {
+  @apply w-16 h-16 rounded-2xl object-cover;
+}
+
+.checkerName {
+  @apply font-bold text-lg;
+}
+
+.checkerEmail {
+  @apply text-xs opacity-60;
+}
+
+.checkerOnlineRow {
+  @apply flex items-center gap-2 mt-1;
+}
+
+.checkerOnlineDot {
+  @apply w-2 h-2 rounded-full bg-green-500;
+}
+
+.checkerOnlineText {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-50;
+}
+
+.checkerStatsGrid {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.checkerStatBox {
+  @apply p-3 rounded-2xl bg-slate-50 border;
+}
+
+.checkerStatLabel {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1;
+}
+
+.checkerStatValue {
+  @apply text-2xl font-black;
+}
+
+.checkerDistribBlock {
+  @apply space-y-3;
+}
+
+.checkerDistribTitle {
+  @apply text-xs font-bold uppercase tracking-wider opacity-50;
+}
+
+.checkerDistribItems {
+  @apply space-y-2;
+}
+
+.checkerDistribRow {
+  @apply flex items-center justify-between text-xs;
+}
+
+.checkerDistribItem {
+  @apply flex items-center gap-2;
+}
+
+.checkerDistribBarBg {
+  @apply w-full h-1.5 bg-slate-100 rounded-full overflow-hidden;
+}
+
+.checkerBarBlue {
+  @apply h-full bg-blue-500;
+}
+
+.checkerBarAmber {
+  @apply h-full bg-amber-500;
+}
+
+.checkerViewButton {
+  @apply w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 hover:brightness-95;
+}
+
+/* ============================================================
+   Reviews View
+   ============================================================ */
+.reviewsPanel {
+  @apply space-y-6;
+}
+
+.reviewsList {
+  @apply grid grid-cols-1 gap-4;
+}
+
+.reviewCard {
+  @apply p-6 rounded-3xl border shadow-sm flex flex-col md:flex-row gap-6;
+}
+
+.reviewCardLeft {
+  @apply flex-1 space-y-4;
+}
+
+.reviewCardTop {
+  @apply flex items-center justify-between;
+}
+
+.reviewMetaLeft {
+  @apply flex items-center gap-2;
+}
+
+.reviewCheckerName {
+  @apply text-xs opacity-50;
+}
+
+.reviewDate {
+  @apply text-xs opacity-40;
+}
+
+.reviewTitle {
+  @apply text-xl font-bold mb-2;
+}
+
+.reviewReportBox {
+  @apply p-4 rounded-2xl bg-slate-50 border border-dashed;
+}
+
+.reviewReportTitle {
+  @apply text-sm font-bold mb-1 flex items-center gap-2;
+}
+
+.reviewReportText {
+  @apply text-sm opacity-70 italic;
+}
+
+.reviewCardRight {
+  @apply flex flex-col justify-center gap-3 min-w-[180px];
+}
+
+.reviewNowButton {
+  @apply w-full py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2;
+}
+
+/* ============================================================
+   Modals — Common
+   ============================================================ */
+.modalOverlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+}
+
+.modalBackdrop {
+  @apply absolute inset-0 backdrop-blur-sm;
+}
+
+.modal {
+  @apply relative rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden;
+}
+
+.modalLg {
+  @apply relative rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden;
+}
+
+.modalHeader {
+  @apply p-6 border-b;
+}
+
+.modalHeaderFlex {
+  @apply p-6 border-b flex items-center justify-between;
+}
+
+.modalHeaderFlexBig {
+  @apply p-8 border-b flex items-center justify-between;
+}
+
+.modalTitle {
+  @apply text-xl font-bold;
+}
+
+.modalSubtitle {
+  @apply text-sm opacity-70;
+}
+
+.modalCloseButton {
+  @apply p-2 opacity-40 hover:opacity-100;
+}
+
+.modalBody {
+  @apply p-6 space-y-6;
+}
+
+.modalBodyScrollable {
+  @apply p-6 space-y-6 max-h-[60vh] overflow-y-auto;
+}
+
+.modalBodyBig {
+  @apply p-8 space-y-6 max-h-[70vh] overflow-y-auto;
+}
+
+.modalFooter {
+  @apply p-4 flex justify-end gap-3;
+}
+
+.modalFooterSingle {
+  @apply p-4 flex justify-end;
+}
+
+.modalCancelButton {
+  @apply px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100;
+}
+
+.modalCancelDisabled {
+  @apply px-6 py-2.5 text-sm font-bold opacity-60 hover:opacity-100 disabled:opacity-40;
+}
+
+.modalSubmitButton {
+  @apply px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50 flex items-center gap-2;
+}
+
+.modalSaveButton {
+  @apply px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all;
+}
+
+.modalSpinner {
+  @apply w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+/* ============================================================
+   Extraction Modal
+   ============================================================ */
+.extractionModalIcon {
+  @apply w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg;
+}
+
+.extractionModalHeaderLeft {
+  @apply flex items-center gap-4;
+}
+
+.extractionModalTitle {
+  @apply text-2xl font-black tracking-tight;
+}
+
+.extractionModalSubtitle {
+  @apply text-xs opacity-50 font-bold uppercase tracking-wider;
+}
+
+.extractionGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.extractionInput {
+  @apply w-full pl-12 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2;
+}
+
+.extractionNumberInput {
+  @apply w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2;
+}
+
+.extractionLimitLabel {
+  @apply text-xs font-bold uppercase tracking-wider opacity-50 flex items-center gap-2;
+}
+
+.extractionLimitNote {
+  @apply text-[10px] opacity-40 italic;
+}
+
+.platformsGrid {
+  @apply grid grid-cols-2 gap-2;
+}
+
+.platformButton {
+  @apply flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold transition-all;
+}
+
+.platformButtonInactive {
+  @apply opacity-40 hover:opacity-100;
+}
+
+.extractionModalFooter {
+  @apply p-8 flex items-center justify-between border-t;
+}
+
+.extractionModalFooterNote {
+  @apply text-xs opacity-50 max-w-sm font-medium;
+}
+
+.extractionModalButtons {
+  @apply flex gap-4;
+}
+
+.extractionModalCancelButton {
+  @apply px-6 py-3 text-sm font-bold opacity-60 hover:opacity-100;
+}
+
+.extractionSubmitButton {
+  @apply px-10 py-3 rounded-2xl text-sm font-bold shadow-xl transition-all disabled:opacity-50 flex items-center gap-2;
+}
+
+.extractionModalSpinner {
+  @apply w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+/* ============================================================
+   Detailed Tasks Modal
+   ============================================================ */
+.detailModalHeaderLeft {
+  @apply flex items-center gap-4;
+}
+
+.detailModalFooter {
+  @apply p-4 flex justify-end;
+}
+
+.detailCheckerAvatar {
+  @apply w-10 h-10 rounded-xl;
+}
+
+.detailModalTitle {
+  @apply text-xl font-bold;
+}
+
+.detailModalSubtitle {
+  @apply text-sm opacity-70;
+}
+
+.detailContent {
+  @apply p-6 space-y-4 max-h-[60vh] overflow-y-auto;
+}
+
+.detailTaskCard {
+  @apply p-4 rounded-2xl border hover:bg-slate-50 transition-all cursor-pointer;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.detailTaskInner {
+  @apply flex items-start justify-between gap-4;
+}
+
+.detailTaskInfo {
+  @apply space-y-1;
+}
+
+.detailTaskMeta {
+  @apply flex items-center gap-2;
+}
+
+.detailTaskSource {
+  @apply text-[10px] font-bold opacity-40 uppercase tracking-widest;
+}
+
+.detailTaskTitle {
+  @apply text-sm font-bold transition-colors;
+  /* REMOVED from @apply (not supported): group-hover:text-blue-600 */
+  /* NOTE: group-hover:text-blue-600 → needs parent:hover descendant rule */
+}
+
+.detailTaskRight {
+  @apply text-right;
+}
+
+.detailTaskDate {
+  @apply text-[10px] opacity-40;
+}
+
+.detailTaskScores {
+  @apply flex gap-1 mt-1 justify-end;
+}
+
+.detailScoreRed {
+  @apply w-2 h-0.5 rounded-full bg-red-500;
+}
+
+.detailScoreOrange {
+  @apply w-2 h-0.5 rounded-full bg-orange-500;
+}
+
+.detailEmptyState {
+  @apply text-center py-12 opacity-30;
+}
+
+.detailCloseButton {
+  @apply px-8 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-lg transition-all;
+}
+
+/* ============================================================
+   Assign Modal
+   ============================================================ */
+.checkerList {
+  @apply grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2;
+}
+
+.checkerOption {
+  @apply flex items-center gap-3 p-3 rounded-2xl border transition-all text-left;
+}
+
+.checkerOptionSelected {
+  @apply ring-2;
+}
+
+.checkerOptionDefault {
+  @apply hover:bg-slate-50;
+}
+
+.checkerOptionAvatar {
+  @apply w-10 h-10 rounded-xl;
+}
+
+.checkerOptionInfo {
+  @apply flex-1;
+}
+
+.checkerOptionName {
+  @apply text-sm font-bold;
+}
+
+.checkerOptionTasks {
+  @apply text-[10px] opacity-60;
+}
+
+.briefingTextarea {
+  @apply w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none;
+}
+
+.assignError {
+  @apply text-xs font-bold text-red-500;
+}
+
+.assignSpinner {
+  @apply w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+/* ============================================================
+   Review Modal
+   ============================================================ */
+.reviewOriginalBox {
+  @apply p-4 rounded-2xl bg-slate-50 border;
+}
+
+.reviewReportPanel {
+  @apply p-4 rounded-2xl border;
+}
+
+.reviewBoxLabel {
+  @apply text-xs font-bold uppercase tracking-widest opacity-50 mb-2;
+}
+
+.reviewNewsTitle {
+  @apply text-sm font-bold mb-1;
+}
+
+.reviewNewsExcerpt {
+  @apply text-xs opacity-70 line-clamp-3;
+}
+
+.reviewProse {
+  @apply max-w-none;
+}
+
+.reviewCommentTextarea {
+  @apply w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none;
+}
+
+.reviewActions {
+  @apply p-6 flex gap-4 border-t;
+}
+
+.reviewRejectButton {
+  @apply flex-1 py-3 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-2 disabled:opacity-50;
+}
+
+.reviewApproveButton {
+  @apply flex-1 py-3 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2;
+}
+
+/* ============================================================
+   Reopen Modal
+   ============================================================ */
+.reopenTextarea {
+  @apply w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none;
+}
+
+.reopenSubmitButton {
+  @apply px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all disabled:opacity-50;
+}
+
+/* ============================================================
+   Register / Edit Modals
+   ============================================================ */
+.registerModalBody {
+  @apply p-6 overflow-y-auto max-h-[70vh] space-y-6;
+}
+
+.registerGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.registerInnerGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2;
+}
+
+.registerFieldFull {
+  @apply space-y-2 md:col-span-2;
+}
+
+.registerInput {
+  @apply w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2;
+}
+
+.registerTextareaSmall {
+  @apply w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 resize-none;
+}
+
+.urlInputWrapper {
+  @apply relative;
+}
+
+.urlInputIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 opacity-40;
+}
+
+.urlInput {
+  @apply w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2;
+}
+
+.dropzone {
+  @apply border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer hover:brightness-95;
+}
+
+.dropzoneIcon {
+  @apply mx-auto mb-2 opacity-60;
+}
+
+.dropzoneTitle {
+  @apply text-sm font-medium opacity-80;
+}
+
+.dropzoneSubtext {
+  @apply text-[10px] opacity-60 mt-1 uppercase tracking-wider;
+}
+
+.hiddenInput {
+  @apply hidden;
+}
+
+.attachmentsList {
+  @apply space-y-2 mt-2;
+}
+
+.attachmentItem {
+  @apply flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-sm;
+}
+
+.attachmentItemLeft {
+  @apply flex items-center gap-2 min-w-0;
+}
+
+.attachmentIcon {
+  @apply shrink-0 opacity-60;
+}
+
+.attachmentName {
+  @apply truncate font-medium;
+}
+
+.attachmentSize {
+  @apply text-[10px] opacity-50 shrink-0;
+}
+
+.attachmentRemove {
+  @apply p-1.5 rounded-lg transition-colors hover:bg-[var(--efc-hover-bg)];
+}
+
+.quickAssignSection {
+  @apply pt-4 border-t;
+}
+
+.quickAssignHeader {
+  @apply flex items-center gap-2 mb-4;
+}
+
+.quickAssignIcon {
+  @apply opacity-60;
+}
+
+.quickAssignTitle {
+  @apply text-sm font-bold uppercase tracking-wider;
+}
+
+.quickAssignGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.editModalBody {
+  @apply p-6 overflow-y-auto max-h-[70vh] space-y-5;
+}
+
+.editGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-5;
+}
+
+/* ============================================================
+   Received Detail Modal
+   ============================================================ */
+.receivedDetailModal {
+  @apply relative rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row;
+}
+
+.receivedDetailLeft {
+  @apply flex-1 overflow-y-auto p-8 space-y-6;
+}
+
+.receivedDetailHeaderRow {
+  @apply flex items-center justify-between;
+}
+
+.receivedDetailHeaderLeft {
+  @apply flex items-center gap-3;
+}
+
+.receivedDetailBackButton {
+  @apply p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)];
+}
+
+.receivedDetailSourceBadge {
+  @apply flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-50 border;
+}
+
+.receivedDetailSourceText {
+  @apply text-xs font-bold uppercase tracking-wider;
+}
+
+.receivedDetailHeaderRight {
+  @apply flex items-center gap-2;
+}
+
+.receivedDetailDateTime {
+  @apply text-xs opacity-50 font-medium;
+}
+
+.receivedDetailTitle {
+  @apply text-3xl font-black leading-tight tracking-tight;
+}
+
+.receivedDetailMetaRow {
+  @apply flex flex-wrap gap-4 pt-2;
+}
+
+.receivedDetailMetaItem {
+  @apply flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border whitespace-nowrap;
+}
+
+.receivedDetailMetaIconBlue {
+  @apply w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600;
+}
+
+.receivedDetailMetaIconGray {
+  @apply w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600;
+}
+
+.receivedDetailMetaLabel {
+  @apply text-[10px] uppercase font-bold opacity-40;
+}
+
+.receivedDetailMetaValue {
+  @apply text-sm font-bold;
+}
+
+.receivedDetailProse {
+  @apply max-w-none;
+}
+
+.receivedDetailProseText {
+  @apply text-lg leading-relaxed opacity-80 whitespace-pre-wrap;
+}
+
+.receivedDetailMediaSection {
+  @apply space-y-4 pt-6 border-t;
+}
+
+.receivedDetailMediaTitle {
+  @apply text-sm font-bold uppercase tracking-wider flex items-center gap-2;
+}
+
+.receivedDetailMediaGrid {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.receivedDetailMediaItem {
+  @apply relative rounded-2xl overflow-hidden border aspect-video bg-slate-100 flex items-center justify-center;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.mediaImg {
+  @apply w-full h-full object-cover;
+}
+
+.mediaOverlay {
+  @apply absolute inset-0 bg-black/40 opacity-0 transition-opacity flex items-center justify-center;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.mediaOverlayLink {
+  @apply p-2 bg-white rounded-full text-black;
+}
+
+.mediaTypeBadge {
+  @apply absolute bottom-2 left-2 px-2 py-0.5 rounded bg-white/80 text-[10px] font-bold uppercase tracking-widest;
+}
+
+.originalLinkBox {
+  @apply p-4 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-between;
+}
+
+.originalLinkLeft {
+  @apply flex items-center gap-3;
+}
+
+.originalLinkLabel {
+  @apply text-[10px] font-bold uppercase text-blue-600;
+}
+
+.originalLinkText {
+  @apply text-sm font-medium truncate max-w-md;
+}
+
+.originalLinkButton {
+  @apply p-2 bg-blue-600 text-white rounded-xl shadow-lg;
+}
+
+.internalNotesSection {
+  @apply space-y-2 pt-6 border-t;
+}
+
+.internalNotesTitle {
+  @apply text-sm font-bold uppercase tracking-wider opacity-50;
+}
+
+.internalNotesContent {
+  @apply p-4 rounded-2xl bg-slate-50 border italic text-sm opacity-70;
+}
+
+.receivedDetailSidebar {
+  @apply w-full md:w-80 border-l p-8 space-y-6 flex flex-col justify-between;
+}
+
+.sidebarActionsBlock {
+  @apply space-y-6;
+}
+
+.sidebarActionsSection {
+  @apply space-y-4;
+}
+
+.sidebarActionsTitle {
+  @apply text-sm font-bold uppercase tracking-wider;
+}
+
+.sidebarPrimaryButton {
+  @apply w-full py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98];
+}
+
+.sidebarDeleteButton {
+  @apply w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 transition-colors;
+}
+
+.logCard {
+  @apply p-5 rounded-2xl bg-white border space-y-3;
+}
+
+.logTitle {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-40 flex items-center gap-2;
+}
+
+.logItems {
+  @apply space-y-3;
+}
+
+.logItem {
+  @apply flex gap-2;
+}
+
+.logDotBlue {
+  @apply w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0;
+}
+
+.logDotGray {
+  @apply w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0;
+}
+
+.logItemTitle {
+  @apply text-xs font-bold;
+}
+
+.logItemSubtext {
+  @apply text-[10px] opacity-50 font-medium;
+}
+
+.receivedDetailBackButton2 {
+  @apply w-full py-3 rounded-2xl font-bold opacity-60 hover:opacity-100 transition-opacity border;
+}
+
+/* ============================================================
+   Triage Preview Modal
+   ============================================================ */
+.triagePreviewModal {
+  @apply relative rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col;
+}
+
+.triagePreviewHeader {
+  @apply p-8 border-b flex items-center justify-between;
+}
+
+.triagePreviewHeaderLeft {
+  @apply flex items-center gap-4;
+}
+
+.triagePreviewBackButton {
+  @apply p-2 rounded-full transition-colors hover:bg-[var(--efc-hover-bg)];
+}
+
+.triagePreviewTitle {
+  @apply text-xl font-black tracking-tight;
+}
+
+.triagePreviewStatus {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-40;
+}
+
+.triagePreviewHeaderRight {
+  @apply flex items-center gap-3;
+}
+
+.triagePreviewAssignButton {
+  @apply px-6 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2;
+}
+
+.triagePreviewBody {
+  @apply flex-1 overflow-y-auto p-10 flex flex-col md:flex-row gap-10;
+}
+
+.triagePreviewLeft {
+  @apply flex-1 space-y-8;
+}
+
+.triagePreviewMetaBlock {
+  @apply space-y-4;
+}
+
+.triagePreviewMetaRow {
+  @apply flex items-center gap-3;
+}
+
+.triagePreviewSource {
+  @apply text-sm font-black uppercase tracking-widest opacity-40;
+}
+
+.triagePreviewDot {
+  @apply text-sm opacity-30;
+}
+
+.triagePreviewDate {
+  @apply text-sm opacity-40 font-medium;
+}
+
+.triagePreviewTitle2 {
+  @apply text-3xl font-black tracking-tight leading-tight;
+}
+
+.triagePreviewProse {
+  @apply max-w-none;
+}
+
+.triagePreviewProseText {
+  @apply text-lg leading-relaxed text-slate-600 font-medium whitespace-pre-wrap;
+}
+
+.triagePreviewMediaSection {
+  @apply space-y-4 pt-8 border-t;
+}
+
+.triagePreviewMediaTitle {
+  @apply text-sm font-black uppercase tracking-widest opacity-40 flex items-center gap-2;
+}
+
+.triagePreviewMediaGrid {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.triagePreviewMediaItem {
+  @apply relative rounded-2xl overflow-hidden border aspect-video bg-slate-50 flex items-center justify-center;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.triagePreviewMediaOverlay {
+  @apply absolute inset-0 bg-black/40 opacity-0 transition-opacity flex items-center justify-center;
+  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
+  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+}
+
+.triagePreviewMediaLink {
+  @apply p-3 bg-white rounded-2xl text-black shadow-xl;
+}
+
+.triagePreviewMediaBadge {
+  @apply absolute top-3 left-3 px-2 py-1 rounded-lg bg-white/90 text-[8px] font-black uppercase tracking-widest border border-slate-100;
+}
+
+.triagePreviewRight {
+  @apply w-full md:w-80 space-y-8;
+}
+
+.triagePreviewAiPanel {
+  @apply p-8 rounded-[2rem] border bg-slate-50 space-y-6;
+}
+
+.triagePreviewAiTitle {
+  @apply text-sm font-black uppercase tracking-widest opacity-40;
+}
+
+.triagePreviewAiItems {
+  @apply space-y-4;
+}
+
+.triagePreviewAiItem {
+  @apply space-y-1;
+}
+
+.triagePreviewAiHeader {
+  @apply flex justify-between text-[10px] font-black uppercase tracking-widest;
+}
+
+.triagePreviewAiBarBg {
+  @apply w-full h-2 bg-slate-200 rounded-full overflow-hidden;
+}
+
+.aiBarRed {
+  @apply h-full bg-red-500;
+}
+
+.aiBarOrange {
+  @apply h-full bg-orange-500;
+}
+
+.aiBarBlue {
+  @apply h-full bg-blue-500;
+}
+
+/* ── Hover reveal rules (replaces group-hover) ── */
+.receivedCard:hover .cardTitle {
+  color: #2563eb;
+}
+
+.extractionCard:hover .extractionCardTitle {
+  color: #2563eb;
+}
+
+.triageCard:hover .triageTitle {
+  color: #2563eb;
+}
+
+.detailTaskCard:hover .detailTaskTitle {
+  color: #2563eb;
+}
+
+.receivedDetailMediaItem:hover .mediaOverlay {
+  opacity: 1;
+}
+
+.triagePreviewMediaItem:hover .triagePreviewMediaOverlay {
+  opacity: 1;
+}

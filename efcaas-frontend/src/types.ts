@@ -86,6 +86,9 @@ export interface ThemeConfig {
     tableHeaderBackground: string;
     tableHeaderText: string;
     tableRowHover: string;
+    mutedBackground: string;
+    mutedText: string;
+    hoverBackground: string;
   };
 }
 
@@ -142,8 +145,10 @@ export interface ReceivedNewsItem {
   receivedAt: string;
   status: ReceivedNewsStatus;
   media?: {
+    id?: string;
     type: 'image' | 'video' | 'audio' | 'document';
     url: string;
+    title?: string;
   }[];
   originalLink?: string;
   messageId?: string;
@@ -274,6 +279,7 @@ export interface NewsItem {
   status: NewsStatus;
   priority?: 'low' | 'medium' | 'high';
   assignedTo?: string; // User ID
+  assignedToEditor?: string; // Editor user ID (aba Redação)
   startTime?: string; // ISO string
   completedAt?: string; // ISO string
   isRectified?: boolean;
@@ -281,8 +287,10 @@ export interface NewsItem {
   sentToSpecializedNetwork?: boolean;
   specializedCheckId?: string;
   media?: {
+    id?: string;
     type: 'image' | 'video' | 'audio' | 'document';
     url: string;
+    title?: string;
   }[];
   evidence: Evidence[];
   report?: string;
@@ -292,6 +300,14 @@ export interface NewsItem {
     gravity: number;
     urgency: number;
     trend: number;
+    inveracidade?: number;
+    distorcao?: number;
+    foraDeContexto?: number;
+    golpe?: number;
+    fraude?: number;
+    ataques?: number;
+    discursoDeOdio?: number;
+    discursoAntidemocratico?: number;
   };
   aiEvaluation?: AIEvaluation;
   briefing?: string;

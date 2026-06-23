@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import { LucideIcon } from 'lucide-react';
+import styles from './ResponsiveTabs.module.css';
 
 interface Tab {
   id: string;
@@ -31,13 +32,13 @@ export function ResponsiveTabs({
   inactiveButtonClassName
 }: ResponsiveTabsProps) {
   return (
-    <div className={cn("flex flex-col gap-2 mb-6 sm:mb-0 w-full sm:w-fit", className)}>
+    <div className={cn(styles.wrapper, className)}>
       {/* Mobile Dropdown */}
-      <div className="sm:hidden w-full">
+      <div className={styles.mobileWrapper}>
         <select 
           value={activeTab} 
           onChange={(e) => setActiveTab(e.target.value)}
-          className="w-full p-3 rounded-2xl border outline-none font-bold text-sm appearance-none"
+          className={styles.mobileSelect}
           style={{ 
             backgroundColor: themeConfig?.general?.cardBackground || 'white', 
             borderColor: themeConfig?.general?.border || '#e2e8f0',
@@ -57,7 +58,7 @@ export function ResponsiveTabs({
       
       {/* Desktop Tabs */}
       <div 
-        className="hidden sm:flex p-1 rounded-2xl border w-fit overflow-x-auto hide-scrollbar" 
+        className={styles.desktopWrapper}
         style={{ 
           backgroundColor: themeConfig?.general?.cardBackground || 'white', 
           borderColor: themeConfig?.general?.border || '#e2e8f0' 
@@ -68,10 +69,10 @@ export function ResponsiveTabs({
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              buttonClassName || "flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+              buttonClassName || styles.tabBtn,
               activeTab === tab.id 
-                ? (activeButtonClassName || "shadow-sm") 
-                : (inactiveButtonClassName || "opacity-40 hover:opacity-100")
+                ? (activeButtonClassName || styles.tabBtnActive)
+                : (inactiveButtonClassName || styles.tabBtnInactive)
             )}
             style={{ 
               backgroundColor: activeTab === tab.id ? (themeConfig?.sidebar?.activeBackground || '#f1f5f9') : 'transparent',

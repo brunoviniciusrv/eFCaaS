@@ -1,0 +1,388 @@
+@reference "../index.css";
+
+.page {
+  @apply space-y-8;
+}
+
+.backBtn {
+  @apply flex items-center gap-2 text-sm font-bold opacity-60 hover:opacity-100 transition-all;
+}
+
+.detailLayout {
+  @apply flex flex-col lg:flex-row gap-8;
+}
+
+.detailMain {
+  @apply flex-1 space-y-6;
+}
+
+.detailTitleWrap {
+  @apply space-y-2;
+}
+
+.detailMeta {
+  @apply flex items-center gap-3;
+}
+
+.statusCompleted {
+  @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 border border-green-200;
+}
+
+.statusPending {
+  @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200 shadow-sm animate-pulse;
+}
+
+.protocolLabel {
+  @apply text-[10px] opacity-40 font-bold uppercase tracking-widest;
+}
+
+.detailTitle {
+  @apply text-3xl font-black tracking-tight leading-tight;
+}
+
+.detailDates {
+  @apply flex items-center gap-4 text-xs opacity-50 font-medium;
+}
+
+.tabBar {
+  @apply flex p-1 rounded-2xl border w-fit bg-slate-50;
+}
+
+.tabBtnActive {
+  @apply px-6 py-2 rounded-xl text-xs font-bold transition-all bg-white shadow-sm;
+}
+
+.tabBtnInactive {
+  @apply px-6 py-2 rounded-xl text-xs font-bold transition-all opacity-40;
+}
+
+.tabBtnDisabled {
+  @apply px-6 py-2 rounded-xl text-xs font-bold transition-all opacity-40 disabled:opacity-20;
+}
+
+.summaryGrid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.aiCard {
+  @apply p-8 rounded-[2rem] border bg-blue-600 text-white shadow-xl relative overflow-hidden;
+}
+
+.aiCardTitle {
+  @apply text-xl font-black tracking-tight mb-4 flex items-center gap-2;
+}
+
+.aiCardText {
+  @apply text-sm opacity-90 leading-relaxed font-medium;
+}
+
+.networkCard {
+  @apply p-8 rounded-[2rem] border bg-white shadow-sm relative overflow-hidden;
+}
+
+.networkCardTitle {
+  @apply text-xl font-black tracking-tight mb-4 flex items-center gap-2;
+}
+
+.networkCardText {
+  @apply text-sm text-slate-600 leading-relaxed font-medium;
+}
+
+.compositionCard {
+  @apply p-8 rounded-[2rem] border bg-slate-50 border-dashed;
+}
+
+.compositionHeader {
+  @apply flex items-center gap-3 mb-6;
+}
+
+.compositionIconWrap {
+  @apply p-2 rounded-lg bg-slate-900 text-white;
+}
+
+.compositionTitle {
+  @apply text-lg font-black tracking-tight;
+}
+
+.compositionGrid {
+  @apply grid grid-cols-2 md:grid-cols-5 gap-4;
+}
+
+.checkerItem {
+  @apply flex flex-col items-center gap-2 text-center;
+}
+
+.checkerAvatar {
+  @apply w-12 h-12 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden;
+}
+
+.checkerAvatarFallback {
+  @apply w-full h-full flex items-center justify-center text-slate-500 font-bold uppercase;
+}
+
+.checkerName {
+  @apply text-[10px] font-bold leading-tight;
+}
+
+.checkerDone {
+  @apply px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[8px] font-black uppercase tracking-widest mb-1;
+}
+
+.skeletonItem {
+  @apply flex flex-col items-center gap-2 text-center opacity-40;
+}
+
+.skeletonAvatar {
+  @apply w-12 h-12 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center;
+}
+
+.skeletonName {
+  @apply text-[10px] font-bold;
+}
+
+.skeletonStatus {
+  @apply text-[8px] font-black uppercase tracking-widest;
+}
+
+.checkersList {
+  @apply space-y-8;
+}
+
+.checkerCard {
+  @apply p-8 rounded-[2.5rem] border bg-white shadow-sm hover:shadow-xl transition-all duration-500;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.checkerCardLayout {
+  @apply flex flex-col lg:flex-row gap-8;
+}
+
+.checkerCardLeft {
+  @apply lg:w-1/3 space-y-6;
+}
+
+.checkerProfile {
+  @apply flex items-center gap-4;
+}
+
+.checkerAvatarLarge {
+  @apply w-16 h-16 rounded-[1.5rem] bg-slate-100 rotate-3 transition-transform overflow-hidden shadow-md;
+  /* REMOVED from @apply (not supported): group-hover:rotate-0 */
+}
+
+.checkerAvatarInitial {
+  @apply w-full h-full flex items-center justify-center text-2xl font-black text-slate-400;
+}
+
+.checkerHeadTitle {
+  @apply font-black text-lg;
+}
+
+.checkerHeadSub {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-40;
+}
+
+.checkerInfoList {
+  @apply space-y-4;
+}
+
+.infoGroup {
+  @apply space-y-2;
+}
+
+.infoLabel {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center gap-2;
+}
+
+.questionItem {
+  @apply p-3 rounded-xl bg-slate-50 text-xs font-medium border border-slate-100 italic;
+}
+
+.sourceLink {
+  @apply flex items-center gap-2 text-xs font-bold text-blue-600 hover:underline overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.checkerCardRight {
+  @apply flex-1 space-y-6 lg:border-l lg:pl-8;
+}
+
+.processText {
+  @apply text-sm font-medium leading-relaxed text-slate-600;
+}
+
+.conclusionCard {
+  @apply p-6 rounded-3xl bg-slate-900 text-white shadow-lg space-y-2;
+}
+
+.conclusionText {
+  @apply text-sm font-bold leading-relaxed;
+}
+
+.attachmentsWrap {
+  @apply flex flex-wrap gap-2;
+}
+
+.attachmentBtn {
+  @apply flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 border text-[10px] font-bold hover:bg-slate-200 transition-all;
+}
+
+.detailSidebar {
+  @apply lg:w-80 space-y-6;
+}
+
+.origCard {
+  @apply p-6 rounded-[2rem] border bg-white shadow-sm space-y-4;
+}
+
+.origCardTitle {
+  @apply text-sm font-black uppercase tracking-widest opacity-40;
+}
+
+.origContent {
+  @apply p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3;
+}
+
+.origTitle {
+  @apply font-bold text-sm leading-tight;
+}
+
+.origText {
+  @apply text-[10px] opacity-60 line-clamp-4 leading-relaxed;
+}
+
+.origMeta {
+  @apply flex items-center gap-2 pt-2 text-[10px] font-black uppercase tracking-widest opacity-40;
+}
+
+.actionsCard {
+  @apply p-6 rounded-[2rem] border bg-slate-50 shadow-sm space-y-4 border-dashed;
+}
+
+.actionsTitle {
+  @apply text-sm font-black uppercase tracking-widest opacity-40;
+}
+
+.actionsList {
+  @apply space-y-3;
+}
+
+.actionBtnPrimary {
+  @apply w-full py-3 rounded-2xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-all;
+}
+
+.actionBtnSecondary {
+  @apply w-full py-3 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all;
+}
+
+.listHeader {
+  @apply flex items-center justify-between;
+}
+
+.listTitle {
+  @apply text-xl font-black tracking-tight;
+}
+
+.listSubtitle {
+  @apply text-xs opacity-50 font-bold uppercase tracking-wider;
+}
+
+.grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.card {
+  @apply p-6 rounded-[2.5rem] border bg-white hover:bg-slate-50 transition-all duration-300 shadow-sm hover:shadow-xl cursor-pointer flex flex-col justify-between gap-6;
+  /* REMOVED from @apply (not supported): group */
+}
+
+.cardTop {
+  @apply space-y-4;
+}
+
+.cardHeader {
+  @apply flex items-center justify-between;
+}
+
+.cardStatusCompleted {
+  @apply px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-100 text-green-700;
+}
+
+.cardStatusPending {
+  @apply px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 animate-pulse;
+}
+
+.cardId {
+  @apply text-[9px] opacity-40 font-bold uppercase tracking-widest;
+}
+
+.cardTitleWrap {
+  @apply space-y-1;
+}
+
+.cardTitle {
+  @apply font-black text-lg leading-tight transition-colors line-clamp-2;
+  /* REMOVED from @apply (not supported): group-hover:text-blue-600 */
+  /* NOTE: group-hover:text-blue-600 → needs parent:hover descendant rule */
+}
+
+.cardDesc {
+  @apply text-xs opacity-50 line-clamp-2 font-medium;
+}
+
+.cardCheckers {
+  @apply flex items-center gap-3;
+}
+
+.avatarStack {
+  @apply flex -space-x-2;
+}
+
+.avatarItem {
+  @apply w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500;
+}
+
+.avatarSkeleton {
+  @apply w-8 h-8 rounded-full bg-slate-50 border-2 border-white border-dashed flex items-center justify-center text-slate-300;
+}
+
+.checkersLabel {
+  @apply text-[10px] font-black uppercase tracking-widest opacity-40;
+}
+
+.cardFooter {
+  @apply pt-4 border-t flex items-center justify-between;
+}
+
+.cardDate {
+  @apply flex flex-col;
+}
+
+.cardDateLabel {
+  @apply text-[9px] font-black uppercase tracking-widest opacity-40;
+}
+
+.cardDateValue {
+  @apply text-[10px] font-bold;
+}
+
+.cardArrow {
+  @apply p-2 rounded-xl bg-slate-100 transition-all;
+  /* REMOVED from @apply (not supported): group-hover:bg-blue-600 group-hover:text-white */
+  /* NOTE: group-hover:text-white → needs parent:hover descendant rule */
+}
+
+.emptyState {
+  @apply col-span-full py-20 text-center space-y-6 opacity-40;
+}
+
+.emptyIcon {
+  @apply w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto;
+}
+
+.emptyTitle {
+  @apply text-lg font-black tracking-tight;
+}
+
+.emptyDesc {
+  @apply text-sm font-medium;
+}
