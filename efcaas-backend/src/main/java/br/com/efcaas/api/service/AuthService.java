@@ -58,17 +58,40 @@ public class AuthService {
     }
 
     @Transactional
-    public UsuarioDto atualizarPerfil(Long userId, String nome, String bio) {
+    public UsuarioDto atualizarPerfil(Long userId, String nome, String bio, String foto) {
         Usuario usuario = usuarioRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado: " + userId));
 
         if (nome != null && !nome.isBlank()) {
-            usuario.setNome(nome);
+            usuario.setNome(nome.trim());
         }
         if (bio != null) {
-            usuario.setBio(bio);
+            usuario.setBio(bio.isBlank() ? null : bio.trim());
+        }
+        if (foto != null && !foto.isBlank()) {
+            usuario.setFoto(foto);
         }
 
+        return usuarioMapper.toDto(usuarioRepository.save(usuario));
+    }
+
+    @Transactional
+    public UsuarioDto alterarEmail(Long userId, String novoEmail, String senhaAtual) {
+        Usuario usuario = usuarioRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado: " + userId));
+
+        if (!passwordEncoder.matches(senhaAtual, usuario.getSenha())) {
+            throw new IllegalArgumentException("Senha atual incorreta");
+        }
+
+        String emailNormalizado = novoEmail.trim().toLowerCase();
+        usuarioRepository.findByEmail(emailNormalizado).ifPresent(existing -> {
+            if (!existing.getId().equals(userId)) {
+                throw new IllegalStateException("Já existe um usuário com este e-mail");
+            }
+        });
+
+        usuario.setEmail(emailNormalizado);
         return usuarioMapper.toDto(usuarioRepository.save(usuario));
     }
 

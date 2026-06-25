@@ -1231,24 +1231,46 @@ function AppContent() {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const handleSaveProfile = () => {
-    setUser(profileForm);
-    setProfileMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
-    setTimeout(() => setProfileMessage(null), 3000);
+  const handleSaveProfile = async () => {
+    try {
+      const updated = await apiService.atualizarPerfil({
+        nome: profileForm.name,
+        bio: profileForm.bio ?? '',
+        foto: profileForm.avatarUrl,
+      });
+      setUser(updated);
+      setProfileForm(updated);
+      setProfileMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao salvar perfil.',
+      });
+    }
   };
 
-  const handleUpdateEmail = () => {
+  const handleUpdateEmail = async () => {
     if (!emailForm.newEmail || !emailForm.password) {
       setProfileMessage({ type: 'error', text: 'Preencha todos os campos de e-mail.' });
       return;
     }
-    setUser(prev => ({ ...prev, email: emailForm.newEmail }));
-    setProfileMessage({ type: 'success', text: 'E-mail atualizado com sucesso!' });
-    setEmailForm({ newEmail: '', password: '' });
-    setTimeout(() => setProfileMessage(null), 3000);
+    try {
+      const updated = await apiService.alterarEmail(emailForm.newEmail, emailForm.password);
+      setUser(updated);
+      setProfileForm(updated);
+      setProfileMessage({ type: 'success', text: 'E-mail atualizado com sucesso!' });
+      setEmailForm({ newEmail: '', password: '' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao alterar e-mail.',
+      });
+    }
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!passwordForm.current || !passwordForm.new || !passwordForm.confirm) {
       setProfileMessage({ type: 'error', text: 'Preencha todos os campos de senha.' });
       return;
@@ -1257,20 +1279,31 @@ function AppContent() {
       setProfileMessage({ type: 'error', text: 'As senhas não coincidem.' });
       return;
     }
-    setProfileMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
-    setPasswordForm({ current: '', new: '', confirm: '' });
-    setTimeout(() => setProfileMessage(null), 3000);
+    try {
+      await apiService.alterarSenha(passwordForm.current, passwordForm.new);
+      setProfileMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      setPasswordForm({ current: '', new: '', confirm: '' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao alterar senha.',
+      });
+    }
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileMessage({ type: 'error', text: 'A imagem deve ter no máximo 2 MB.' });
+      return;
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfileForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleOnboardingComplete = async (agency: AgencyConfig, theme: ThemeConfig) => {

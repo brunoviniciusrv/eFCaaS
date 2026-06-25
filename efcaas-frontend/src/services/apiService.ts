@@ -296,6 +296,13 @@ const PROFILE_ID_MAP: Record<string, string> = {
   Editor: 'p-editor',
 };
 
+const PROFILE_ID_TO_TIPO_NOME: Record<string, string> = {
+  'p-admin': 'Administrador',
+  'p-curator': 'Curador',
+  'p-checker': 'Checador',
+  'p-editor': 'Editor',
+};
+
 const STATUS_API_TO_FRONT: Record<string, NewsItem['status']> = {
   // valores persistidos pelo backend
   pending: 'pending',
@@ -511,6 +518,31 @@ export const apiService = {
     return mapUsuario(dto);
   },
 
+  async atualizarPerfil(data: {
+    nome?: string;
+    bio?: string;
+    foto?: string;
+  }): Promise<UserProfile> {
+    const dto = await api.patch<ApiUsuarioDto>('/me', {
+      nome: data.nome,
+      bio: data.bio ?? '',
+      foto: data.foto,
+    });
+    return mapUsuario(dto);
+  },
+
+  async alterarEmail(novoEmail: string, senhaAtual: string): Promise<UserProfile> {
+    const dto = await api.patch<ApiUsuarioDto>('/me/email', {
+      novoEmail,
+      senhaAtual,
+    });
+    return mapUsuario(dto);
+  },
+
+  async alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+    await api.patch<void>('/me/senha', { senhaAtual, novaSenha });
+  },
+
   async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
     const dto = await api.get<ApiConfiguracaoAgenciaDto>('/configuracao/agencia');
     const theme = dto.theme && Object.keys(dto.theme).length > 0 ? dto.theme : undefined;
@@ -538,6 +570,25 @@ export const apiService = {
   async listarUsuarios(): Promise<UserProfile[]> {
     const dtos = await api.get<ApiUsuarioDto[]>('/usuarios');
     return dtos.map(mapUsuario);
+  },
+
+  async criarUsuario(data: {
+    nome: string;
+    email: string;
+    profileId: string;
+    senha?: string;
+  }): Promise<UserProfile> {
+    const perfil = PROFILE_ID_TO_TIPO_NOME[data.profileId];
+    if (!perfil) {
+      throw new Error('Perfil de acesso inválido');
+    }
+    const dto = await api.post<ApiUsuarioDto>('/usuarios', {
+      nome: data.nome,
+      email: data.email,
+      perfil,
+      senha: data.senha,
+    });
+    return mapUsuario(dto);
   },
 
   // Etiquetas

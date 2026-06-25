@@ -23,7 +23,7 @@ public class Usuario {
     @Column(nullable = false, length = 255)
     private String senha;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "TEXT")
     private String foto;
 
     @Column(columnDefinition = "TEXT")
