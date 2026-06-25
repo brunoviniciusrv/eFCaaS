@@ -55,6 +55,27 @@ export interface ApiUsuarioDto {
   permissoes: string[];
 }
 
+export interface ApiAnaliseIaDto {
+  avaliacaoRisco: string | null;
+  textoAnalise: string | null;
+  simulado: boolean;
+  // Eixo Desinformação
+  scoreInveracidade: number | null;
+  scoreDistorcao: number | null;
+  scoreForaContexto: number | null;
+  // Eixo Ilicitudes
+  scoreDiscOdio: number | null;
+  scoreDiscAntidemo: number | null;
+  scoreRiscoIlicitude: number | null;
+  // Análise semântica
+  atributoWhat: string | null;
+  atributoWho: string | null;
+  atributoWhere: string | null;
+  atributoWhen: string | null;
+  keywords: string | null;
+  pseudoLabel: string | null;
+}
+
 export interface ApiConteudoDto {
   id: string;
   titulo: string;
@@ -66,7 +87,7 @@ export interface ApiConteudoDto {
   status: string;
   prioridade: string;
   checagem: ApiChecagemDto | null;
-  analiseIa: unknown | null;
+  analiseIa: ApiAnaliseIaDto | null;
   anexos?: ApiAnexoConteudoDto[];
 }
 
@@ -397,8 +418,60 @@ function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media']
   });
 }
 
+function deriveWarningLevel(score: number | null): string {
+  if (score === null) return 'baixo';
+  if (score >= 80) return 'crítico';
+  if (score >= 60) return 'alto';
+  if (score >= 30) return 'moderado';
+  return 'baixo';
+}
+
+function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation'> {
+  if (!ia) return {};
+
+  const scoreInveracidade = ia.scoreInveracidade ?? undefined;
+  const scoreDistorcao = ia.scoreDistorcao ?? undefined;
+  const scoreForaContexto = ia.scoreForaContexto ?? undefined;
+  const scoreRiscoIlicitude = ia.scoreRiscoIlicitude ?? undefined;
+
+  const aiScores: NewsItem['aiScores'] = {
+    gravity: scoreInveracidade ?? 0,
+    urgency: scoreDistorcao ?? 0,
+    trend: scoreForaContexto ?? 0,
+    inveracidade: scoreInveracidade,
+    distorcao: scoreDistorcao,
+    foraDeContexto: scoreForaContexto,
+    discursoDeOdio: ia.scoreDiscOdio ?? undefined,
+    discursoAntidemocratico: ia.scoreDiscAntidemo ?? undefined,
+    golpe: scoreRiscoIlicitude != null ? Math.round(scoreRiscoIlicitude * 0.6) : undefined,
+    fraude: scoreRiscoIlicitude != null ? Math.round(scoreRiscoIlicitude * 0.25) : undefined,
+    ataques: scoreRiscoIlicitude != null ? Math.round(scoreRiscoIlicitude * 0.15) : undefined,
+  };
+
+  const hasSemantics = ia.atributoWhat || ia.atributoWho || ia.atributoWhere || ia.atributoWhen;
+  const aiEvaluation: NewsItem['aiEvaluation'] = hasSemantics ? {
+    score: scoreInveracidade ?? 0,
+    explanation: ia.textoAnalise ?? '',
+    warningLevel: deriveWarningLevel(scoreInveracidade ?? null),
+    characteristics: ia.textoAnalise
+      ? ia.textoAnalise.split(/\.\s+/).filter((s) => s.trim().length > 0)
+      : [],
+    topics: ia.keywords
+      ? ia.keywords.split(',').map((k) => k.trim()).filter(Boolean)
+      : [],
+    entities: ia.atributoWho
+      ? [{ name: ia.atributoWho, description: '' }]
+      : [],
+    location: ia.atributoWhere ?? '',
+    dates: ia.atributoWhen ? [ia.atributoWhen] : [],
+  } : undefined;
+
+  return { aiScores, aiEvaluation };
+}
+
 function mapConteudo(dto: ApiConteudoDto): NewsItem {
   const ch = dto.checagem;
+  const aiFields = mapAnaliseIa(dto.analiseIa);
   return {
     id: dto.id,
     title: dto.titulo ?? '',
@@ -427,6 +500,7 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
     report: ch?.parecer?.textoParecer ?? undefined,
     assignmentHistory: [],
     media: mapAnexos(dto.anexos),
+    ...aiFields,
   };
 }
 
@@ -770,6 +844,12 @@ export const apiService = {
   // Auditoria
   async listarAuditoria(checagemId: string): Promise<ApiAuditoriaDto[]> {
     return api.get<ApiAuditoriaDto[]>(`/checagens/${checagemId}/auditoria`);
+  },
+
+  /** Dispara análise de IA (Guaia IA Hub) para o conteúdo e retorna o item atualizado. */
+  async analisarConteudo(id: string): Promise<NewsItem> {
+    const dto = await api.post<ApiConteudoDto>(`/conteudos/${id}/ia/analisar`, {});
+    return mapConteudo(dto);
   },
 
   // YouTube / Denodare

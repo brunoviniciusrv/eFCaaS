@@ -144,13 +144,12 @@ public class ConteudoSuspeitoService {
         conteudo.setResponsavel(checador);
         conteudoRepo.save(conteudo);
 
-        // Stub IA
+        // Análise IA (real ou stub dependendo das credenciais configuradas)
         AnaliseIa analise = analiseIaRepo.findByConteudoId(conteudoId).orElse(new AnaliseIa());
         if (analise.getId() == null) {
             AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
             analise.setConteudo(conteudo);
-            analise.setAvaliacaoRisco(iaDto.avaliacaoRisco());
-            analise.setTextoAnalise(iaDto.textoAnalise());
+            aplicarAnaliseIa(analise, iaDto);
             analiseIaRepo.save(analise);
         }
 
@@ -205,6 +204,39 @@ public class ConteudoSuspeitoService {
         conteudoRepo.save(conteudo);
 
         auditoria.registrar(revisorId, "revisao_rejeitada", "checagem:" + checagem.getId(), justificativa);
+    }
+
+    @Transactional
+    public ConteudoSuspeitoDto analisarConteudo(Long id) {
+        ConteudoSuspeito conteudo = conteudoRepo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+
+        AnaliseIa analise = analiseIaRepo.findByConteudoId(id).orElse(new AnaliseIa());
+        AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
+
+        analise.setConteudo(conteudo);
+        aplicarAnaliseIa(analise, iaDto);
+        analiseIaRepo.save(analise);
+
+        return obterDetalhe(id);
+    }
+
+    private void aplicarAnaliseIa(AnaliseIa analise, AnaliseIaDto dto) {
+        analise.setAvaliacaoRisco(dto.avaliacaoRisco());
+        analise.setTextoAnalise(dto.textoAnalise());
+        analise.setSimulado(dto.simulado());
+        analise.setScoreInveracidade(dto.scoreInveracidade());
+        analise.setScoreDistorcao(dto.scoreDistorcao());
+        analise.setScoreForaContexto(dto.scoreForaContexto());
+        analise.setScoreDiscOdio(dto.scoreDiscOdio());
+        analise.setScoreDiscAntidemo(dto.scoreDiscAntidemo());
+        analise.setScoreRiscoIlicitude(dto.scoreRiscoIlicitude());
+        analise.setAtributoWhat(dto.atributoWhat());
+        analise.setAtributoWho(dto.atributoWho());
+        analise.setAtributoWhere(dto.atributoWhere());
+        analise.setAtributoWhen(dto.atributoWhen());
+        analise.setKeywords(dto.keywords());
+        analise.setPseudoLabel(dto.pseudoLabel());
     }
 
     @Transactional

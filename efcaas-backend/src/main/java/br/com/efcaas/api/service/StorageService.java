@@ -3,11 +3,13 @@ package br.com.efcaas.api.service;
 import br.com.efcaas.api.config.StorageProperties;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -100,6 +102,25 @@ public class StorageService {
                             .build());
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao ler arquivo do storage: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Gera uma URL pré-assinada para acesso GET temporário ao objeto.
+     * A URL aponta para {@code MINIO_ENDPOINT} — que deve ser publicamente acessível
+     * caso precise ser consumida por serviços externos (ex: Guaia IA Hub).
+     */
+    public String generatePresignedUrl(String objectKey, int expiryMinutes) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(props.bucket())
+                            .object(objectKey)
+                            .expiry(expiryMinutes * 60)
+                            .build());
+        } catch (Exception e) {
+            throw new IllegalStateException("Falha ao gerar URL pré-assinada: " + e.getMessage(), e);
         }
     }
 

@@ -39,7 +39,8 @@ public class RelatorioPublicacaoService {
 
     @Transactional(readOnly = true)
     public RelatorioPublicacaoDto obterPorConteudo(Long conteudoId) {
-        RelatorioPublicacao rel = relatorioRepo.findDetalhadoByConteudoId(conteudoId)
+        RelatorioPublicacao rel = relatorioRepo.findDetalhadosByConteudoId(conteudoId)
+                .stream().findFirst()
                 .orElseThrow(() -> new NoSuchElementException(
                         "Relatório de publicação não encontrado para conteúdo: " + conteudoId));
         return mapper.toDto(rel);
@@ -78,7 +79,7 @@ public class RelatorioPublicacaoService {
 
         relatorioRepo.save(rel);
         auditoria.registrar(editorId, "relatorio_publicacao_salvo", "conteudo:" + conteudoId, req.statusPublicacao());
-        return mapper.toDto(relatorioRepo.findDetalhadoByConteudoId(conteudoId).orElseThrow());
+        return mapper.toDto(relatorioRepo.findDetalhadosByConteudoId(conteudoId).stream().findFirst().orElseThrow());
     }
 
     @Transactional
