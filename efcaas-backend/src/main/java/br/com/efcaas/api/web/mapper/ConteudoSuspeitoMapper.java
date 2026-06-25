@@ -79,7 +79,19 @@ public class ConteudoSuspeitoMapper {
         return AnaliseIaDto.builder()
                 .avaliacaoRisco(a.getAvaliacaoRisco())
                 .textoAnalise(a.getTextoAnalise())
-                .simulado(true)
+                .simulado(a.isSimulado())
+                .scoreInveracidade(a.getScoreInveracidade())
+                .scoreDistorcao(a.getScoreDistorcao())
+                .scoreForaContexto(a.getScoreForaContexto())
+                .scoreDiscOdio(a.getScoreDiscOdio())
+                .scoreDiscAntidemo(a.getScoreDiscAntidemo())
+                .scoreRiscoIlicitude(a.getScoreRiscoIlicitude())
+                .atributoWhat(a.getAtributoWhat())
+                .atributoWho(a.getAtributoWho())
+                .atributoWhere(a.getAtributoWhere())
+                .atributoWhen(a.getAtributoWhen())
+                .keywords(a.getKeywords())
+                .pseudoLabel(a.getPseudoLabel())
                 .build();
     }
 }

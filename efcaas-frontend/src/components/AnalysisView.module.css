@@ -124,6 +124,52 @@
   @apply leading-relaxed text-sm;
 }
 
+/* ─── Content Edit Form ───────────────────────────────────────────────────── */
+
+.contentViewBlock {
+  @apply mb-4;
+}
+
+.contentViewHeader {
+  @apply flex items-start gap-3 mb-3;
+}
+
+.contentEditBtn {
+  @apply flex items-center gap-1 ml-auto mt-1 shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300 transition-colors;
+}
+
+.contentEditForm {
+  @apply space-y-4 mb-4;
+}
+
+.contentEditField {
+  @apply flex flex-col gap-1.5;
+}
+
+.contentEditLabel {
+  @apply text-xs font-semibold uppercase tracking-wider opacity-50;
+}
+
+.contentEditInput {
+  @apply w-full rounded-xl border px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400/40;
+}
+
+.contentEditTextarea {
+  @apply w-full rounded-xl border px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/40;
+}
+
+.contentEditActions {
+  @apply flex justify-end gap-2 pt-1;
+}
+
+.contentEditCancelBtn {
+  @apply text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-500 hover:border-slate-300 transition-colors disabled:opacity-50;
+}
+
+.contentEditSaveBtn {
+  @apply text-sm px-4 py-2 rounded-lg font-semibold transition-opacity disabled:opacity-50;
+}
+
 /* ─── Media Section ───────────────────────────────────────────────────────── */
 
 .mediaSection {
@@ -255,9 +301,7 @@
 }
 
 .removeMediaButton {
-  @apply absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm text-slate-400 hover:text-red-500 transition-all rounded-full shadow-sm opacity-0;
-  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
-  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+  @apply absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm text-slate-400 hover:text-red-500 transition-all rounded-full shadow-sm;
 }
 
 .noMediaEmptyState {
@@ -399,7 +443,33 @@
 /* ─── Metrics Tab ─────────────────────────────────────────────────────────── */
 
 .metricsHeader {
-  @apply flex items-center gap-2 px-2;
+  @apply flex items-center gap-2 px-2 flex-wrap;
+}
+
+.analyzeAiButton {
+  @apply ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity;
+}
+
+.analyzeSpinner {
+  @apply w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.aiErrorMsg {
+  @apply text-xs text-red-500 px-2 mt-1;
+}
+
+.aiToast {
+  @apply fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-xl;
+  min-width: 260px;
+}
+
+.aiToastClose {
+  @apply ml-auto text-white/70 hover:text-white text-xs leading-none;
 }
 
 .metricsTitle {

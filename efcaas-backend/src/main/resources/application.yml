@@ -69,6 +69,15 @@ efcaas:
     secret-key: ${MINIO_SECRET_KEY:efcaas123456}
     bucket: ${MINIO_BUCKET:efcaas-evidencias}
     presigned-url-expiry-minutes: ${MINIO_PRESIGNED_EXPIRY_MINUTES:1440}
+  guaia:
+    base-url: ${GUAIA_BASE_URL:https://ia-api-hub.guaiaweb.inf.ufg.br}
+    username: ${GUAIA_USERNAME:efcaas}
+    password: ${GUAIA_PASSWORD:akC3ah2fcDn2fKtG}
+    tenant-id: ${GUAIA_TENANT_ID:}
+    tenant-slug: ${GUAIA_TENANT_SLUG:}
+    institution-id: ${GUAIA_INSTITUTION_ID:}
+    institution-slug: ${GUAIA_INSTITUTION_SLUG:}
+    institution-name: ${GUAIA_INSTITUTION_NAME:eFCaaS}
 
 ---
 spring:

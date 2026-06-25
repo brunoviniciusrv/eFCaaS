@@ -1603,6 +1603,11 @@ const AnalysisRouteWrapper = (props: any) => {
       {...props}
       selectedNews={props.news.find((n: any) => n.id === id) ?? selectedNews}
       setCurrentView={(view: string) => navigate(`/${view}`)}
+      onNewsUpdated={(updated) => {
+        props.setNews((prev: NewsItem[]) =>
+          prev.map((n: NewsItem) => (n.id === updated.id ? { ...n, ...updated } : n))
+        );
+      }}
     />
   );
 };

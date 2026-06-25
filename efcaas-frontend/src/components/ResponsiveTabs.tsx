@@ -8,6 +8,7 @@ interface Tab {
   label: string;
   icon?: LucideIcon;
   permission?: string | string[];
+  badge?: string;
 }
 
 interface ResponsiveTabsProps {
@@ -81,6 +82,16 @@ export function ResponsiveTabs({
           >
             {tab.icon && <tab.icon size={16} />}
             {tab.label}
+            {tab.badge && (
+              <span style={{
+                display: 'inline-block',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: '#f59e0b',
+                flexShrink: 0,
+              }} />
+            )}
           </button>
         ))}
       </div>

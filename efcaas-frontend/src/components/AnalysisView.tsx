@@ -124,6 +124,7 @@ interface AnalysisViewProps {
   themeConfig: ThemeConfig;
   currentUser: UserProfile;
   agencyConfig: AgencyConfig;
+  onNewsUpdated?: (news: NewsItem) => void;
 }
 
 export const AnalysisView = ({
@@ -151,8 +152,54 @@ export const AnalysisView = ({
   themeConfig,
   currentUser,
   agencyConfig,
+  onNewsUpdated,
 }: AnalysisViewProps) => {
   const navigate = useNavigate();
+  const [isAnalyzingAI, setIsAnalyzingAI] = React.useState(false);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [aiToast, setAiToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const dismissToast = React.useCallback(() => setAiToast(null), []);
+  React.useEffect(() => {
+    if (!aiToast) return;
+    const t = setTimeout(dismissToast, 5000);
+    return () => clearTimeout(t);
+  }, [aiToast, dismissToast]);
+
+  const [isEditingContent, setIsEditingContent] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editAlegacao, setEditAlegacao] = React.useState('');
+  const [isSavingContent, setIsSavingContent] = React.useState(false);
+
+  const startEditContent = () => {
+    setEditTitle(selectedNews.title ?? '');
+    setEditAlegacao(selectedNews.alegacao ?? selectedNews.content ?? '');
+    setIsEditingContent(true);
+  };
+
+  const cancelEditContent = () => setIsEditingContent(false);
+
+  const saveEditContent = async () => {
+    setIsSavingContent(true);
+    try {
+      await apiService.editarConteudo(selectedNews.id, {
+        titulo: editTitle.trim(),
+        alegacao: editAlegacao.trim(),
+      });
+      // Atualiza apenas os campos editados para não sobrescrever dados locais não salvos
+      onNewsUpdated?.({
+        ...selectedNews,
+        title: editTitle.trim(),
+        alegacao: editAlegacao.trim(),
+      });
+      setIsEditingContent(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar alterações.');
+    } finally {
+      setIsSavingContent(false);
+    }
+  };
+
   if (!selectedNews) return null;
 
   const showMisinfoAxis = isAiModuleEnabled(agencyConfig, 'enableTrendAnalyzer');
@@ -308,6 +355,27 @@ export const AnalysisView = ({
 
   return (
     <div className={styles.pageContainer} style={{ backgroundColor: themeConfig.dashboard.background }}>
+
+      {/* Toast de análise IA */}
+      <AnimatePresence>
+        {aiToast && (
+          <motion.div
+            key="ai-toast"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            className={styles.aiToast}
+            style={{
+              backgroundColor: aiToast.type === 'success' ? '#10b981' : '#ef4444',
+            }}
+          >
+            {aiToast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>{aiToast.message}</span>
+            <button onClick={dismissToast} className={styles.aiToastClose}>✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
       <div className={styles.mainContent}>
         {/* Header */}
@@ -345,7 +413,7 @@ export const AnalysisView = ({
                   themeConfig={themeConfig}
                   tabs={[
                     { id: 'content', label: 'Conteúdo', icon: FileIcon },
-                    ...(showMetricsTab ? [{ id: 'metrics', label: 'Métricas IA', icon: Sparkles }] : []),
+                    ...(showMetricsTab ? [{ id: 'metrics', label: isAnalyzingAI ? 'Métricas IA ◌' : 'Métricas IA', icon: Sparkles }] : []),
                     ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
                     { id: 'investigation', label: 'Investigação', icon: Search },
                     { id: 'result', label: 'Parecer', icon: FileText },
@@ -423,11 +491,64 @@ export const AnalysisView = ({
                     </div>
                   </div>
                   <div className={styles.cardBody}>
-                    <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
-                    <div className={styles.newsContentBlock}>
-                       <p className={styles.newsContentText} style={{ color: themeConfig.dashboard.text }}>"{selectedNews.content}"</p>
-                    </div>
-                    
+                    {isEditingContent ? (
+                      <div className={styles.contentEditForm}>
+                        <div className={styles.contentEditField}>
+                          <label className={styles.contentEditLabel}>Título</label>
+                          <input
+                            className={styles.contentEditInput}
+                            style={{ backgroundColor: themeConfig.general.inputBackground, color: themeConfig.general.inputText, borderColor: themeConfig.general.inputBorder }}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            placeholder="Título do conteúdo"
+                          />
+                        </div>
+                        <div className={styles.contentEditField}>
+                          <label className={styles.contentEditLabel}>Alegação</label>
+                          <textarea
+                            className={styles.contentEditTextarea}
+                            style={{ backgroundColor: themeConfig.general.inputBackground, color: themeConfig.general.inputText, borderColor: themeConfig.general.inputBorder }}
+                            value={editAlegacao}
+                            onChange={(e) => setEditAlegacao(e.target.value)}
+                            placeholder="Alegação principal do conteúdo"
+                            rows={4}
+                          />
+                        </div>
+                        <div className={styles.contentEditActions}>
+                          <button
+                            onClick={cancelEditContent}
+                            className={styles.contentEditCancelBtn}
+                            disabled={isSavingContent}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={saveEditContent}
+                            className={styles.contentEditSaveBtn}
+                            style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                            disabled={isSavingContent || !editTitle.trim()}
+                          >
+                            {isSavingContent ? 'Salvando...' : 'Salvar'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.contentViewBlock}>
+                        <div className={styles.contentViewHeader}>
+                          <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
+                          {canEdit && (
+                            <button onClick={startEditContent} className={styles.contentEditBtn} title="Editar título e alegação">
+                              <Wand2 size={14} />
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                        <div className={styles.newsContentBlock}>
+                          <p className={styles.newsContentText} style={{ color: themeConfig.dashboard.text }}>"{selectedNews.alegacao ?? selectedNews.content}"</p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className={styles.mediaSection}>
                       <div className={styles.mediaSectionHeader}>
                         <label className={styles.sectionLabel}>
@@ -697,7 +818,55 @@ export const AnalysisView = ({
                   <div className={styles.metricsHeader}>
                     <Sparkles size={16} className="text-blue-500" />
                     <h3 className={styles.metricsTitle}>Métricas Preliminares de I.A</h3>
+                    <button
+                      onClick={() => {
+                        if (isAnalyzingAI) return;
+                        setIsAnalyzingAI(true);
+                        setAiError(null);
+                        apiService.analisarConteudo(selectedNews.id)
+                          .then((updated) => {
+                            // Passa apenas os campos de IA; o App.tsx fará merge com
+                            // { ...n, ...aiOnly }, preservando edições locais não salvas.
+                            onNewsUpdated?.({
+                              id: selectedNews.id,
+                              aiScores: updated.aiScores,
+                              aiEvaluation: updated.aiEvaluation,
+                              isAIProcessing: updated.isAIProcessing,
+                            } as NewsItem);
+                            setAiToast({ type: 'success', message: 'Análise de IA concluída com sucesso!' });
+                          })
+                          .catch((err) => {
+                            const msg = err instanceof Error ? err.message : 'Erro ao analisar com IA.';
+                            setAiError(msg);
+                            setAiToast({ type: 'error', message: msg });
+                          })
+                          .finally(() => setIsAnalyzingAI(false));
+                      }}
+                      disabled={isAnalyzingAI || selectedNews.isAIProcessing}
+                      className={styles.analyzeAiButton}
+                      style={{
+                        backgroundColor: themeConfig.buttons.primary,
+                        color: themeConfig.buttons.primaryText,
+                        opacity: isAnalyzingAI || selectedNews.isAIProcessing ? 0.6 : 1,
+                        cursor: isAnalyzingAI || selectedNews.isAIProcessing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isAnalyzingAI ? (
+                        <>
+                          <div className={styles.analyzeSpinner} />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          <Cpu size={14} />
+                          Analisar com IA
+                        </>
+                      )}
+                    </button>
                   </div>
+                  {aiError && (
+                    <p className={styles.aiErrorMsg}>{aiError}</p>
+                  )}
 
                   <div className={styles.metricsAxisSection}>
                     {showMisinfoAxis && (

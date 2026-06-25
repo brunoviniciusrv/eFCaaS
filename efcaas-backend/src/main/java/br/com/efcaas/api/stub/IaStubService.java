@@ -4,20 +4,17 @@ import br.com.efcaas.api.domain.Checagem;
 import br.com.efcaas.api.domain.ConteudoSuspeito;
 import br.com.efcaas.api.web.dto.AnaliseIaDto;
 import br.com.efcaas.api.web.dto.SugestaoTituloDto;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * Implementação stub do serviço de IA para o MVP.
- * Retorna respostas fixas simuladas. Para integrar com o Gemini:
- * 1. Criar GeminiIaService implements IaService
- * 2. Remover @Primary desta classe
- * 3. Anotar GeminiIaService com @Primary
+ * Implementação stub do serviço de IA.
+ * Retorna respostas fixas simuladas quando a integração real não está configurada.
+ * {@link br.com.efcaas.api.service.IaRealService} é o {@code @Primary} e delega
+ * para este stub quando {@code GUAIA_USERNAME} não estiver configurado.
  */
 @Service
-@Primary
 public class IaStubService implements IaService {
 
     @Override

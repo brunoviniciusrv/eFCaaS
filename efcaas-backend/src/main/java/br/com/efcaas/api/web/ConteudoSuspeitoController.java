@@ -120,6 +120,13 @@ public class ConteudoSuspeitoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/ia/analisar")
+    @PreAuthorize("hasAnyAuthority('perform_analysis', 'assign_tasks')")
+    @Operation(summary = "Disparar análise de IA para o conteúdo (Guaia IA Hub)")
+    public ResponseEntity<ConteudoSuspeitoDto> analisarComIa(@PathVariable Long id) {
+        return ResponseEntity.ok(service.analisarConteudo(id));
+    }
+
     @GetMapping("/{id}/anexos")
     @Operation(summary = "Listar anexos do conteúdo")
     public ResponseEntity<List<AnexoConteudoDto>> listarAnexos(@PathVariable Long id) {
