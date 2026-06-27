@@ -2,7 +2,6 @@ package br.com.efcaas.api.service;
 
 import br.com.efcaas.api.domain.*;
 import br.com.efcaas.api.repository.*;
-import br.com.efcaas.api.stub.IaService;
 import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +35,6 @@ public class ChecagemService {
     private final AuditoriaService auditoria;
     private final StorageService storageService;
     private final EvidenciaAccessTokenService accessTokenService;
-    private final IaService iaService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -230,22 +228,6 @@ public class ChecagemService {
         }
         evidenciaRepo.delete(e);
         auditoria.registrar(usuarioId, "evidencia_removida", "checagem:" + checagemId, "evidencia:" + evidenciaId);
-    }
-
-    @Transactional(readOnly = true)
-    public RascunhoIaResponse gerarRascunho(Long checagemId) {
-        Checagem ch = buscarChecagem(checagemId);
-        String rascunho = iaService.gerarRascunhoParecer(ch);
-        return new RascunhoIaResponse(rascunho, true);
-    }
-
-    @Transactional(readOnly = true)
-    public RascunhoIaResponse revisarParecer(Long checagemId) {
-        buscarChecagem(checagemId);
-        Parecer parecer = parecerRepo.findByChecagemId(checagemId).orElse(null);
-        String texto = parecer != null ? parecer.getTextoParecer() : "";
-        String revisao = iaService.revisarParecer(texto != null ? texto : "");
-        return new RascunhoIaResponse(revisao, true);
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────

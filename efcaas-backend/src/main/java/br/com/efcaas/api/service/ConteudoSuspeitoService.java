@@ -5,12 +5,14 @@ import br.com.efcaas.api.repository.*;
 import br.com.efcaas.api.repository.RevisaoRepository;
 import br.com.efcaas.api.stub.IaService;
 import br.com.efcaas.api.web.dto.*;
+import br.com.efcaas.api.web.mapper.AnaliseIaTopicMatchCodec;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
 import br.com.efcaas.api.web.mapper.ConteudoSuspeitoMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -20,20 +22,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ConteudoSuspeitoService {
 
+    private static final Set<String> STATUS_EXCLUIVEIS = Set.of(
+            "pending", "in_progress", "to_rectify", "final_review");
+
     private final ConteudoSuspeitoRepository conteudoRepo;
     private final ChecagemRepository checagemRepo;
     private final ParecerRepository parecerRepo;
     private final InvestigacaoRepository investigacaoRepo;
     private final EvidenciaRepository evidenciaRepo;
     private final AnexoConteudoRepository anexoRepo;
+    private final ConteudoRecebidoRepository conteudoRecebidoRepo;
     private final AnaliseIaRepository analiseIaRepo;
     private final UsuarioRepository usuarioRepo;
     private final HistoricoAtribuicaoRepository historicoRepo;
+    private final ChecagemParticipanteRepository participanteRepo;
     private final RevisaoRepository revisaoRepo;
+    private final RelatorioPublicacaoRepository relatorioRepo;
     private final ConteudoSuspeitoMapper mapper;
     private final ChecagemMapper checagemMapper;
     private final AuditoriaService auditoria;
     private final IaService iaService;
+    private final StorageService storageService;
 
     @Transactional(readOnly = true)
     public List<ConteudoSuspeitoDto> listar(String status, String prioridade, Long checadorId) {
@@ -44,6 +53,7 @@ public class ConteudoSuspeitoService {
                     .stream()
                     .map(c -> c.getConteudo().getId())
                     .collect(Collectors.toSet());
+            ids.addAll(participanteRepo.findConteudoIdsByUsuarioIdAtivo(checadorId));
             conteudos = conteudos.stream()
                     .filter(c -> ids.contains(c.getId()))
                     .toList();
@@ -56,9 +66,16 @@ public class ConteudoSuspeitoService {
                             ? parecerRepo.findByChecagemId(ch.getId()).orElse(null)
                             : null;
                     List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(c.getId());
-                    return mapper.toDtoSimples(c, ch, parecer, anexos);
+                    var midiasRecebidas = midiasDoRecebido(c.getId());
+                    return mapper.toDtoSimples(c, ch, parecer, anexos, midiasRecebidas);
                 })
                 .toList();
+    }
+
+    private List<ConteudoRecebidoMidia> midiasDoRecebido(Long conteudoTriagemId) {
+        return conteudoRecebidoRepo.findByConteudoTriagem_Id(conteudoTriagemId)
+                .map(r -> r.getMidias() != null ? r.getMidias() : List.<ConteudoRecebidoMidia>of())
+                .orElse(List.of());
     }
 
     @Transactional(readOnly = true)
@@ -72,8 +89,9 @@ public class ConteudoSuspeitoService {
                 : null;
         List<Evidencia> evidencias = ch != null ? evidenciaRepo.findByChecagemId(ch.getId()) : List.of();
         List<AnexoConteudo> anexos = anexoRepo.findByConteudoId(id);
-        AnaliseIa analiseIa = analiseIaRepo.findByConteudoId(id).orElse(null);
-        return mapper.toDto(c, ch, parecer, investigacao, evidencias, analiseIa, anexos);
+        AnaliseIa analiseIa = buscarAnaliseIa(id);
+        var midiasRecebidas = midiasDoRecebido(id);
+        return mapper.toDto(c, ch, parecer, investigacao, evidencias, analiseIa, anexos, midiasRecebidas);
     }
 
     @Transactional
@@ -123,40 +141,108 @@ public class ConteudoSuspeitoService {
 
     @Transactional
     public ChecagemDto atribuir(Long conteudoId, AtribuirChecagemRequest req, Long curadorId) {
+        return adicionarChecador(conteudoId, req.checadorId(), curadorId, req.briefing(), "assigned", "checagem_atribuida");
+    }
+
+    @Transactional
+    public ChecagemDto assumir(Long conteudoId, Long checadorId) {
+        return adicionarChecador(conteudoId, checadorId, checadorId, "Assumiu a tarefa", "assumed", "checagem_assumida");
+    }
+
+    @Transactional
+    public ChecagemDto desatribuir(Long conteudoId, Long checadorId, Long usuarioId) {
+        Checagem checagem = checagemRepo.findByConteudoId(conteudoId)
+                .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteudo: " + conteudoId));
+
+        ChecagemParticipante participante = participanteRepo
+                .findByChecagem_IdAndUsuario_Id(checagem.getId(), checadorId)
+                .orElseThrow(() -> new NoSuchElementException("Checador não está atribuído a este conteúdo"));
+
+        if (!participante.isAtivo()) {
+            return checagemMapper.toDto(checagem, null, List.of());
+        }
+
+        participante.setAtivo(false);
+        participanteRepo.save(participante);
+
+        Usuario removido = participante.getUsuario();
+        Usuario responsavel = usuarioRepo.findById(usuarioId).orElse(null);
+        historicoRepo.save(new HistoricoAtribuicao(checagem, removido, responsavel, "removed", null));
+        auditoria.registrar(usuarioId, "checagem_desatribuida",
+                "checagem:" + checagem.getId(), "checador:" + removido.getNome());
+
+        ConteudoSuspeito conteudo = checagem.getConteudo();
+        List<ChecagemParticipante> ativos = participanteRepo.findByChecagem_IdAndAtivoTrue(checagem.getId());
+        if (ativos.isEmpty()) {
+            checagem.setChecador(null);
+            conteudo.setResponsavel(null);
+            if ("in_progress".equals(conteudo.getStatus())) {
+                conteudo.setStatus("pending");
+            }
+        } else {
+            checagem.setChecador(ativos.get(0).getUsuario());
+            conteudo.setResponsavel(checagem.getChecador());
+        }
+        checagemRepo.save(checagem);
+        conteudoRepo.save(conteudo);
+
+        return checagemMapper.toDto(checagem, null, List.of());
+    }
+
+    private ChecagemDto adicionarChecador(
+            Long conteudoId,
+            Long checadorId,
+            Long atribuidoPorId,
+            String briefing,
+            String acaoHistorico,
+            String acaoAuditoria) {
         ConteudoSuspeito conteudo = conteudoRepo.findById(conteudoId)
                 .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + conteudoId));
 
-        Usuario checador = usuarioRepo.findById(req.checadorId())
-                .orElseThrow(() -> new NoSuchElementException("Checador não encontrado: " + req.checadorId()));
+        Usuario checador = usuarioRepo.findById(checadorId)
+                .orElseThrow(() -> new NoSuchElementException("Checador não encontrado: " + checadorId));
 
-        Usuario curador = usuarioRepo.findById(curadorId)
-                .orElseThrow(() -> new NoSuchElementException("Curador não encontrado: " + curadorId));
+        Usuario atribuidoPor = usuarioRepo.findById(atribuidoPorId)
+                .orElseThrow(() -> new NoSuchElementException("Usuário não encontrado: " + atribuidoPorId));
 
         Checagem checagem = checagemRepo.findByConteudoId(conteudoId).orElse(new Checagem());
         checagem.setConteudo(conteudo);
-        checagem.setCurador(curador);
-        checagem.setChecador(checador);
-        checagem.setBriefing(req.briefing());
-        checagem.setStatus("aberta");
+        if (checagem.getCurador() == null) {
+            checagem.setCurador(atribuidoPor);
+        }
+        if (checagem.getChecador() == null) {
+            checagem.setChecador(checador);
+        }
+        if (briefing != null && !briefing.isBlank()) {
+            checagem.setBriefing(briefing);
+        }
+        if (checagem.getStatus() == null || checagem.getStatus().isBlank()) {
+            checagem.setStatus("aberta");
+        }
         checagemRepo.save(checagem);
 
-        conteudo.setStatus("in_progress");
-        conteudo.setResponsavel(checador);
-        conteudoRepo.save(conteudo);
+        ChecagemParticipante participante = participanteRepo
+                .findByChecagem_IdAndUsuario_Id(checagem.getId(), checadorId)
+                .orElseGet(ChecagemParticipante::new);
+        boolean novoParticipante = participante.getId() == null || !participante.isAtivo();
+        participante.setChecagem(checagem);
+        participante.setUsuario(checador);
+        participante.setAtivo(true);
+        participanteRepo.save(participante);
 
-        // Stub IA
-        AnaliseIa analise = analiseIaRepo.findByConteudoId(conteudoId).orElse(new AnaliseIa());
-        if (analise.getId() == null) {
-            AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
-            analise.setConteudo(conteudo);
-            analise.setAvaliacaoRisco(iaDto.avaliacaoRisco());
-            analise.setTextoAnalise(iaDto.textoAnalise());
-            analiseIaRepo.save(analise);
+        if (novoParticipante) {
+            historicoRepo.save(new HistoricoAtribuicao(checagem, checador, atribuidoPor, acaoHistorico, briefing));
+            auditoria.registrar(atribuidoPorId, acaoAuditoria,
+                    "checagem:" + checagem.getId(), "checador:" + checador.getNome());
+        } else if (briefing != null && !briefing.isBlank() && "assigned".equals(acaoHistorico)) {
+            historicoRepo.save(new HistoricoAtribuicao(checagem, checador, atribuidoPor, "assigned", briefing));
+            auditoria.registrar(atribuidoPorId, "checagem_atribuida",
+                    "checagem:" + checagem.getId(), "checador:" + checador.getNome());
         }
 
-        historicoRepo.save(new HistoricoAtribuicao(checagem, checador, curador, "assigned", req.briefing()));
-        auditoria.registrar(curadorId, "checagem_atribuida",
-                "checagem:" + checagem.getId(), "checador:" + checador.getNome());
+        conteudo.setStatus("in_progress");
+        conteudo.setResponsavel(checagem.getChecador());
+        conteudoRepo.save(conteudo);
 
         return checagemMapper.toDto(checagem, null, List.of());
     }
@@ -208,6 +294,71 @@ public class ConteudoSuspeitoService {
     }
 
     @Transactional
+    public ConteudoSuspeitoDto analisarConteudo(Long id) {
+        ConteudoSuspeito conteudo = conteudoRepo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+
+        AnaliseIa analise = obterOuCriarAnaliseIa(conteudo);
+        AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
+
+        analise.setConteudo(conteudo);
+        aplicarAnaliseIa(analise, iaDto);
+        analiseIaRepo.save(analise);
+
+        return obterDetalhe(id);
+    }
+
+    private AnaliseIa buscarAnaliseIa(Long conteudoId) {
+        return analiseIaRepo.findFirstByConteudo_IdOrderByIdDesc(conteudoId).orElse(null);
+    }
+
+    private AnaliseIa obterOuCriarAnaliseIa(ConteudoSuspeito conteudo) {
+        Long conteudoId = conteudo.getId();
+        List<AnaliseIa> existentes = analiseIaRepo.findAllByConteudo_Id(conteudoId);
+        if (existentes.isEmpty()) {
+            AnaliseIa nova = new AnaliseIa();
+            nova.setConteudo(conteudo);
+            return nova;
+        }
+        AnaliseIa latest = existentes.stream()
+                .max(Comparator.comparing(AnaliseIa::getId))
+                .orElseThrow();
+        if (existentes.size() > 1) {
+            existentes.stream()
+                    .filter(a -> !a.getId().equals(latest.getId()))
+                    .forEach(analiseIaRepo::delete);
+        }
+        latest.setConteudo(conteudo);
+        return latest;
+    }
+
+    private void aplicarAnaliseIa(AnaliseIa analise, AnaliseIaDto dto) {
+        analise.setAvaliacaoRisco(dto.avaliacaoRisco());
+        analise.setTextoAnalise(dto.textoAnalise());
+        analise.setSimulado(dto.simulado());
+        analise.setScoreInveracidade(dto.scoreInveracidade());
+        analise.setScoreDistorcao(dto.scoreFalsidade());
+        analise.setScoreForaContexto(dto.scoreDistorcaoMidia());
+        analise.setClassificacaoOdio(dto.classificacaoOdio());
+        analise.setClassificacaoAntidemo(dto.classificacaoAntidemo());
+        analise.setConfiancaClassificacao(dto.confiancaClassificacao());
+        analise.setCategoriaFinal(dto.categoriaFinal());
+        analise.setScoreRiscoIlicitude(dto.scoreRiscoIlicitude());
+        analise.setScoreDiscOdio(null);
+        analise.setScoreDiscAntidemo(null);
+        analise.setAtributoWhat(dto.atributoWhat());
+        analise.setAtributoWho(dto.atributoWho());
+        analise.setAtributoWhere(dto.atributoWhere());
+        analise.setAtributoWhen(dto.atributoWhen());
+        analise.setKeywords(dto.keywords());
+        analise.setPseudoLabel(dto.pseudoLabel());
+        analise.setMisinformationFeatures(dto.misinformationFeatures());
+        analise.setCertezaAlegacao(dto.certezaAlegacao());
+        analise.setFaixaCertezaAlegacao(dto.faixaCertezaAlegacao());
+        analise.setTopicMatchJson(AnaliseIaTopicMatchCodec.serialize(dto.topicMatch()));
+    }
+
+    @Transactional
     public void reabrir(Long conteudoId, Long usuarioId, String justificativa) {
         Checagem checagem = checagemRepo.findByConteudoId(conteudoId)
                 .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteudo: " + conteudoId));
@@ -226,5 +377,67 @@ public class ConteudoSuspeitoService {
         }
 
         auditoria.registrar(usuarioId, "conteudo_reaberto", "conteudo:" + conteudoId, justificativa);
+    }
+
+    @Transactional
+    public void excluir(Long id, Long usuarioId) {
+        ConteudoSuspeito conteudo = conteudoRepo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+
+        if (!STATUS_EXCLUIVEIS.contains(conteudo.getStatus())) {
+            throw new IllegalStateException(
+                    "Só é possível excluir conteúdos que ainda não foram concluídos.");
+        }
+
+        for (Checagem checagem : checagemRepo.findAllByConteudo_Id(id)) {
+            excluirDadosChecagem(checagem);
+        }
+
+        analiseIaRepo.findAllByConteudo_Id(id).forEach(analiseIaRepo::delete);
+
+        conteudoRecebidoRepo.findByConteudoTriagem_Id(id).ifPresent(recebido -> {
+            recebido.setConteudoTriagem(null);
+            recebido.setStatus("deleted");
+            conteudoRecebidoRepo.save(recebido);
+        });
+
+        for (AnexoConteudo anexo : anexoRepo.findByConteudoId(id)) {
+            try {
+                storageService.delete(anexo.getObjectKey());
+            } catch (Exception e) {
+                // Continua a exclusão mesmo se o arquivo já não existir no storage.
+            }
+            anexoRepo.delete(anexo);
+        }
+
+        String titulo = conteudo.getTitulo();
+        conteudoRepo.delete(conteudo);
+        auditoria.registrar(usuarioId, "conteudo_excluido", "conteudo:" + id, titulo);
+    }
+
+    private void excluirDadosChecagem(Checagem checagem) {
+        Long checagemId = checagem.getId();
+
+        for (Evidencia evidencia : evidenciaRepo.findByChecagemId(checagemId)) {
+            if (evidencia.getObjectKey() != null && !evidencia.getObjectKey().isBlank()) {
+                try {
+                    storageService.delete(evidencia.getObjectKey());
+                } catch (Exception e) {
+                    // Continua a exclusão mesmo se o arquivo já não existir no storage.
+                }
+            }
+            evidenciaRepo.delete(evidencia);
+        }
+
+        investigacaoRepo.findByChecagemId(checagemId).ifPresent(investigacaoRepo::delete);
+
+        for (Parecer parecer : parecerRepo.findAllByChecagem_Id(checagemId)) {
+            relatorioRepo.findAllByParecer_Id(parecer.getId()).forEach(relatorioRepo::delete);
+            revisaoRepo.deleteAll(revisaoRepo.findByParecer_Id(parecer.getId()));
+            parecerRepo.delete(parecer);
+        }
+
+        historicoRepo.deleteAll(historicoRepo.findByChecagem_Id(checagemId));
+        checagemRepo.delete(checagem);
     }
 }

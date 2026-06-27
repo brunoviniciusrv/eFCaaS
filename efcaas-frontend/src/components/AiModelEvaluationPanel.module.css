@@ -1,0 +1,214 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.panelTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #374151);
+  margin: 0;
+}
+
+.certaintyBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background-color: #fef9e7;
+  border: 1px solid #f0e6b3;
+  border-radius: 0.375rem;
+}
+
+.certaintyBannerIcon {
+  flex-shrink: 0;
+  color: #eab308;
+  margin-top: 0.125rem;
+}
+
+.certaintyBannerText {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.certaintyScore {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.certaintyLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.certaintyLink:hover {
+  color: #1d4ed8;
+}
+
+.accordion {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.accordionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.accordionHeader:hover {
+  background-color: #f9fafb;
+}
+
+.accordionToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.accordionBody {
+  padding: 1rem 1rem 1.125rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.statusRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.75rem;
+  font-size: 0.8125rem;
+  color: #4b5563;
+}
+
+.statusIcon {
+  flex-shrink: 0;
+  color: #9ca3af;
+  margin-top: 0.125rem;
+}
+
+.numberedList {
+  margin: 0;
+  padding: 0.25rem 0 0 1.25rem;
+  font-size: 0.8125rem;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.numberedList li {
+  margin-bottom: 0.375rem;
+}
+
+.translationNote {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.emptyMessage {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.45);
+  padding: 1rem;
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 42rem;
+  max-height: 85vh;
+  background: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  padding: 1.25rem 1.5rem 0;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.modalBody {
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modalText {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.5rem 1.25rem;
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #ea580c;
+  cursor: pointer;
+}
+
+.modalCloseButton:hover {
+  color: #c2410c;
+}
+
+.loadingPlaceholder {
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}

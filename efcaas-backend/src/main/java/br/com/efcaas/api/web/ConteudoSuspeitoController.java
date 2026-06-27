@@ -85,6 +85,27 @@ public class ConteudoSuspeitoController {
         return ResponseEntity.ok(service.atribuir(id, request, curadorId));
     }
 
+    @PostMapping("/{id}/assumir")
+    @PreAuthorize("hasAuthority('perform_analysis')")
+    @Operation(summary = "Assumir conteúdo para análise (auto-atribuição)")
+    public ResponseEntity<ChecagemDto> assumir(
+            @PathVariable Long id,
+            Authentication auth) {
+        Long checadorId = Long.parseLong(auth.getName());
+        return ResponseEntity.ok(service.assumir(id, checadorId));
+    }
+
+    @DeleteMapping("/{id}/participantes/{checadorId}")
+    @PreAuthorize("hasAuthority('assign_tasks')")
+    @Operation(summary = "Remover checador atribuído ao conteúdo")
+    public ResponseEntity<ChecagemDto> desatribuir(
+            @PathVariable Long id,
+            @PathVariable Long checadorId,
+            Authentication auth) {
+        Long usuarioId = Long.parseLong(auth.getName());
+        return ResponseEntity.ok(service.desatribuir(id, checadorId, usuarioId));
+    }
+
     @PostMapping("/{id}/revisao/aprovar")
     @PreAuthorize("hasAuthority('review_and_approve')")
     @Operation(summary = "Aprovar o parecer da checagem")
@@ -117,6 +138,24 @@ public class ConteudoSuspeitoController {
             Authentication auth) {
         Long userId = Long.parseLong(auth.getName());
         service.reabrir(id, userId, request != null ? request.justificativa() : null);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/ia/analisar")
+    @PreAuthorize("hasAnyAuthority('perform_analysis', 'assign_tasks')")
+    @Operation(summary = "Disparar análise de IA para o conteúdo (Guaia IA Hub)")
+    public ResponseEntity<ConteudoSuspeitoDto> analisarComIa(@PathVariable Long id) {
+        return ResponseEntity.ok(service.analisarConteudo(id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage_triage')")
+    @Operation(summary = "Excluir conteúdo não concluído")
+    public ResponseEntity<Void> excluir(
+            @PathVariable Long id,
+            Authentication auth) {
+        Long userId = Long.parseLong(auth.getName());
+        service.excluir(id, userId);
         return ResponseEntity.noContent().build();
     }
 

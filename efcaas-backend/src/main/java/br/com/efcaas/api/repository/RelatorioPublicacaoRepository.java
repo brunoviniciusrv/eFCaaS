@@ -11,7 +11,7 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
 
     Optional<RelatorioPublicacao> findByParecerId(Long parecerId);
 
-    Optional<RelatorioPublicacao> findByParecer_Checagem_Conteudo_Id(Long conteudoId);
+    List<RelatorioPublicacao> findAllByParecer_Id(Long parecerId);
 
     @Query("""
             SELECT r FROM RelatorioPublicacao r
@@ -20,8 +20,9 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
             JOIN FETCH c.conteudo
             JOIN FETCH r.editor
             WHERE c.conteudo.id = :conteudoId
+            ORDER BY r.dataCriacao DESC
             """)
-    Optional<RelatorioPublicacao> findDetalhadoByConteudoId(Long conteudoId);
+    List<RelatorioPublicacao> findDetalhadosByConteudoId(Long conteudoId);
 
     @Query("""
             SELECT r FROM RelatorioPublicacao r

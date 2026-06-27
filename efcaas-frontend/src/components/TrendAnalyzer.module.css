@@ -58,11 +58,11 @@
 }
 
 .resultsGrid {
-  @apply grid grid-cols-1 lg:grid-cols-12 gap-8;
+  @apply space-y-4;
 }
 
 .trendList {
-  @apply lg:col-span-8 space-y-4;
+  @apply space-y-4;
 }
 
 .trendCard {
@@ -158,64 +158,4 @@
 
 .emptyDesc {
   @apply text-sm text-slate-400 font-medium;
-}
-
-.sidebar {
-  @apply lg:col-span-4 space-y-6;
-}
-
-.radarCard {
-  @apply p-6 rounded-[2rem] border bg-blue-600 text-white shadow-xl space-y-4 relative overflow-hidden;
-}
-
-.radarTitle {
-  @apply text-lg font-black tracking-tight leading-none;
-}
-
-.radarDesc {
-  @apply text-sm opacity-80 leading-relaxed font-medium;
-}
-
-.radarStats {
-  @apply pt-4 flex items-center gap-4;
-}
-
-.radarStat {
-  @apply flex flex-col;
-}
-
-.radarStatValue {
-  @apply text-2xl font-black;
-}
-
-.radarStatLabel {
-  @apply text-[10px] font-black uppercase tracking-widest opacity-60;
-}
-
-.divider {
-  @apply w-px h-10 bg-white/20;
-}
-
-.insightCard {
-  @apply p-6 rounded-[2rem] border bg-white shadow-sm space-y-4;
-}
-
-.insightTitle {
-  @apply text-sm font-black uppercase tracking-widest text-slate-400;
-}
-
-.insightRow {
-  @apply flex items-center justify-between;
-}
-
-.insightLabel {
-  @apply text-sm font-bold text-slate-700;
-}
-
-.insightBar {
-  @apply w-16 h-1 bg-slate-100 rounded-full overflow-hidden;
-}
-
-.insightFill {
-  @apply h-full bg-blue-400 w-2/3;
 }

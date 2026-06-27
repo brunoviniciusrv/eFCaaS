@@ -13,5 +13,7 @@ public record ChecagemDto(
         String dataConclusao,
         InvestigacaoDto investigacao,
         ParecerDto parecer,
-        List<EvidenciaDto> evidencias
+        List<EvidenciaDto> evidencias,
+        List<String> checadorIds,
+        List<HistoricoAtribuicaoDto> historicoAtribuicao
 ) {}

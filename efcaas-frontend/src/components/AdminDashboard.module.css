@@ -196,11 +196,21 @@
   @apply relative w-24 h-24;
   /* REMOVED from @apply (not supported): group */
 }
+
+.logoPreviewContainerPlain {
+  @apply relative flex items-center justify-center;
+}
+
 .logoPreviewBox {
   @apply w-full h-full rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50;
 }
+
 .logoImg {
   @apply w-full h-full object-fill;
+}
+
+.logoImgOnly {
+  @apply max-h-24 max-w-[12rem] object-contain rounded-xl;
 }
 .logoPlaceholderIcon {
   @apply text-slate-300;

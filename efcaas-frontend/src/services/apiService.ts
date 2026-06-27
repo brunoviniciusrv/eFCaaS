@@ -10,7 +10,11 @@ import {
   EditorialArticle,
   ArticleStatus,
   EditorialComment,
+  ReceivedNewsItem,
+  ReceivedNewsStatus,
+  AssignmentHistory,
 } from '../types';
+import { parseAttributeList, parseMisinformationFeatures, toConfidenceScore } from '../lib/aiAnalysis';
 
 export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
   summary: '',
@@ -55,6 +59,34 @@ export interface ApiUsuarioDto {
   permissoes: string[];
 }
 
+export interface ApiAnaliseIaDto {
+  avaliacaoRisco: string | null;
+  textoAnalise: string | null;
+  simulado: boolean;
+  scoreInveracidade: number | null;
+  scoreFalsidade: number | null;
+  scoreDistorcaoMidia: number | null;
+  classificacaoOdio: string | null;
+  classificacaoAntidemo: string | null;
+  confiancaClassificacao: number | null;
+  categoriaFinal: string | null;
+  scoreRiscoIlicitude: number | null;
+  atributoWhat: string | null;
+  atributoWho: string | null;
+  atributoWhere: string | null;
+  atributoWhen: string | null;
+  keywords: string | null;
+  pseudoLabel: string | null;
+  misinformationFeatures: string | null;
+  certezaAlegacao: number | null;
+  faixaCertezaAlegacao: string | null;
+  topicMatch: string[] | null;
+  /** @deprecated legado — falsidade */
+  scoreDistorcao?: number | null;
+  /** @deprecated legado — distorção de mídia */
+  scoreForaContexto?: number | null;
+}
+
 export interface ApiConteudoDto {
   id: string;
   titulo: string;
@@ -66,7 +98,7 @@ export interface ApiConteudoDto {
   status: string;
   prioridade: string;
   checagem: ApiChecagemDto | null;
-  analiseIa: unknown | null;
+  analiseIa: ApiAnaliseIaDto | null;
   anexos?: ApiAnexoConteudoDto[];
 }
 
@@ -112,11 +144,24 @@ export interface SalvarRelatorioPublicacaoBody {
   comentarios?: EditorialComment[];
 }
 
+export interface ApiHistoricoAtribuicaoDto {
+  id: string;
+  usuarioId: string | null;
+  usuarioNome: string | null;
+  atribuidoPorId: string | null;
+  atribuidoPorNome: string | null;
+  acao: string;
+  motivo: string | null;
+  timestamp: string | null;
+}
+
 export interface ApiChecagemDto {
   id: string;
   conteudoId: string;
   curadorId: string;
   checadorId: string;
+  checadorIds?: string[];
+  historicoAtribuicao?: ApiHistoricoAtribuicaoDto[];
   briefing: string;
   status: string;
   dataInicio: string;
@@ -150,29 +195,6 @@ export interface ApiEtiquetaDto {
   cor: string;
 }
 
-export interface YoutubeResultadoDto {
-  titulo: string;
-  url: string;
-  conteudo: string | null;
-  descricao: string | null;
-  channelTitle: string | null;
-  channelId: string | null;
-  publishedAt: string | null;
-  viewCount: number | null;
-  commentCount: number | null;
-  duration: string | null;
-  thumbnailDefault: string | null;
-  thumbnailHigh: string | null;
-  tags: string[];
-}
-
-export interface BuscarYoutubeParams {
-  query: string;
-  limit?: number;
-  startDate?: string;
-  endDate?: string;
-}
-
 export interface ApiAuditoriaDto {
   id: number;
   usuarioNome: string;
@@ -180,6 +202,30 @@ export interface ApiAuditoriaDto {
   alvo: string | null;
   detalhes: string | null;
   timestamp: string;
+}
+
+export interface ApiConteudoRecebidoMidiaDto {
+  id: number;
+  tipo: string;
+  url: string;
+  titulo: string | null;
+}
+
+export interface ApiConteudoRecebidoDto {
+  id: number;
+  titulo: string;
+  conteudo: string;
+  resumo: string | null;
+  tipoFonte: string;
+  nomeRemetente: string | null;
+  enderecoRemetente: string | null;
+  linkOriginal: string | null;
+  idMensagemExterna: string | null;
+  notasInternas: string | null;
+  status: ReceivedNewsStatus;
+  recebidoEm: string;
+  conteudoTriagemId: number | null;
+  midias: ApiConteudoRecebidoMidiaDto[];
 }
 
 export interface ApiAgencyConfigDto {
@@ -296,6 +342,13 @@ const PROFILE_ID_MAP: Record<string, string> = {
   Editor: 'p-editor',
 };
 
+const PROFILE_ID_TO_TIPO_NOME: Record<string, string> = {
+  'p-admin': 'Administrador',
+  'p-curator': 'Curador',
+  'p-checker': 'Checador',
+  'p-editor': 'Editor',
+};
+
 const STATUS_API_TO_FRONT: Record<string, NewsItem['status']> = {
   // valores persistidos pelo backend
   pending: 'pending',
@@ -331,10 +384,45 @@ const PRIORITY_FRONT_TO_API: Record<string, string> = {
   low: 'baixa',
 };
 
+const SOURCE_API_TO_FRONT: Record<string, ReceivedNewsItem['sourceType']> = {
+  whatsapp: 'WhatsApp',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  telegram: 'Telegram',
+  email: 'E-mail',
+  youtube: 'YouTube',
+  reddit: 'Reddit',
+  tiktok: 'TikTok',
+  other: 'Other',
+};
+
+function mapConteudoRecebido(dto: ApiConteudoRecebidoDto): ReceivedNewsItem {
+  return {
+    id: String(dto.id),
+    title: dto.titulo,
+    content: dto.conteudo,
+    excerpt: dto.resumo ?? dto.conteudo.slice(0, 120),
+    sourceType: SOURCE_API_TO_FRONT[dto.tipoFonte] ?? 'Other',
+    senderName: dto.nomeRemetente ?? undefined,
+    senderAddress: dto.enderecoRemetente ?? undefined,
+    receivedAt: dto.recebidoEm,
+    status: dto.status,
+    media: (dto.midias ?? []).map((m) => ({
+      id: String(m.id),
+      type: m.tipo as 'image' | 'video' | 'audio' | 'document',
+      url: m.url,
+      title: m.titulo ?? undefined,
+    })),
+    originalLink: dto.linkOriginal ?? undefined,
+    messageId: dto.idMensagemExterna ?? undefined,
+    internalNotes: dto.notasInternas ?? undefined,
+  };
+}
+
 function mapUsuario(dto: ApiUsuarioDto): UserProfile {
   const tipoNome = dto.tipoUsuario?.nome ?? '';
   return {
-    id: dto.id,
+    id: String(dto.id),
     name: dto.nome,
     email: dto.email,
     role: ROLE_MAP[tipoNome] ?? 'checker',
@@ -390,8 +478,101 @@ function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media']
   });
 }
 
+function deriveWarningLevel(score: number | null): string {
+  if (score === null) return 'baixo';
+  if (score >= 80) return 'crítico';
+  if (score >= 60) return 'alto';
+  if (score >= 30) return 'moderado';
+  return 'baixo';
+}
+
+function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation'> {
+  if (!ia || ia.simulado) return {};
+
+  const inveracidade = toScore(ia.scoreInveracidade);
+  const falsidade = toScore(ia.scoreFalsidade ?? ia.scoreDistorcao);
+  const distorcaoMidia = toScore(ia.scoreDistorcaoMidia ?? ia.scoreForaContexto);
+  const riscoIlicitude = toScore(ia.scoreRiscoIlicitude);
+  const confiancaClassificacao = toConfidenceScore(ia.confiancaClassificacao);
+  const certezaAlegacao = toScore(ia.certezaAlegacao);
+
+  const aiScores: NonNullable<NewsItem['aiScores']> = {};
+  if (inveracidade !== undefined) aiScores.inveracidade = inveracidade;
+  if (falsidade !== undefined) aiScores.falsidade = falsidade;
+  if (distorcaoMidia !== undefined) aiScores.distorcaoMidia = distorcaoMidia;
+  if (riscoIlicitude !== undefined) aiScores.riscoIlicitude = riscoIlicitude;
+
+  const characteristics = parseMisinformationFeatures(ia.misinformationFeatures);
+  const topics = ia.topicMatch?.length
+    ? ia.topicMatch
+    : (ia.keywords ? ia.keywords.split(',').map((k) => k.trim()).filter(Boolean) : []);
+
+  const hasScores = Object.keys(aiScores).length > 0;
+  const hasSemantics = Boolean(
+    ia.atributoWhat || ia.atributoWho || ia.atributoWhere || ia.atributoWhen
+    || ia.keywords || ia.pseudoLabel
+  );
+  const hasIllicit = Boolean(
+    ia.classificacaoOdio?.trim()
+    || ia.classificacaoAntidemo?.trim()
+    || ia.categoriaFinal?.trim()
+    || confiancaClassificacao != null
+    || riscoIlicitude != null
+  );
+  const hasTexto = Boolean(ia.textoAnalise?.trim());
+
+  const aiEvaluation: NewsItem['aiEvaluation'] = hasTexto || hasSemantics || characteristics.length > 0 || hasIllicit ? {
+    score: inveracidade ?? 0,
+    explanation: ia.textoAnalise ?? '',
+    warningLevel: ia.avaliacaoRisco ?? deriveWarningLevel(inveracidade ?? null),
+    avaliacaoRisco: ia.avaliacaoRisco ?? undefined,
+    characteristics,
+    topics,
+    entities: parseAttributeList(ia.atributoWho).map((name) => ({
+      name,
+      description: ia.atributoWhat ?? '',
+    })),
+    location: ia.atributoWhere ?? '',
+    dates: parseAttributeList(ia.atributoWhen),
+    pseudoLabel: ia.pseudoLabel?.trim() || undefined,
+    categoriaFinal: ia.categoriaFinal?.trim() || undefined,
+    classificacaoOdio: ia.classificacaoOdio?.trim() || undefined,
+    classificacaoAntidemo: ia.classificacaoAntidemo?.trim() || undefined,
+    confiancaClassificacao,
+    certezaAlegacao,
+    faixaCertezaAlegacao: ia.faixaCertezaAlegacao?.trim() || undefined,
+  } : undefined;
+
+  return {
+    ...(hasScores ? { aiScores } : {}),
+    ...(aiEvaluation ? { aiEvaluation } : {}),
+  };
+}
+
+function toScore(value: number | null | undefined): number | undefined {
+  if (value == null) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n) : undefined;
+}
+
 function mapConteudo(dto: ApiConteudoDto): NewsItem {
   const ch = dto.checagem;
+  const aiFields = mapAnaliseIa(dto.analiseIa);
+  const checadorIds = ch?.checadorIds?.length
+    ? ch.checadorIds.map(String)
+    : ch?.checadorId
+      ? [String(ch.checadorId)]
+      : undefined;
+  const assignmentHistory = ch?.historicoAtribuicao?.map((h) => ({
+    id: h.id,
+    assignedTo: h.usuarioId ?? '',
+    assignedToName: h.usuarioNome ?? undefined,
+    assignedBy: h.atribuidoPorId ?? '',
+    assignedByName: h.atribuidoPorNome ?? undefined,
+    timestamp: h.timestamp ?? new Date().toISOString(),
+    action: (h.acao === 'assumed' ? 'assumed' : h.acao === 'removed' ? 'removed' : h.acao === 'reopened' ? 'reopened' : 'assigned') as AssignmentHistory['action'],
+    reason: h.motivo ?? undefined,
+  }));
   return {
     id: dto.id,
     title: dto.titulo ?? '',
@@ -407,7 +588,8 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
       : new Date().toISOString().split('T')[0],
     status: STATUS_API_TO_FRONT[dto.status] ?? 'pending',
     priority: PRIORITY_API_TO_FRONT[dto.prioridade] ?? 'medium',
-    assignedTo: ch?.checadorId ?? undefined,
+    assignedTo: checadorIds?.[0] ?? ch?.checadorId ?? undefined,
+    assignedToIds: checadorIds,
     briefing: ch?.briefing ?? undefined,
     startTime: ch?.dataInicio ?? undefined,
     completedAt: ch?.dataConclusao ?? undefined,
@@ -418,8 +600,9 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
       ch?.parecer?.etiqueta?.nome ?? undefined,
     ),
     report: ch?.parecer?.textoParecer ?? undefined,
-    assignmentHistory: [],
+    assignmentHistory: assignmentHistory ?? [],
     media: mapAnexos(dto.anexos),
+    ...aiFields,
   };
 }
 
@@ -506,9 +689,29 @@ export const apiService = {
     return { token: data.token, user: mapUsuario(data.usuario) };
   },
 
-  async getMe(): Promise<UserProfile> {
-    const dto = await api.get<ApiUsuarioDto>('/me');
+  async atualizarPerfil(data: {
+    nome?: string;
+    bio?: string;
+    foto?: string;
+  }): Promise<UserProfile> {
+    const dto = await api.patch<ApiUsuarioDto>('/me', {
+      nome: data.nome,
+      bio: data.bio ?? '',
+      foto: data.foto,
+    });
     return mapUsuario(dto);
+  },
+
+  async alterarEmail(novoEmail: string, senhaAtual: string): Promise<UserProfile> {
+    const dto = await api.patch<ApiUsuarioDto>('/me/email', {
+      novoEmail,
+      senhaAtual,
+    });
+    return mapUsuario(dto);
+  },
+
+  async alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+    await api.patch<void>('/me/senha', { senhaAtual, novaSenha });
   },
 
   async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
@@ -538,6 +741,25 @@ export const apiService = {
   async listarUsuarios(): Promise<UserProfile[]> {
     const dtos = await api.get<ApiUsuarioDto[]>('/usuarios');
     return dtos.map(mapUsuario);
+  },
+
+  async criarUsuario(data: {
+    nome: string;
+    email: string;
+    profileId: string;
+    senha?: string;
+  }): Promise<UserProfile> {
+    const perfil = PROFILE_ID_TO_TIPO_NOME[data.profileId];
+    if (!perfil) {
+      throw new Error('Perfil de acesso inválido');
+    }
+    const dto = await api.post<ApiUsuarioDto>('/usuarios', {
+      nome: data.nome,
+      email: data.email,
+      perfil,
+      senha: data.senha,
+    });
+    return mapUsuario(dto);
   },
 
   // Etiquetas
@@ -586,6 +808,26 @@ export const apiService = {
     return mapConteudo(dto);
   },
 
+  async excluirConteudo(id: string): Promise<void> {
+    return api.delete<void>(`/conteudos/${id}`);
+  },
+
+  // Conteúdos recebidos (fontes externas)
+  async listarConteudosRecebidos(status = 'received'): Promise<ReceivedNewsItem[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    const dtos = await api.get<ApiConteudoRecebidoDto[]>(`/conteudos-recebidos${qs}`);
+    return dtos.map(mapConteudoRecebido);
+  },
+
+  async encaminharConteudoRecebido(id: string): Promise<NewsItem> {
+    const dto = await api.post<ApiConteudoDto>(`/conteudos-recebidos/${id}/encaminhar`, {});
+    return mapConteudo(dto);
+  },
+
+  async excluirConteudoRecebido(id: string): Promise<void> {
+    return api.delete<void>(`/conteudos-recebidos/${id}`);
+  },
+
   async uploadAnexoConteudo(conteudoId: string, file: File): Promise<ApiAnexoConteudoDto> {
     const formData = new FormData();
     formData.append('file', file);
@@ -609,14 +851,19 @@ export const apiService = {
     return mapConteudo(dto);
   },
 
-  async atribuirChecagem(conteudoId: string, body: AtribuirChecagemBody): Promise<ApiChecagemDto> {
+  /** Atribui checador e retorna a checagem criada/atualizada. */
+  async atribuirConteudo(conteudoId: string, body: AtribuirChecagemBody): Promise<ApiChecagemDto> {
     return api.post<ApiChecagemDto>(`/conteudos/${conteudoId}/atribuir`, body);
   },
 
-  /** Atribui checador e retorna o conteúdo atualizado do banco. */
-  async atribuirConteudo(conteudoId: string, body: AtribuirChecagemBody): Promise<NewsItem> {
-    await api.post<ApiChecagemDto>(`/conteudos/${conteudoId}/atribuir`, body);
-    return this.obterConteudo(conteudoId);
+  /** Auto-atribuição: checador assume o conteúdo para análise. */
+  async assumirConteudo(conteudoId: string): Promise<ApiChecagemDto> {
+    return api.post<ApiChecagemDto>(`/conteudos/${conteudoId}/assumir`);
+  },
+
+  /** Remove checador da lista de participantes ativos. */
+  async desatribuirConteudo(conteudoId: string, checadorId: string): Promise<ApiChecagemDto> {
+    return api.delete<ApiChecagemDto>(`/conteudos/${conteudoId}/participantes/${checadorId}`);
   },
 
   async aprovarConteudo(conteudoId: string, justificativa?: string): Promise<void> {
@@ -721,12 +968,9 @@ export const apiService = {
     return api.get<ApiAuditoriaDto[]>(`/checagens/${checagemId}/auditoria`);
   },
 
-  // YouTube / Denodare
-  async buscarYoutube(params: BuscarYoutubeParams): Promise<YoutubeResultadoDto[]> {
-    const qs = new URLSearchParams({ query: params.query });
-    if (params.limit) qs.set('limit', String(params.limit));
-    if (params.startDate) qs.set('startDate', params.startDate);
-    if (params.endDate) qs.set('endDate', params.endDate);
-    return api.get<YoutubeResultadoDto[]>(`/youtube/buscar?${qs.toString()}`);
+  /** Dispara análise de IA (Guaia IA Hub) para o conteúdo e retorna o item atualizado. */
+  async analisarConteudo(id: string): Promise<NewsItem> {
+    const dto = await api.post<ApiConteudoDto>(`/conteudos/${id}/ia/analisar`, {});
+    return mapConteudo(dto);
   },
 };

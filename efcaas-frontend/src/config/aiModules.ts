@@ -72,6 +72,11 @@ export function isAiModuleEnabled(
   return config[key] !== false;
 }
 
+/** Indicadores de desinformação (triagem, pré-visualização, métricas IA). */
+export function isDesinfoMetricsEnabled(config: AgencyConfig): boolean {
+  return isAiModuleEnabled(config, 'enableTrendAnalyzer');
+}
+
 export function isSocialExtractionPlatform(platformId: string): platformId is SocialExtractionPlatform {
   return (SOCIAL_EXTRACTION_PLATFORMS as readonly string[]).includes(platformId);
 }

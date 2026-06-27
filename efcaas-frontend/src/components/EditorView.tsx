@@ -272,7 +272,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div className={styles.sidebarSection}>
             <label className={styles.sidebarLabel}>Resumo da Evidência</label>
             <div className={styles.summaryText} style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
-              {activeNews.aiEvaluation?.explanation || "Aguardando processamento..."}
+              {activeNews.aiEvaluation?.explanation || "Nenhuma análise de IA disponível."}
             </div>
           </div>
 

@@ -82,6 +82,7 @@ O Flyway aplica as migrações automaticamente ao subir a aplicação — não �
 | V1 | `V1__baseline.sql` | Cria todas as 14 tabelas do schema base |
 | V2 | `V2__ajustes_schema.sql` | Ampliar senha, adicionar colunas de status/prioridade |
 | V3 | `V3__seed_dados_iniciais.sql` | 18 permissões, 6 etiquetas, 4 perfis, 1 admin padrão |
+| V15 | `V15__conteudo_recebido.sql` | Conteúdos recebidos de fontes externas + mídias |
 
 ---
 
@@ -94,6 +95,8 @@ O Flyway aplica as migrações automaticamente ao subir a aplicação — não �
 | PATCH | `/api/v1/me` | Bearer | Atualizar nome/bio |
 | PATCH | `/api/v1/me/senha` | Bearer | Alterar senha |
 | GET | `/actuator/health` | — | Health check |
+| POST | `/api/v1/ingest/conteudos-recebidos` | X-Ingest-Api-Key | Ingestão externa de conteúdos |
+| GET | `/api/v1/conteudos-recebidos` | Bearer | Listar conteúdos recebidos |
 | GET | `/swagger-ui.html` | — | Documentação interativa |
 
 ---
@@ -122,7 +125,23 @@ O Flyway aplica as migrações automaticamente ao subir a aplicação — não �
 | `JWT_SECRET` | valor de desenvolvimento | ✅ (min 32 chars) |
 | `JWT_EXPIRATION_MINUTES` | `60` | — |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | ✅ |
+| `INGEST_API_KEY` | `efcaas-ingest-dev-key` | ✅ (chave para ingestão externa) |
 | `PORT` | `8080` | — |
+
+---
+
+## API de Conteúdos Recebidos (ingestão externa)
+
+Sistemas externos (bots, webhooks, coletores) enviam conteúdos para a plataforma via:
+
+```
+POST /api/v1/ingest/conteudos-recebidos
+Header: X-Ingest-Api-Key: <INGEST_API_KEY>
+```
+
+O painel de curadoria lista e atualiza automaticamente (polling 30s) em `GET /api/v1/conteudos-recebidos`.
+
+**Documentação completa:** [docs/CONTEUDOS_RECEBIDOS_API.md](docs/CONTEUDOS_RECEBIDOS_API.md)
 
 ---
 

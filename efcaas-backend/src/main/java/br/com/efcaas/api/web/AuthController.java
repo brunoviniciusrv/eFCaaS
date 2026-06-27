@@ -33,12 +33,23 @@ public class AuthController {
     }
 
     @PatchMapping("/me")
-    @Operation(summary = "Atualizar nome e bio", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Atualizar nome, bio e foto", security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<UsuarioDto> atualizarPerfil(
             @Valid @RequestBody AtualizarPerfilRequest request,
             Authentication auth) {
         Long userId = Long.parseLong(auth.getName());
-        return ResponseEntity.ok(authService.atualizarPerfil(userId, request.nome(), request.bio()));
+        return ResponseEntity.ok(authService.atualizarPerfil(
+                userId, request.nome(), request.bio(), request.foto()));
+    }
+
+    @PatchMapping("/me/email")
+    @Operation(summary = "Alterar e-mail", security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<UsuarioDto> alterarEmail(
+            @Valid @RequestBody AlterarEmailRequest request,
+            Authentication auth) {
+        Long userId = Long.parseLong(auth.getName());
+        return ResponseEntity.ok(authService.alterarEmail(
+                userId, request.novoEmail(), request.senhaAtual()));
     }
 
     @PatchMapping("/me/senha")

@@ -198,9 +198,11 @@ export interface EditorialArticle {
 export interface AssignmentHistory {
   id: string;
   assignedTo: string;
+  assignedToName?: string;
   assignedBy: string;
+  assignedByName?: string;
   timestamp: string;
-  action: 'assigned' | 'reassigned' | 'reopened' | 'rejected';
+  action: 'assigned' | 'assumed' | 'reassigned' | 'reopened' | 'rejected' | 'removed';
   reason?: string;
 }
 
@@ -230,6 +232,7 @@ export interface AIEvaluation {
   score: number;
   explanation: string;
   warningLevel: string;
+  avaliacaoRisco?: string;
   characteristics: string[];
   topics: string[];
   entities: {
@@ -238,6 +241,13 @@ export interface AIEvaluation {
   }[];
   location: string;
   dates: string[];
+  pseudoLabel?: string;
+  categoriaFinal?: string;
+  classificacaoOdio?: string;
+  classificacaoAntidemo?: string;
+  confiancaClassificacao?: number;
+  certezaAlegacao?: number;
+  faixaCertezaAlegacao?: string;
 }
 
 export interface SpecializedCheckerResponse {
@@ -278,7 +288,8 @@ export interface NewsItem {
   senderAddress?: string;
   status: NewsStatus;
   priority?: 'low' | 'medium' | 'high';
-  assignedTo?: string; // User ID
+  assignedTo?: string; // User ID (responsável principal)
+  assignedToIds?: string[]; // Todos os checadores atribuídos
   assignedToEditor?: string; // Editor user ID (aba Redação)
   startTime?: string; // ISO string
   completedAt?: string; // ISO string
@@ -297,16 +308,23 @@ export interface NewsItem {
   reportStructure?: ReportStructure;
   assignmentHistory?: AssignmentHistory[];
   aiScores?: {
-    gravity: number;
-    urgency: number;
-    trend: number;
     inveracidade?: number;
+    falsidade?: number;
+    distorcaoMidia?: number;
+    riscoIlicitude?: number;
+    /** @deprecated use inveracidade */
+    gravity?: number;
+    /** @deprecated use falsidade */
+    urgency?: number;
+    /** @deprecated use distorcaoMidia */
+    trend?: number;
+    /** @deprecated legado */
     distorcao?: number;
+    /** @deprecated legado */
     foraDeContexto?: number;
-    golpe?: number;
-    fraude?: number;
-    ataques?: number;
+    /** @deprecated use classificacao em aiEvaluation */
     discursoDeOdio?: number;
+    /** @deprecated use classificacao em aiEvaluation */
     discursoAntidemocratico?: number;
   };
   aiEvaluation?: AIEvaluation;

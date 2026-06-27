@@ -53,7 +53,8 @@ public class AuditoriaService {
 
     /** Converte detalhes legados "checador:{id}" para "checador:{nome}". */
     private String enriquecerDetalhes(String acao, String detalhes) {
-        if (detalhes == null || !"checagem_atribuida".equals(acao) || !detalhes.startsWith("checador:")) {
+      if (detalhes == null || (!"checagem_atribuida".equals(acao) && !"checagem_assumida".equals(acao)
+              && !"checagem_desatribuida".equals(acao)) || !detalhes.startsWith("checador:")) {
             return detalhes;
         }
         String valor = detalhes.substring("checador:".length());

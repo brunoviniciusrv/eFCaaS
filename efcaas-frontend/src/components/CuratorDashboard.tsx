@@ -62,13 +62,18 @@ import {
   ReceivedNewsStatus,
   AgencyConfig,
 } from '../types';
-import { isAiModuleEnabled } from '../config/aiModules';
+import { isAiModuleEnabled, isDesinfoMetricsEnabled } from '../config/aiModules';
+import { formatAiScore, getDesinfoScore } from '../lib/aiAnalysis';
+import { isNewsAssignedTo, resolveCheckerFromQuery } from '../lib/newsAssignment';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
 import { apiService, YoutubeResultadoDto } from '../services/apiService';
+import { NewsAssignmentModal } from './NewsAssignmentModal';
+import { CheckerNameAutocomplete } from './CheckerNameAutocomplete';
+import assignStyles from './CheckerAssign.module.css';
 import styles from './CuratorDashboard.module.css';
 
 import { 
@@ -85,6 +90,7 @@ interface CuratorDashboardProps {
   currentUser: UserProfile;
   themeConfig: ThemeConfig;
   onAssign: (newsId: string, checkerId: string, briefing: string) => Promise<void>;
+  onUnassign: (newsId: string, checkerId: string) => Promise<void>;
   onApprove: (newsId: string, comments: string) => void;
   onReject: (newsId: string, comments: string) => void;
   onReopen: (newsId: string, reason: string) => void;
@@ -94,6 +100,7 @@ interface CuratorDashboardProps {
   receivedNews: ReceivedNewsItem[];
   onForwardToTriage: (news: ReceivedNewsItem) => void;
   onDeleteReceivedNews: (id: string) => void;
+  onDeleteNews?: (newsId: string) => Promise<void>;
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
   onClearNotifs: () => void;
@@ -113,6 +120,7 @@ export const CuratorDashboard = ({
   currentUser,
   themeConfig,
   onAssign,
+  onUnassign,
   onApprove,
   onReject,
   onReopen,
@@ -122,6 +130,7 @@ export const CuratorDashboard = ({
   receivedNews,
   onForwardToTriage,
   onDeleteReceivedNews,
+  onDeleteNews,
   notifications,
   onMarkNotifAsRead,
   onClearNotifs,
@@ -133,6 +142,7 @@ export const CuratorDashboard = ({
 }: CuratorDashboardProps) => {
   const navigate = useNavigate();
   const socialSearchEnabled = isAiModuleEnabled(agencyConfig, 'enableSocialSearch');
+  const aiMetricsEnabled = isDesinfoMetricsEnabled(agencyConfig);
   const specializedNetworkEnabled = isAiModuleEnabled(agencyConfig, 'enableSpecializedNetwork');
   const [activeTab, setActiveTab] = useState<CuratorTab>(
     checkPermission('manage_received') ? 'received' : 
@@ -168,11 +178,8 @@ export const CuratorDashboard = ({
   };
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [assignError, setAssignError] = useState('');
   const [assigningNewsId, setAssigningNewsId] = useState<string | null>(null);
-  const [selectedCheckerId, setSelectedCheckerId] = useState<string>('');
-  const [briefing, setBriefing] = useState('');
+  const [registerAssignQuery, setRegisterAssignQuery] = useState('');
   const [reviewingNewsId, setReviewingNewsId] = useState<string | null>(null);
   const [reviewComments, setReviewComments] = useState('');
   const [reopeningNewsId, setReopeningNewsId] = useState<string | null>(null);
@@ -221,6 +228,13 @@ export const CuratorDashboard = ({
     }
   }, [specializedNetworkEnabled, activeTab, checkPermission]);
 
+  React.useEffect(() => {
+    if (socialSearchEnabled) return;
+    if (activeTab === 'trends') {
+      setActiveTab(checkPermission('manage_received') ? 'received' : 'triage');
+    }
+  }, [socialSearchEnabled, activeTab, checkPermission]);
+
   const extractionPlatforms = useMemo(
     () =>
       socialSearchEnabled
@@ -238,7 +252,9 @@ export const CuratorDashboard = ({
     () =>
       [
         { id: 'received', label: 'Conteúdos Recebidos', icon: Inbox, permission: 'manage_received' },
-        { id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' },
+        ...(socialSearchEnabled
+          ? [{ id: 'trends', label: 'Analisador de Tendências', icon: TrendingUp, permission: 'manage_triage' }]
+          : []),
         ...(specializedNetworkEnabled
           ? [{ id: 'specialized_network', label: 'Rede Especializada', icon: Globe, permission: 'manage_triage' }]
           : []),
@@ -248,7 +264,7 @@ export const CuratorDashboard = ({
         { id: 'workload', label: 'Equipe', icon: Users, permission: 'assign_tasks' },
         { id: 'reviews', label: 'Revisões', icon: CheckCircle, permission: 'review_and_approve' },
       ].filter((tab) => !tab.permission || checkPermission(tab.permission)),
-    [specializedNetworkEnabled, checkPermission]
+    [socialSearchEnabled, specializedNetworkEnabled, checkPermission]
   );
 
   const [newNews, setNewNews] = useState({
@@ -257,7 +273,7 @@ export const CuratorDashboard = ({
     descricao: '',
     source: '',
     url: '',
-    priority: 'medium' as const,
+    priority: 'medium' as 'low' | 'medium' | 'high',
     assignedTo: '',
     briefing: ''
   });
@@ -275,9 +291,9 @@ export const CuratorDashboard = ({
       const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            item.source.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesGravity = (item.aiScores?.gravity || 0) >= gravityFilter;
-      const matchesUrgency = (item.aiScores?.urgency || 0) >= urgencyFilter;
-      const matchesTrend = (item.aiScores?.trend || 0) >= trendFilter;
+      const matchesGravity = !aiMetricsEnabled || (getDesinfoScore(item.aiScores, 'inveracidade') ?? 0) >= gravityFilter;
+      const matchesUrgency = !aiMetricsEnabled || (getDesinfoScore(item.aiScores, 'falsidade') ?? 0) >= urgencyFilter;
+      const matchesTrend = !aiMetricsEnabled || (getDesinfoScore(item.aiScores, 'distorcaoMidia') ?? 0) >= trendFilter;
       const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
       
       if (activeTab === 'triage') {
@@ -305,7 +321,7 @@ export const CuratorDashboard = ({
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [news, searchQuery, gravityFilter, urgencyFilter, trendFilter, activeTab, selectedStatus, sortBy, sortOrder, users]);
+  }, [news, searchQuery, gravityFilter, urgencyFilter, trendFilter, activeTab, selectedStatus, sortBy, sortOrder, users, aiMetricsEnabled]);
 
   const filteredExtractionResults = useMemo(() => {
     return extractionResults.filter(item => {
@@ -346,7 +362,6 @@ export const CuratorDashboard = ({
   };
 
   const handleOpenAssign = (id?: string) => {
-    setAssignError('');
     if (id) {
       setAssigningNewsId(id);
     } else if (selectedNewsIds.length > 0) {
@@ -357,29 +372,7 @@ export const CuratorDashboard = ({
     setIsAssignModalOpen(true);
   };
 
-  const executeAssign = async () => {
-    if (!selectedCheckerId || isAssigning) return;
-
-    setIsAssigning(true);
-    setAssignError('');
-
-    try {
-      const ids = assigningNewsId ? [assigningNewsId] : selectedNewsIds;
-      await Promise.all(
-        ids.map(id => onAssign(id, selectedCheckerId, briefing)),
-      );
-
-      setIsAssignModalOpen(false);
-      setAssigningNewsId(null);
-      setSelectedNewsIds([]);
-      setSelectedCheckerId('');
-      setBriefing('');
-    } catch (err) {
-      setAssignError(err instanceof Error ? err.message : 'Não foi possível atribuir a checagem.');
-    } finally {
-      setIsAssigning(false);
-    }
-  };
+  const assigningNewsItem = assigningNewsId ? news.find((n) => n.id === assigningNewsId) ?? null : null;
 
   const executeReview = (approved: boolean) => {
     if (!reviewingNewsId) return;
@@ -426,7 +419,14 @@ export const CuratorDashboard = ({
       alert("Título é obrigatório.");
       return;
     }
-    onAddNews({ ...newNews, attachments: pendingAttachments });
+    const resolvedAssignee = newNews.assignedTo
+      || resolveCheckerFromQuery(registerAssignQuery, checkers)
+      || '';
+    onAddNews({
+      ...newNews,
+      assignedTo: resolvedAssignee,
+      attachments: pendingAttachments,
+    });
     setIsRegisterModalOpen(false);
     setPendingAttachments([]);
     setNewNews({ 
@@ -439,6 +439,7 @@ export const CuratorDashboard = ({
       assignedTo: '',
       briefing: ''
     });
+    setRegisterAssignQuery('');
   };
 
   const mapYoutubeToReceivedNews = (dto: YoutubeResultadoDto): ReceivedNewsItem => ({
@@ -572,16 +573,21 @@ export const CuratorDashboard = ({
       source: trend.platform,
       content: `${trend.description}\n\nMotivo da Tendência: ${trend.reason}\n\nAssunto: ${trend.topic}`,
       priority: trend.misinformationRisk > 70 ? 'high' : trend.misinformationRisk > 40 ? 'medium' : 'low',
-      aiScores: {
-        gravity: trend.misinformationRisk,
-        urgency: Math.min(100, trend.misinformationRisk + 10),
-        trend: 90
-      }
     };
     onAddNews(newsData);
     setActiveTab('triage');
     alert("Tendência promovida para triagem com sucesso!");
   };
+
+  const handleDeleteContent = async (newsId: string, onSuccess?: () => void) => {
+    if (!onDeleteNews) return;
+    await onDeleteNews(newsId);
+    setSelectedNewsIds(prev => prev.filter(id => id !== newsId));
+    onSuccess?.();
+  };
+
+  const canDeleteContent = (item: NewsItem) =>
+    Boolean(onDeleteNews) && checkPermission('manage_triage') && item.status !== 'completed';
 
   return (
     <div className={styles.wrapper} style={{ color: themeConfig.dashboard.text }}>
@@ -702,8 +708,8 @@ export const CuratorDashboard = ({
                         <div className={styles.mediaStack}>
                           {item.media?.map((m, i) => (
                             <div key={i} className={styles.mediaThumb}>
-                              {m.type === 'image' && <Upload size={10} className={styles.iconBlue500} />}
-                              {m.type === 'video' && <TrendingUp size={10} className={styles.iconRed500} />}
+                              {m.type === 'image' && <img src={m.url} alt="" className={styles.mediaThumbPreview} />}
+                              {m.type === 'video' && <video src={m.url} muted className={styles.mediaThumbPreview} />}
                               {m.type === 'audio' && <Bell size={10} className={styles.iconGreen} />}
                               {m.type === 'document' && <FileText size={10} className={styles.iconSlate} />}
                             </div>
@@ -868,7 +874,7 @@ export const CuratorDashboard = ({
       )}
 
       {/* Trend Analyzer View */}
-      {activeTab === 'trends' && (
+      {activeTab === 'trends' && socialSearchEnabled && (
         <TrendAnalyzer 
           themeConfig={themeConfig} 
           onPromoteToFactCheck={handlePromoteTrend} 
@@ -898,6 +904,8 @@ export const CuratorDashboard = ({
                 />
               </div>
             </div>
+            {aiMetricsEnabled && (
+            <>
             <div className={styles.filterFieldSmall}>
               <label 
                 className={styles.rangeLabel}
@@ -955,6 +963,8 @@ export const CuratorDashboard = ({
                 }}
               />
             </div>
+            </>
+            )}
           </div>
 
           <div className={styles.triageToolbar}>
@@ -1025,6 +1035,32 @@ export const CuratorDashboard = ({
                     </div>
                     <h3 className={styles.triageTitle}>{item.title}</h3>
                     <p className={styles.triageContent}>{item.content}</p>
+                    {(() => {
+                      const ids = item.assignedToIds?.length
+                        ? item.assignedToIds
+                        : item.assignedTo
+                          ? [item.assignedTo]
+                          : [];
+                      const names = ids
+                        .map((id) => users.find((u) => u.id === id)?.name)
+                        .filter(Boolean);
+                      if (names.length === 0) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAssign(item.id);
+                          }}
+                          className={assignStyles.clickableAssignee}
+                          style={{ marginTop: '0.35rem' }}
+                        >
+                          <span className={assignStyles.assigneeNameText} style={{ opacity: 0.75 }}>
+                            Atribuídos: {names.join(', ')}
+                          </span>
+                        </button>
+                      );
+                    })()}
                     <div className={styles.triageCardFooter}>
                       {(item.senderName || item.senderAddress) && (
                         <div className={styles.triageSenderBlock}>
@@ -1049,79 +1085,63 @@ export const CuratorDashboard = ({
                 </div>
 
                 <div className={styles.triageCardRight}>
+                  {aiMetricsEnabled && (
                   <div className={styles.aiScoresPanel} style={{ borderColor: themeConfig.general.border }}>
                     <div className={styles.aiScoresInner}>
                       <div className={styles.aiScoreItem}>
                         <div className={styles.aiScoreHeader}>
-                          <span>Gravidade</span>
-                          {item.isAIProcessing ? (
-                            <span className={styles.calculatingLabel}>Calculando...</span>
-                          ) : (
-                            <span>{item.aiScores?.gravity}%</span>
-                          )}
+                          <span>Pot. desinformação</span>
+                          <span>{formatAiScore(getDesinfoScore(item.aiScores, 'inveracidade'))}</span>
                         </div>
                         <div className={styles.aiScoreBarBg}>
-                          {item.isAIProcessing ? (
-                            <div className={styles.aiLoadingBar1} />
-                          ) : (
+                          {getDesinfoScore(item.aiScores, 'inveracidade') != null ? (
                             <div 
                               className={styles.aiScoreBarFill}
                               style={{ 
-                                width: `${item.aiScores?.gravity}%`, 
-                                backgroundColor: (item.aiScores?.gravity || 0) > 70 ? themeConfig.status.error : themeConfig.status.warning 
+                                width: `${getDesinfoScore(item.aiScores, 'inveracidade')}%`, 
+                                backgroundColor: (getDesinfoScore(item.aiScores, 'inveracidade') || 0) > 70 ? themeConfig.status.error : themeConfig.status.warning 
                               }} 
                             />
-                          )}
+                          ) : null}
                         </div>
                       </div>
                       <div className={styles.aiScoreItem}>
                         <div className={styles.aiScoreHeader}>
-                          <span>Urgência</span>
-                          {item.isAIProcessing ? (
-                            <span className={styles.calculatingLabel}>Calculando...</span>
-                          ) : (
-                            <span>{item.aiScores?.urgency}%</span>
-                          )}
+                          <span>Falsidade</span>
+                          <span>{formatAiScore(getDesinfoScore(item.aiScores, 'falsidade'))}</span>
                         </div>
                         <div className={styles.aiScoreBarBg}>
-                          {item.isAIProcessing ? (
-                            <div className={styles.aiLoadingBar2} />
-                          ) : (
+                          {getDesinfoScore(item.aiScores, 'falsidade') != null ? (
                             <div 
                               className={styles.aiScoreBarFill}
                               style={{ 
-                                width: `${item.aiScores?.urgency}%`, 
+                                width: `${getDesinfoScore(item.aiScores, 'falsidade')}%`, 
                                 backgroundColor: themeConfig.status.warning 
                               }} 
                             />
-                          )}
+                          ) : null}
                         </div>
                       </div>
                       <div className={styles.aiScoreItem}>
                         <div className={styles.aiScoreHeader}>
-                          <span>Tendência</span>
-                          {item.isAIProcessing ? (
-                            <span className={styles.calculatingLabel}>Calculando...</span>
-                          ) : (
-                            <span>{item.aiScores?.trend}%</span>
-                          )}
+                          <span>Distorção mídia</span>
+                          <span>{formatAiScore(getDesinfoScore(item.aiScores, 'distorcaoMidia'))}</span>
                         </div>
                         <div className={styles.aiScoreBarBg}>
-                          {item.isAIProcessing ? (
-                            <div className={styles.aiLoadingBar3} />
-                          ) : (
+                          {getDesinfoScore(item.aiScores, 'distorcaoMidia') != null ? (
                             <div 
                               className={styles.aiScoreBarFill}
                               style={{ 
-                                width: `${item.aiScores?.trend}%`, 
+                                width: `${getDesinfoScore(item.aiScores, 'distorcaoMidia')}%`, 
                                 backgroundColor: themeConfig.status.info 
                               }} 
                             />
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
                   </div>
+                  )}
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1235,14 +1255,19 @@ export const CuratorDashboard = ({
                       Responsável <ArrowUpDown size={12} />
                     </button>
                   </th>
-                  <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>SLA / Início</th>
                   <th className={styles.tableHeaderCell} style={{ color: themeConfig.general.tableHeaderText }}>Ações</th>
                 </tr>
               </thead>
               <tbody className={styles.tableBody} style={{ borderColor: themeConfig.general.border }}>
                 {filteredNews.map((item) => {
-                  const assignedUser = users.find(u => u.id === item.assignedTo);
-                  const sla = getSLAStatus(item.startTime);
+                  const assigneeIds = item.assignedToIds?.length
+                    ? item.assignedToIds
+                    : item.assignedTo
+                      ? [item.assignedTo]
+                      : [];
+                  const assignedUsers = assigneeIds
+                    .map((id) => users.find((u) => u.id === id))
+                    .filter((u): u is UserProfile => Boolean(u));
                   
                   return (
                     <tr 
@@ -1270,30 +1295,30 @@ export const CuratorDashboard = ({
                         <StatusBadge status={item.status} themeConfig={themeConfig} />
                       </td>
                       <td className={styles.tableCell}>
-                        {assignedUser ? (
-                          <div className={styles.assignedRow}>
-                            <img src={assignedUser.avatarUrl} alt="" className={styles.assignedAvatar} />
-                            <span className={styles.slaTime}>{assignedUser.name}</span>
-                          </div>
-                        ) : (
-                          <span className={styles.unassignedText}>Não atribuído</span>
-                        )}
-                      </td>
-                      <td className={styles.tableCell}>
-                        {item.startTime ? (
-                          <div className={styles.slaBlock}>
-                            <span className={styles.slaTime}>
-                              {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {sla && (
-                              <span className={cn(styles.slaLabel, sla.color)}>
-                                {sla.label}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (checkPermission('assign_tasks')) {
+                              handleOpenAssign(item.id);
+                            }
+                          }}
+                          className={assignStyles.clickableAssignee}
+                          title={checkPermission('assign_tasks') ? 'Gerenciar atribuições' : undefined}
+                        >
+                          {assignedUsers.length > 0 ? (
+                            <div className={styles.assignedRow}>
+                              <img src={assignedUsers[0].avatarUrl} alt="" className={styles.assignedAvatar} />
+                              <span className={cn(styles.slaTime, assignStyles.assigneeNameText)}>
+                                {assignedUsers.map((u) => u.name).join(', ')}
                               </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className={styles.slaPlaceholder}>-</span>
-                        )}
+                            </div>
+                          ) : (
+                            <span className={styles.unassignedText}>
+                              {checkPermission('assign_tasks') ? 'Atribuir checador...' : 'Não atribuído'}
+                            </span>
+                          )}
+                        </button>
                       </td>
                       <td className={styles.tableRightCell}>
                         <div className={styles.tableActionsRow}>
@@ -1319,12 +1344,28 @@ export const CuratorDashboard = ({
                           )}
                           {checkPermission('manage_triage') && item.status === 'pending' && (
                             <button
-                              onClick={() => handleOpenEdit(item)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEdit(item);
+                              }}
                               className={styles.tableActionButton}
                               style={{ color: themeConfig.general.mutedText }}
                               title="Editar Conteúdo"
                             >
                               <FileText size={18} />
+                            </button>
+                          )}
+                          {canDeleteContent(item) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteContent(item.id);
+                              }}
+                              className={styles.tableActionButton}
+                              style={{ color: themeConfig.status.error }}
+                              title="Excluir Conteúdo"
+                            >
+                              <Trash2 size={18} />
                             </button>
                           )}
                           <button 
@@ -1407,15 +1448,18 @@ export const CuratorDashboard = ({
                               </div>
                               <h4 className={styles.kanbanCardTitle}>{item.title}</h4>
                               
-                              {item.assignedTo && (
+                              {(item.assignedToIds?.length ? item.assignedToIds : item.assignedTo ? [item.assignedTo] : []).length > 0 && (
                                 <div className={styles.kanbanCardAssignee} style={{ borderColor: themeConfig.general.border }}>
                                   <img 
-                                    src={users.find(u => u.id === item.assignedTo)?.avatarUrl} 
+                                    src={users.find(u => u.id === (item.assignedToIds?.[0] ?? item.assignedTo))?.avatarUrl} 
                                     alt="" 
                                     className={styles.kanbanCardAvatar}
                                   />
                                   <span className={styles.kanbanCardAssigneeName}>
-                                    {users.find(u => u.id === item.assignedTo)?.name}
+                                    {(item.assignedToIds?.length ? item.assignedToIds : [item.assignedTo!])
+                                      .map((id) => users.find(u => u.id === id)?.name)
+                                      .filter(Boolean)
+                                      .join(', ')}
                                   </span>
                                 </div>
                               )}
@@ -1446,7 +1490,7 @@ export const CuratorDashboard = ({
       {activeTab === 'workload' && (
         <div className={styles.workloadGrid}>
           {checkers.map(checker => {
-            const checkerTasks = news.filter(n => n.assignedTo === checker.id);
+            const checkerTasks = news.filter(n => isNewsAssignedTo(n, checker.id));
             const pending = checkerTasks.filter(n => n.status === 'pending').length;
             const inProgress = checkerTasks.filter(n => n.status === 'in_progress').length;
             const review = checkerTasks.filter(n => n.status === 'final_review').length;
@@ -1731,7 +1775,6 @@ export const CuratorDashboard = ({
               </div>
 
               <div className={styles.extractionModalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30`, borderColor: themeConfig.general.border }}>
-                <p className={styles.extractionModalFooterNote}>A extração utiliza IA para filtrar ruídos e identificar padrões de desinformação automaticamente.</p>
                 <div className={styles.extractionModalButtons}>
                   <button 
                     onClick={() => setIsExtractionModalOpen(false)}
@@ -1751,10 +1794,7 @@ export const CuratorDashboard = ({
                         Processando...
                       </>
                     ) : (
-                      <>
-                        <Download size={18} />
-                        Iniciar Busca Completa
-                      </>
+                      'Inicia busca'
                     )}
                   </button>
                 </div>
@@ -1794,8 +1834,8 @@ export const CuratorDashboard = ({
                 <button onClick={() => setDetailedCheckerId(null)} className={styles.modalCloseButton}><X size={24} /></button>
               </div>
               <div className={styles.detailContent}>
-                {news.filter(n => n.assignedTo === detailedCheckerId).length > 0 ? (
-                  news.filter(n => n.assignedTo === detailedCheckerId).map(item => (
+                {news.filter(n => isNewsAssignedTo(n, detailedCheckerId)).length > 0 ? (
+                  news.filter(n => isNewsAssignedTo(n, detailedCheckerId)).map(item => (
                     <div 
                       key={item.id}
                       onClick={() => {
@@ -1845,102 +1885,22 @@ export const CuratorDashboard = ({
       {/* Assign Modal */}
       <AnimatePresence>
         {isAssignModalOpen && (
-          <div className={styles.modalOverlay}>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAssignModalOpen(false)}
-              className={styles.modalBackdrop}
-              style={{ backgroundColor: themeConfig.general.modalOverlay }}
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={styles.modalLg}
-              style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.general.modalText }}
-            >
-              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
-                <h2 className={styles.modalTitle}>Atribuir Tarefa</h2>
-                <p className={styles.modalSubtitle}>
-                  {assigningNewsId ? 'Selecione um checador para esta notícia.' : `Atribuindo ${selectedNewsIds.length} notícias selecionadas.`}
-                </p>
-              </div>
-              <div className={styles.modalBody}>
-                <div className={styles.formSection}>
-                  <label className={styles.fieldLabel}>Selecionar Checador</label>
-                  <div className={styles.checkerList}>
-                    {checkers.map(checker => (
-                      <button
-                        key={checker.id}
-                        onClick={() => setSelectedCheckerId(checker.id)}
-                        className={cn(
-                          styles.checkerOption,
-                          selectedCheckerId === checker.id ? styles.checkerOptionSelected : styles.checkerOptionDefault
-                        )}
-                        style={{ 
-                          borderColor: selectedCheckerId === checker.id ? themeConfig.general.accent : themeConfig.general.border,
-                          '--tw-ring-color': themeConfig.general.accent
-                        } as any}
-                      >
-                        <img src={checker.avatarUrl} alt="" className={styles.checkerOptionAvatar} />
-                        <div className={styles.checkerOptionInfo}>
-                          <h4 className={styles.checkerOptionName}>{checker.name}</h4>
-                          <p className={styles.checkerOptionTasks}>{checker.activeTasksCount || 0} tarefas ativas</p>
-                        </div>
-                        {selectedCheckerId === checker.id && <Check size={18} style={{ color: themeConfig.general.accent }} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Briefing / Orientações (Opcional)</label>
-                  <textarea 
-                    value={briefing}
-                    onChange={(e) => setBriefing(e.target.value)}
-                    placeholder="Adicione contexto ou instruções específicas para o checador..."
-                    rows={4}
-                    className={styles.briefingTextarea}
-                    style={{ 
-                      backgroundColor: themeConfig.general.inputBackground, 
-                      borderColor: themeConfig.general.inputBorder,
-                      color: themeConfig.general.inputText,
-                      '--tw-ring-color': themeConfig.general.accent
-                    } as any}
-                  />
-                </div>
-                {assignError && (
-                  <p className={styles.assignError}>{assignError}</p>
-                )}
-              </div>
-              <div className={styles.modalFooter} style={{ backgroundColor: `${themeConfig.dashboard.background}30` }}>
-                <button 
-                  onClick={() => setIsAssignModalOpen(false)}
-                  disabled={isAssigning}
-                  className={styles.modalCancelDisabled}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={executeAssign}
-                  disabled={!selectedCheckerId || isAssigning}
-                  className={styles.modalSubmitButton}
-                  style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
-                >
-                  {isAssigning ? (
-                    <>
-                      <div className={styles.assignSpinner} />
-                      Atribuindo...
-                    </>
-                  ) : (
-                    'Confirmar Atribuição'
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
+          <NewsAssignmentModal
+            open={isAssignModalOpen}
+            onClose={() => {
+              setIsAssignModalOpen(false);
+              setAssigningNewsId(null);
+              setSelectedNewsIds([]);
+            }}
+            newsItem={assigningNewsItem}
+            bulkNewsIds={assigningNewsId ? [] : selectedNewsIds}
+            users={users}
+            checkers={checkers}
+            themeConfig={themeConfig}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
+            canManage={checkPermission('assign_tasks')}
+          />
         )}
       </AnimatePresence>
 
@@ -2188,6 +2148,19 @@ export const CuratorDashboard = ({
                       </div>
                     </div>
                   </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel}>Prioridade</label>
+                    <select
+                      value={newNews.priority}
+                      onChange={(e) => setNewNews({ ...newNews, priority: e.target.value as 'low' | 'medium' | 'high' })}
+                      className={styles.statusSelect}
+                      style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, '--tw-ring-color': themeConfig.general.accent } as any}
+                    >
+                      <option value="low">Baixa</option>
+                      <option value="medium">Média</option>
+                      <option value="high">Alta</option>
+                    </select>
+                  </div>
                   <div className={styles.registerFieldFull}>
                     <label className={styles.fieldLabel}>Anexos / Mídias</label>
                     <div 
@@ -2259,23 +2232,29 @@ export const CuratorDashboard = ({
                   </div>
                   <div className={styles.quickAssignGrid}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Selecionar Checador</label>
-                      <select 
-                        value={newNews.assignedTo}
-                        onChange={(e) => setNewNews({ ...newNews, assignedTo: e.target.value })}
-                        className={styles.statusSelect}
-                        style={{ 
-                          backgroundColor: themeConfig.general.inputBackground, 
-                          borderColor: themeConfig.general.inputBorder,
-                          color: themeConfig.general.inputText,
-                          '--tw-ring-color': themeConfig.general.accent
-                        } as any}
-                      >
-                        <option value="">Não atribuir agora (Fila)</option>
-                        {checkers.map(u => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </select>
+                      <label className={styles.fieldLabel}>Checador</label>
+                      <CheckerNameAutocomplete
+                        checkers={checkers}
+                        value={registerAssignQuery}
+                        onChange={(v) => {
+                          setRegisterAssignQuery(v);
+                          if (!v.trim()) return;
+                          setNewNews((prev) => {
+                            if (!prev.assignedTo) return prev;
+                            const selected = checkers.find((c) => c.id === prev.assignedTo);
+                            if (selected && selected.name.toLowerCase() === v.trim().toLowerCase()) {
+                              return prev;
+                            }
+                            return { ...prev, assignedTo: '', briefing: '' };
+                          });
+                        }}
+                        onSelect={(checker) => {
+                          setNewNews((prev) => ({ ...prev, assignedTo: String(checker.id) }));
+                          setRegisterAssignQuery(checker.name);
+                        }}
+                        placeholder="Digite o nome do checador..."
+                        themeConfig={themeConfig}
+                      />
                     </div>
                     {newNews.assignedTo && (
                       <div className={styles.fieldGroup}>
@@ -2303,6 +2282,7 @@ export const CuratorDashboard = ({
                   onClick={() => {
                     setIsRegisterModalOpen(false);
                     setPendingAttachments([]);
+                    setRegisterAssignQuery('');
                   }}
                   className={styles.modalCancelButton}
                 >
@@ -2519,7 +2499,7 @@ export const CuratorDashboard = ({
                       {selectedReceivedItem.media.map((m, i) => (
                         <div key={i} className={styles.receivedDetailMediaItem} style={{ borderColor: themeConfig.general.border }}>
                           {m.type === 'image' && <img src={m.url} alt="" className={styles.mediaImg} />}
-                          {m.type === 'video' && <TrendingUp size={32} className={styles.iconFaint} />}
+                          {m.type === 'video' && <video src={m.url} controls className={styles.mediaImg} />}
                           {m.type === 'audio' && <Bell size={32} className={styles.iconFaint} />}
                           {m.type === 'document' && <FileText size={32} className={styles.iconFaint} />}
                           <div className={styles.mediaOverlay}>
@@ -2653,6 +2633,18 @@ export const CuratorDashboard = ({
                     </div>
                  </div>
                  <div className={styles.triagePreviewHeaderRight}>
+                    {canDeleteContent(currentTriageItem) && (
+                    <button
+                      onClick={() => {
+                        handleDeleteContent(currentTriageItem.id, () => setIsTriagePreviewOpen(false));
+                      }}
+                      className={styles.sidebarDeleteButton}
+                      title="Excluir conteúdo"
+                    >
+                      <Trash2 size={16} />
+                      Excluir
+                    </button>
+                    )}
                     <button 
                       onClick={() => {
                         handleOpenAssign(currentTriageItem.id);
@@ -2710,6 +2702,7 @@ export const CuratorDashboard = ({
                         {currentTriageItem.media.map((m, i) => (
                           <div key={i} className={styles.triagePreviewMediaItem} style={{ borderColor: themeConfig.general.border }}>
                             {m.type === 'image' && <img src={m.url} alt="" className={styles.mediaImg} />}
+                            {m.type === 'video' && <video src={m.url} controls className={styles.mediaImg} />}
                             <div className={styles.triagePreviewMediaOverlay}>
                                <a href={m.url} target="_blank" rel="noopener noreferrer" className={styles.triagePreviewMediaLink}>
                                  <ExternalLink size={18} />
@@ -2724,38 +2717,46 @@ export const CuratorDashboard = ({
                 </div>
 
                 <div className={styles.triagePreviewRight}>
+                  {aiMetricsEnabled && (
                   <div className={styles.triagePreviewAiPanel} style={{ borderColor: themeConfig.general.border }}>
                     <h3 className={styles.triagePreviewAiTitle}>Indicadores AI</h3>
                     <div className={styles.triagePreviewAiItems}>
                        <div className={styles.triagePreviewAiItem}>
                           <div className={styles.triagePreviewAiHeader}>
-                            <span>Gravidade</span>
-                            <span>{currentTriageItem.aiScores?.gravity}%</span>
+                            <span>Pot. desinformação</span>
+                            <span>{formatAiScore(getDesinfoScore(currentTriageItem.aiScores, 'inveracidade'))}</span>
                           </div>
                           <div className={styles.triagePreviewAiBarBg}>
-                            <div className={styles.aiBarRed} style={{ width: `${currentTriageItem.aiScores?.gravity}%` }} />
+                            {getDesinfoScore(currentTriageItem.aiScores, 'inveracidade') != null && (
+                              <div className={styles.aiBarRed} style={{ width: `${getDesinfoScore(currentTriageItem.aiScores, 'inveracidade')}%` }} />
+                            )}
                           </div>
                        </div>
                        <div className={styles.triagePreviewAiItem}>
                           <div className={styles.triagePreviewAiHeader}>
-                            <span>Urgência</span>
-                            <span>{currentTriageItem.aiScores?.urgency}%</span>
+                            <span>Falsidade</span>
+                            <span>{formatAiScore(getDesinfoScore(currentTriageItem.aiScores, 'falsidade'))}</span>
                           </div>
                           <div className={styles.triagePreviewAiBarBg}>
-                            <div className={styles.aiBarOrange} style={{ width: `${currentTriageItem.aiScores?.urgency}%` }} />
+                            {getDesinfoScore(currentTriageItem.aiScores, 'falsidade') != null && (
+                              <div className={styles.aiBarOrange} style={{ width: `${getDesinfoScore(currentTriageItem.aiScores, 'falsidade')}%` }} />
+                            )}
                           </div>
                        </div>
                        <div className={styles.triagePreviewAiItem}>
                           <div className={styles.triagePreviewAiHeader}>
-                            <span>Tendência</span>
-                            <span>{currentTriageItem.aiScores?.trend}%</span>
+                            <span>Distorção mídia</span>
+                            <span>{formatAiScore(getDesinfoScore(currentTriageItem.aiScores, 'distorcaoMidia'))}</span>
                           </div>
                           <div className={styles.triagePreviewAiBarBg}>
-                            <div className={styles.aiBarBlue} style={{ width: `${currentTriageItem.aiScores?.trend}%` }} />
+                            {getDesinfoScore(currentTriageItem.aiScores, 'distorcaoMidia') != null && (
+                              <div className={styles.aiBarBlue} style={{ width: `${getDesinfoScore(currentTriageItem.aiScores, 'distorcaoMidia')}%` }} />
+                            )}
                           </div>
                        </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             </motion.div>

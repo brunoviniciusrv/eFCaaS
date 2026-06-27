@@ -51,17 +51,6 @@ public class ChecagemController {
         return ResponseEntity.ok(service.salvarInvestigacao(id, request, Long.parseLong(auth.getName())));
     }
 
-    /** @deprecated Use PUT /{id}/investigacao */
-    @PatchMapping("/{id}/estrutura-relatorio")
-    @PreAuthorize("hasAuthority('perform_analysis')")
-    @Operation(summary = "[Deprecated] Alias para PUT /{id}/investigacao")
-    public ResponseEntity<InvestigacaoDto> salvarEstruturaLegado(
-            @PathVariable Long id,
-            @RequestBody SalvarInvestigacaoRequest request,
-            Authentication auth) {
-        return ResponseEntity.ok(service.salvarInvestigacao(id, request, Long.parseLong(auth.getName())));
-    }
-
     @GetMapping("/{id}/parecer")
     @Operation(summary = "Obter texto do parecer")
     public ResponseEntity<ParecerDto> obterParecer(@PathVariable Long id) {
@@ -136,18 +125,6 @@ public class ChecagemController {
             Authentication auth) {
         service.removerEvidencia(id, evId, Long.parseLong(auth.getName()));
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{id}/ia/rascunho")
-    @Operation(summary = "Gerar rascunho de parecer via IA (stub MVP)")
-    public ResponseEntity<RascunhoIaResponse> gerarRascunho(@PathVariable Long id) {
-        return ResponseEntity.ok(service.gerarRascunho(id));
-    }
-
-    @PostMapping("/{id}/ia/revisar")
-    @Operation(summary = "Revisar parecer via IA (stub MVP)")
-    public ResponseEntity<RascunhoIaResponse> revisarParecer(@PathVariable Long id) {
-        return ResponseEntity.ok(service.revisarParecer(id));
     }
 
     @GetMapping("/{id}/auditoria")

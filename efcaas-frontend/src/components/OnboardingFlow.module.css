@@ -129,8 +129,16 @@
   /* REMOVED from @apply (not supported): group */
 }
 
+.logoThumbPlain {
+  @apply relative shrink-0 flex items-center justify-center;
+}
+
 .logoImg {
   @apply w-full h-full object-contain p-2;
+}
+
+.logoImgPlain {
+  @apply max-h-16 max-w-[10rem] object-contain;
 }
 
 .logoOverlay {
@@ -297,8 +305,12 @@
   @apply w-12 h-12 rounded-xl flex items-center justify-center font-black overflow-hidden shrink-0;
 }
 
+.identityLogoPlain {
+  @apply flex items-center justify-center shrink-0 overflow-hidden;
+}
+
 .identityLogoImg {
-  @apply w-full h-full object-contain p-1.5;
+  @apply max-h-12 max-w-[8rem] object-contain;
 }
 
 .identityName {

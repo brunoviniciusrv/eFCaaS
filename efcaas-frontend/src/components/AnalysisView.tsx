@@ -36,7 +36,8 @@ import {
   UserPlus,
   Ban,
   ShieldOff,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquareText
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,6 +46,10 @@ import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
 import { isAiModuleEnabled } from '../config/aiModules';
+import { formatAiScore, getDesinfoScore, hasAiEvaluation, hasAiMetrics, mergeAiAnalysisUpdate } from '../lib/aiAnalysis';
+import { AiModelEvaluationPanel } from './AiModelEvaluationPanel';
+import { IllicitAxisPanel } from './IllicitAxisPanel';
+import { getAssignmentBriefings } from '../lib/newsAssignment';
 import { TOOLS } from '../constants';
 import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
 import styles from './AnalysisView.module.css';
@@ -61,7 +66,8 @@ const NOMES_CAMPOS: Record<string, string> = {
 };
 
 function formatarCamposAlterados(acao: string, detalhes: string | null): string {
-  if (acao === 'checagem_atribuida' && detalhes?.startsWith('checador:')) {
+  if (acao === 'checagem_assumida') return '';
+  if ((acao === 'checagem_atribuida' || acao === 'checagem_desatribuida') && detalhes?.startsWith('checador:')) {
     return detalhes.replace('checador:', '');
   }
   if (acao === 'parecer_finalizado' && detalhes) {
@@ -88,6 +94,8 @@ function formatarDataAuditoria(ts: string): string {
 
 const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon: React.ReactNode }> = {
   checagem_atribuida:  { verbo: 'atribuiu tarefa ao checador', color: '#3b82f6', icon: <UserPlus size={12} /> },
+  checagem_assumida:   { verbo: 'assumiu a tarefa',            color: '#3b82f6', icon: <UserPlus size={12} /> },
+  checagem_desatribuida: { verbo: 'removeu atribuição de',     color: '#ef4444', icon: <UserPlus size={12} /> },
   checagem_iniciada:   { verbo: 'iniciou a checagem',          color: '#3b82f6', icon: <Clock size={12} /> },
   investigacao_salva:  { verbo: 'alterou',                     color: '#8b5cf6', icon: <Save size={12} /> },
   parecer_salvo:       { verbo: 'salvou',                      color: '#8b5cf6', icon: <FileText size={12} /> },
@@ -124,6 +132,9 @@ interface AnalysisViewProps {
   themeConfig: ThemeConfig;
   currentUser: UserProfile;
   agencyConfig: AgencyConfig;
+  onNewsUpdated?: (news: NewsItem) => void;
+  onDeleteNews?: (newsId: string) => Promise<void>;
+  refreshConteudoDetail?: () => Promise<NewsItem | null>;
 }
 
 export const AnalysisView = ({
@@ -151,9 +162,63 @@ export const AnalysisView = ({
   themeConfig,
   currentUser,
   agencyConfig,
+  onNewsUpdated,
+  onDeleteNews,
+  refreshConteudoDetail,
 }: AnalysisViewProps) => {
   const navigate = useNavigate();
+  const [isAnalyzingAI, setIsAnalyzingAI] = React.useState(false);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [aiToast, setAiToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const dismissToast = React.useCallback(() => setAiToast(null), []);
+  React.useEffect(() => {
+    if (!aiToast) return;
+    const t = setTimeout(dismissToast, 5000);
+    return () => clearTimeout(t);
+  }, [aiToast, dismissToast]);
+
+  const [isEditingContent, setIsEditingContent] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editAlegacao, setEditAlegacao] = React.useState('');
+  const [editDescricao, setEditDescricao] = React.useState('');
+  const [isSavingContent, setIsSavingContent] = React.useState(false);
+
+  const startEditContent = () => {
+    setEditTitle(selectedNews.title ?? '');
+    setEditAlegacao(selectedNews.alegacao ?? selectedNews.content ?? '');
+    setEditDescricao(selectedNews.descricao ?? '');
+    setIsEditingContent(true);
+  };
+
+  const cancelEditContent = () => setIsEditingContent(false);
+
+  const saveEditContent = async () => {
+    setIsSavingContent(true);
+    try {
+      await apiService.editarConteudo(selectedNews.id, {
+        titulo: editTitle.trim(),
+        alegacao: editAlegacao.trim(),
+        descricao: editDescricao.trim() || undefined,
+      });
+      // Atualiza apenas os campos editados para não sobrescrever dados locais não salvos
+      onNewsUpdated?.({
+        ...selectedNews,
+        title: editTitle.trim(),
+        alegacao: editAlegacao.trim(),
+        descricao: editDescricao.trim() || undefined,
+      });
+      setIsEditingContent(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar alterações.');
+    } finally {
+      setIsSavingContent(false);
+    }
+  };
+
   if (!selectedNews) return null;
+
+  const assignmentBriefings = getAssignmentBriefings(selectedNews.assignmentHistory);
 
   const showMisinfoAxis = isAiModuleEnabled(agencyConfig, 'enableTrendAnalyzer');
   const showIllicitAxis = isAiModuleEnabled(agencyConfig, 'enableMisinfoRisk');
@@ -195,6 +260,9 @@ export const AnalysisView = ({
   const auditoriaLogsUnicos = useMemo(() => {
     const vistos = new Set<string>();
     return auditoriaLogs.filter(log => {
+      if (log.acao === 'checagem_atribuida' || log.acao === 'checagem_assumida' || log.acao === 'checagem_desatribuida') {
+        return true;
+      }
       const chave = `${log.usuarioNome}:${log.acao}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
@@ -294,7 +362,9 @@ export const AnalysisView = ({
 
   const reportStructure = normalizeReportStructure(selectedNews.reportStructure);
 
-  const aiScores = selectedNews.aiScores ?? { gravity: 0, urgency: 0, trend: 0 };
+  const aiScores = selectedNews.aiScores;
+  const aiEvaluation = selectedNews.aiEvaluation;
+  const hasMetrics = hasAiMetrics(aiScores, aiEvaluation);
 
   const getToolIcon = (iconName: string) => {
     switch (iconName) {
@@ -308,6 +378,27 @@ export const AnalysisView = ({
 
   return (
     <div className={styles.pageContainer} style={{ backgroundColor: themeConfig.dashboard.background }}>
+
+      {/* Toast de análise IA */}
+      <AnimatePresence>
+        {aiToast && (
+          <motion.div
+            key="ai-toast"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            className={styles.aiToast}
+            style={{
+              backgroundColor: aiToast.type === 'success' ? '#10b981' : '#ef4444',
+            }}
+          >
+            {aiToast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>{aiToast.message}</span>
+            <button onClick={dismissToast} className={styles.aiToastClose}>✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
       <div className={styles.mainContent}>
         {/* Header */}
@@ -345,7 +436,7 @@ export const AnalysisView = ({
                   themeConfig={themeConfig}
                   tabs={[
                     { id: 'content', label: 'Conteúdo', icon: FileIcon },
-                    ...(showMetricsTab ? [{ id: 'metrics', label: 'Métricas IA', icon: Sparkles }] : []),
+                    ...(showMetricsTab ? [{ id: 'metrics', label: isAnalyzingAI ? 'Métricas IA ◌' : 'Métricas IA', icon: Sparkles }] : []),
                     ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
                     { id: 'investigation', label: 'Investigação', icon: Search },
                     { id: 'result', label: 'Parecer', icon: FileText },
@@ -420,14 +511,143 @@ export const AnalysisView = ({
                     <h3 className={styles.cardHeaderTitle} style={{ color: themeConfig.dashboard.text }}>Conteúdo sob Análise</h3>
                     <div className={styles.cardHeaderBadges}>
                       <span className={styles.refBadge}>REF: {selectedNews.id}</span>
+                      {onDeleteNews && selectedNews.status !== 'completed' && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteNews(selectedNews.id)}
+                          className={styles.contentEditBtn}
+                          style={{ color: themeConfig.status.error }}
+                          title="Excluir conteúdo"
+                        >
+                          <Trash2 size={14} />
+                          Excluir
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className={styles.cardBody}>
-                    <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
-                    <div className={styles.newsContentBlock}>
-                       <p className={styles.newsContentText} style={{ color: themeConfig.dashboard.text }}>"{selectedNews.content}"</p>
-                    </div>
-                    
+                    {isEditingContent ? (
+                      <div className={styles.contentEditForm}>
+                        <div className={styles.contentEditField}>
+                          <label className={styles.contentEditLabel}>Título</label>
+                          <input
+                            className={styles.contentEditInput}
+                            style={{ backgroundColor: themeConfig.general.inputBackground, color: themeConfig.general.inputText, borderColor: themeConfig.general.inputBorder }}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            placeholder="Título do conteúdo"
+                          />
+                        </div>
+                        <div className={styles.contentEditField}>
+                          <label className={styles.contentEditLabel}>Alegação</label>
+                          <textarea
+                            className={styles.contentEditTextarea}
+                            style={{ backgroundColor: themeConfig.general.inputBackground, color: themeConfig.general.inputText, borderColor: themeConfig.general.inputBorder }}
+                            value={editAlegacao}
+                            onChange={(e) => setEditAlegacao(e.target.value)}
+                            placeholder="Alegação principal do conteúdo"
+                            rows={4}
+                          />
+                        </div>
+                        <div className={styles.contentEditField}>
+                          <label className={styles.contentEditLabel}>Descrição</label>
+                          <textarea
+                            className={styles.contentEditTextarea}
+                            style={{ backgroundColor: themeConfig.general.inputBackground, color: themeConfig.general.inputText, borderColor: themeConfig.general.inputBorder }}
+                            value={editDescricao}
+                            onChange={(e) => setEditDescricao(e.target.value)}
+                            placeholder="Descrição complementar do conteúdo"
+                            rows={4}
+                          />
+                        </div>
+                        <div className={styles.contentEditActions}>
+                          <button
+                            onClick={cancelEditContent}
+                            className={styles.contentEditCancelBtn}
+                            disabled={isSavingContent}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={saveEditContent}
+                            className={styles.contentEditSaveBtn}
+                            style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                            disabled={isSavingContent || !editTitle.trim()}
+                          >
+                            {isSavingContent ? 'Salvando...' : 'Salvar'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.contentViewBlock}>
+                        <div className={styles.contentViewHeader}>
+                          <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
+                          {canEdit && (
+                            <button onClick={startEditContent} className={styles.contentEditBtn} title="Editar título, alegação e descrição">
+                              <Wand2 size={14} />
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                        <div className={styles.contentFieldsStack}>
+                          <div className={styles.contentFieldBlock}>
+                            <span className={styles.contentFieldLabel}>Alegação</span>
+                            <div className={styles.newsContentBlock}>
+                              <p className={styles.newsContentText} style={{ color: themeConfig.dashboard.text }}>
+                                {(selectedNews.alegacao ?? selectedNews.content)?.trim()
+                                  ? `"${selectedNews.alegacao ?? selectedNews.content}"`
+                                  : '—'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className={styles.contentFieldBlock}>
+                            <span className={styles.contentFieldLabel}>Descrição</span>
+                            <div className={styles.newsContentBlock}>
+                              <p className={styles.newsContentText} style={{ color: themeConfig.dashboard.text }}>
+                                {selectedNews.descricao?.trim() ? selectedNews.descricao : '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {assignmentBriefings.length > 0 && (
+                      <div className={styles.briefingSection}>
+                        <label className={styles.sectionLabel}>Briefings de Atribuição</label>
+                        <div className={styles.briefingList}>
+                          {assignmentBriefings.map((b) => (
+                            <div
+                              key={b.id}
+                              className={styles.briefingCard}
+                              style={{
+                                backgroundColor: `${themeConfig.dashboard.background}20`,
+                                borderColor: themeConfig.general.border,
+                              }}
+                            >
+                              <div className={styles.briefingCardHeader}>
+                                <MessageSquareText size={16} className={styles.briefingIcon} />
+                                <div>
+                                  <p className={styles.briefingAuthor} style={{ color: themeConfig.dashboard.text }}>
+                                    {b.authorName}
+                                    {b.checkerName ? (
+                                      <span className={styles.briefingTarget}> → {b.checkerName}</span>
+                                    ) : null}
+                                  </p>
+                                  <p className={styles.briefingTime}>
+                                    {formatarDataAuditoria(b.timestamp)}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className={styles.briefingText} style={{ color: themeConfig.dashboard.text }}>
+                                {b.text}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className={styles.mediaSection}>
                       <div className={styles.mediaSectionHeader}>
                         <label className={styles.sectionLabel}>
@@ -697,7 +917,73 @@ export const AnalysisView = ({
                   <div className={styles.metricsHeader}>
                     <Sparkles size={16} className="text-blue-500" />
                     <h3 className={styles.metricsTitle}>Métricas Preliminares de I.A</h3>
+                    {aiEvaluation?.avaliacaoRisco && (
+                      <span className={styles.riskLevelBadge}>{aiEvaluation.avaliacaoRisco}</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (isAnalyzingAI) return;
+                        setIsAnalyzingAI(true);
+                        setAiError(null);
+                        const applyAiUpdate = (fresh: NewsItem) => {
+                          onNewsUpdated?.({
+                            id: selectedNews.id,
+                            ...mergeAiAnalysisUpdate(selectedNews, fresh),
+                          });
+                        };
+
+                        apiService.analisarConteudo(selectedNews.id)
+                          .then(() => refreshConteudoDetail?.() ?? apiService.obterConteudo(selectedNews.id))
+                          .then((fresh) => {
+                            if (!fresh) return;
+                            applyAiUpdate(fresh);
+                            setAiToast({ type: 'success', message: 'Análise de IA concluída com sucesso!' });
+                          })
+                          .catch((err) => {
+                            const msg = err instanceof Error ? err.message : 'Erro ao analisar com IA.';
+                            setAiError(msg);
+                            setAiToast({ type: 'error', message: msg });
+                          })
+                          .finally(() => setIsAnalyzingAI(false));
+                      }}
+                      disabled={isAnalyzingAI}
+                      className={styles.analyzeAiButton}
+                      style={{
+                        backgroundColor: themeConfig.buttons.primary,
+                        color: themeConfig.buttons.primaryText,
+                        opacity: isAnalyzingAI ? 0.6 : 1,
+                        cursor: isAnalyzingAI ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isAnalyzingAI ? (
+                        <>
+                          <div className={styles.analyzeSpinner} />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          <Cpu size={14} />
+                          Analisar com IA
+                        </>
+                      )}
+                    </button>
                   </div>
+                  {aiError && (
+                    <p className={styles.aiErrorMsg}>{aiError}</p>
+                  )}
+
+                  {!hasMetrics && !isAnalyzingAI && (
+                    <p className={styles.metricsEmptyMsg}>
+                      Nenhuma métrica disponível. Clique em &quot;Analisar com IA&quot; para obter os scores da API.
+                    </p>
+                  )}
+
+                  {showMisinfoAxis && (
+                    <AiModelEvaluationPanel
+                      evaluation={aiEvaluation}
+                      isLoading={isAnalyzingAI}
+                    />
+                  )}
 
                   <div className={styles.metricsAxisSection}>
                     {showMisinfoAxis && (
@@ -709,9 +995,9 @@ export const AnalysisView = ({
 
                     <div className={styles.metricsGrid}>
                       {[
-                        { label: 'Inveracidade', value: aiScores.inveracidade || aiScores.gravity || 0, icon: AlertCircle, color: themeConfig.status.error },
-                        { label: 'Distorção', value: aiScores.distorcao || aiScores.urgency || 0, icon: Sparkles, color: themeConfig.status.warning },
-                        { label: 'Fora de Contexto', value: aiScores.foraDeContexto || aiScores.trend || 0, icon: History, color: themeConfig.status.info }
+                        { label: 'Potencial de desinformação', value: getDesinfoScore(aiScores, 'inveracidade'), icon: AlertCircle, color: themeConfig.status.error },
+                        { label: 'Score de falsidade', value: getDesinfoScore(aiScores, 'falsidade'), icon: Sparkles, color: themeConfig.status.warning },
+                        { label: 'Distorção de mídia', value: getDesinfoScore(aiScores, 'distorcaoMidia'), icon: History, color: themeConfig.status.info }
                       ].map((score, idx) => (
                         <div 
                           key={idx} 
@@ -725,25 +1011,27 @@ export const AnalysisView = ({
                               <div className={styles.metricCardRight}>
                                 <span className={styles.metricCardLabel}>{score.label}</span>
                                 <div className={styles.metricValueRow}>
-                                  {selectedNews.isAIProcessing ? (
+                                  {isAnalyzingAI ? (
                                     <span className={styles.metricValueProcessing}>...</span>
                                   ) : (
-                                    <span className={styles.metricValue} style={{ color: themeConfig.dashboard.text }}>{score.value}%</span>
+                                    <span className={styles.metricValue} style={{ color: themeConfig.dashboard.text }}>
+                                      {formatAiScore(score.value)}
+                                    </span>
                                   )}
                                 </div>
                               </div>
                             </div>
                             <div className={styles.metricBarWrapper}>
-                               {selectedNews.isAIProcessing ? (
+                               {isAnalyzingAI ? (
                                  <div className={styles.metricBarShimmer} />
-                               ) : (
+                               ) : score.value != null ? (
                                  <motion.div 
                                    initial={{ width: 0 }}
                                    animate={{ width: `${score.value}%` }}
                                    className={styles.metricBar}
                                    style={{ backgroundColor: score.color }}
                                  />
-                               )}
+                               ) : null}
                             </div>
                           </div>
                         </div>
@@ -755,63 +1043,18 @@ export const AnalysisView = ({
 
                   <div className={styles.metricsAxisSection}>
                     {showIllicitAxis && (
-                    <>
-                    <div className={styles.metricsHeader}>
-                      <AlertTriangle size={16} className="text-red-500" />
-                      <h3 className={styles.metricsAxisTitleIllicit}>Eixo Ilicitudes</h3>
-                    </div>
-
-                    <div className={styles.metricsGrid}>
-                      {[
-                        { label: 'Golpe', value: aiScores.golpe || Math.floor((aiScores.gravity || 0) * 0.7), icon: AlertTriangle, color: '#ef4444' },
-                        { label: 'Fraude', value: aiScores.fraude || Math.floor((aiScores.urgency || 0) * 0.8), icon: AlertTriangle, color: '#f97316' },
-                        { label: 'Ataques', value: aiScores.ataques || Math.floor((aiScores.trend || 0) * 0.6), icon: AlertTriangle, color: '#8b5cf6' },
-                        { label: 'Disc. Ódio', value: aiScores.discursoDeOdio || Math.floor((aiScores.gravity || 0) * 0.9), icon: AlertTriangle, color: '#ec4899' },
-                        { label: 'Disc. Antidemocrático', value: aiScores.discursoAntidemocratico || Math.floor((aiScores.gravity || 0) * 0.5), icon: AlertTriangle, color: '#ef4444' }
-                      ].map((score, idx) => (
-                        <div 
-                          key={idx} 
-                          className={styles.metricCard}
-                        >
-                          <div className={styles.metricCardInner}>
-                            <div className={styles.metricCardTop}>
-                              <div className={styles.metricIconWrapper} style={{ backgroundColor: `${score.color}10`, color: score.color }}>
-                                <score.icon size={18} />
-                              </div>
-                              <div className={styles.metricCardRight}>
-                                <span className={styles.metricCardLabel}>{score.label}</span>
-                                <div className={styles.metricValueRow}>
-                                  {selectedNews.isAIProcessing ? (
-                                    <span className={styles.metricValueProcessingSmall}>...</span>
-                                  ) : (
-                                    <span className={styles.metricValue} style={{ color: themeConfig.dashboard.text }}>{score.value}%</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className={styles.metricBarWrapper}>
-                               {selectedNews.isAIProcessing ? (
-                                 <div className={styles.metricBarShimmer} />
-                               ) : (
-                                 <motion.div 
-                                   initial={{ width: 0 }}
-                                   animate={{ width: `${score.value}%` }}
-                                   className={styles.metricBar}
-                                   style={{ backgroundColor: score.color }}
-                                 />
-                               )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    </>
+                      <IllicitAxisPanel
+                        contentId={selectedNews.id}
+                        evaluation={aiEvaluation}
+                        aiScores={aiScores}
+                        isLoading={isAnalyzingAI}
+                      />
                     )}
                   </div>
                 </div>
 
-                {/* 2.1 AI Semantic Analysis */}
-                {showSemanticAnalysis && (
+                {/* Análise semântica legada — só quando métricas Guaia (enableTrendAnalyzer) estão desativadas */}
+                {showSemanticAnalysis && !showMisinfoAxis && (
                 <section 
                   className={styles.semanticCard}
                   style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
@@ -823,34 +1066,40 @@ export const AnalysisView = ({
                       </div>
                       <div>
                         <h3 className={styles.semanticCardTitle} style={{ color: themeConfig.dashboard.text }}>Análise Semântica & Contextual</h3>
-                        <p className={styles.semanticCardSubtitle}>Visão estrutural gerada por algoritmos</p>
                       </div>
                     </div>
                   </div>
                   <div className={styles.semanticCardBody}>
-                    {(() => {
-                      const analysisData = selectedNews.aiEvaluation || {
-                        characteristics: [
-                          "**Texto Padrão:** Avaliação em processamento ou não disponível.",
-                          "**Dados Simulados:** Este é um espaço reservado simulado.",
-                          "**Necessidade de Checagem:** Requer validação humana para confirmar conteúdos semânticos."
-                        ],
-                        entities: [
-                          { name: "Entidade Indefinida", description: "Sem entidades detectadas no momento." }
-                        ],
-                        location: "Não detectado",
-                        dates: ["-"]
-                      };
-
-                      return (
+                    {(aiEvaluation?.pseudoLabel || aiEvaluation?.categoriaFinal || aiEvaluation?.certezaAlegacao != null) && (
+                      <div className={styles.semanticMetaRow}>
+                        {aiEvaluation.pseudoLabel && (
+                          <span className={styles.semanticMetaBadge}>Rótulo: {aiEvaluation.pseudoLabel}</span>
+                        )}
+                        {aiEvaluation.categoriaFinal && (
+                          <span className={styles.semanticMetaBadge}>Categoria: {aiEvaluation.categoriaFinal}</span>
+                        )}
+                        {aiEvaluation.certezaAlegacao != null && (
+                          <span className={styles.semanticMetaBadge}>
+                            Certeza da alegação: {formatAiScore(aiEvaluation.certezaAlegacao)}
+                            {aiEvaluation.faixaCertezaAlegacao ? ` (${aiEvaluation.faixaCertezaAlegacao})` : ''}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {!hasAiEvaluation(selectedNews.aiEvaluation) && !isAnalyzingAI ? (
+                      <p className={styles.metricsEmptyMsg}>
+                        Nenhuma análise semântica disponível. Execute a análise de IA para carregar os dados.
+                      </p>
+                    ) : selectedNews.aiEvaluation ? (
                         <div className={styles.semanticGrid}>
                           <div className={styles.semanticColumn}>
                             <div className={styles.semanticColumn}>
                               <h4 className={styles.semanticSectionHeader}>
                                 <AlertCircle size={14} className="text-amber-500" /> Gatilhos e Linguagem
                               </h4>
+                              {selectedNews.aiEvaluation.characteristics.length > 0 ? (
                               <ul className={styles.semanticList}>
-                                {analysisData.characteristics.map((char, idx) => (
+                                {selectedNews.aiEvaluation.characteristics.map((char, idx) => (
                                   <li key={idx} className={styles.semanticListItem} style={{ color: themeConfig.dashboard.text }}>
                                     <div className="markdown-body">
                                       <Markdown>{char}</Markdown>
@@ -858,6 +1107,13 @@ export const AnalysisView = ({
                                   </li>
                                 ))}
                               </ul>
+                              ) : selectedNews.aiEvaluation.explanation ? (
+                                <p className={styles.semanticListItem} style={{ color: themeConfig.dashboard.text }}>
+                                  {selectedNews.aiEvaluation.explanation}
+                                </p>
+                              ) : (
+                                <p className={styles.metricsEmptyMsg}>—</p>
+                              )}
                             </div>
                           </div>
 
@@ -867,26 +1123,36 @@ export const AnalysisView = ({
                                 <Users size={14} className="text-blue-500" /> Personagens & Locais
                               </h4>
                               <div className={styles.semanticList}>
-                                {analysisData.entities.map((entity, idx) => (
+                                {selectedNews.aiEvaluation.entities.length > 0 ? (
+                                  selectedNews.aiEvaluation.entities.map((entity, idx) => (
                                   <div key={idx} className={styles.entityCard}>
                                     <p className={styles.entityName}>{entity.name}</p>
-                                    <p className={styles.entityDescription}>{entity.description}</p>
+                                    {entity.description && (
+                                      <p className={styles.entityDescription}>{entity.description}</p>
+                                    )}
                                   </div>
-                                ))}
+                                  ))
+                                ) : (
+                                  <p className={styles.metricsEmptyMsg}>—</p>
+                                )}
                                 <div className={styles.locationRow}>
                                   <div className={styles.locationItem}>
                                     <span className={styles.locationLabel}>Localização</span>
                                     <div className={styles.locationValue}>
                                       <MapPin size={12} className="opacity-40" />
-                                      {analysisData.location}
+                                      {selectedNews.aiEvaluation.location || '—'}
                                     </div>
                                   </div>
                                   <div className={styles.locationItem}>
                                     <span className={styles.locationLabel}>Período</span>
                                     <div className={styles.dateBadgeList}>
-                                      {analysisData.dates.map((d, i) => (
-                                        <span key={i} className={styles.dateBadge}>{d}</span>
-                                      ))}
+                                      {selectedNews.aiEvaluation.dates.length > 0 ? (
+                                        selectedNews.aiEvaluation.dates.map((d, i) => (
+                                          <span key={i} className={styles.dateBadge}>{d}</span>
+                                        ))
+                                      ) : (
+                                        <span className={styles.dateBadge}>—</span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -894,8 +1160,7 @@ export const AnalysisView = ({
                             </div>
                           </div>
                         </div>
-                      );
-                    })()}
+                    ) : null}
                   </div>
                 </section>
                 )}
@@ -1243,48 +1508,6 @@ export const AnalysisView = ({
                 exit={{ opacity: 0, y: -20 }}
                 className={styles.tabSection}
               >
-                {/* AI Actions Hub */}
-                {canEdit && (
-                  <div 
-                    className={styles.aiHub}
-                    style={{ backgroundColor: themeConfig.general.accent, boxShadow: `0 30px 40px -10px ${themeConfig.general.accent}40` }}
-                  >
-                    <div className={styles.aiHubDecoration}>
-                      <Wand2 size={120} />
-                    </div>
-                    <div className={styles.aiHubContent}>
-                      <div className={styles.aiHubHeader}>
-                        <div className={styles.aiHubIconWrapper}>
-                          <Sparkles size={24} />
-                        </div>
-                        <div>
-                          <span className={styles.aiHubTitle}>Inteligência de Rede</span>
-                          <span className={styles.aiHubSubtitle}>Suporte Editorial IA</span>
-                        </div>
-                      </div>
-                      <div className={styles.aiHubActions}>
-                        <button 
-                          onClick={handleGenerateDraft}
-                          disabled={isGeneratingDraft}
-                          className={styles.generateDraftButton}
-                          style={{ color: themeConfig.general.accent }}
-                        >
-                          <Wand2 size={20} className="group-hover/btn:rotate-12 transition-transform" />
-                          {isGeneratingDraft ? 'Criando...' : 'Gerar Rascunho de Parecer'}
-                        </button>
-                        <button 
-                          onClick={handleReviewReport}
-                          disabled={isReviewing}
-                          className={styles.reviewButton}
-                        >
-                          <Cpu size={20} />
-                          {isReviewing ? 'Lendo...' : 'Revisão Crítica IA'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Veredito */}
                 <section 
                   className={styles.verdictCard}

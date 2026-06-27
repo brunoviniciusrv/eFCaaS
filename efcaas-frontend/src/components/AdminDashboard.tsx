@@ -209,21 +209,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } : u));
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.name || !newUser.email) return;
-    const selectedProfile = permissionProfiles.find(p => p.id === newUser.profileId);
-    const user: UserProfile = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newUser.name,
-      email: newUser.email,
-      role: (selectedProfile?.id as any) || 'checker',
-      profileId: newUser.profileId,
-      status: 'active',
-      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newUser.name}`
-    };
-    setUsers(prev => [...prev, user]);
-    setIsAddingUser(false);
-    setNewUser({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
+    try {
+      const created = await apiService.criarUsuario({
+        nome: newUser.name,
+        email: newUser.email,
+        profileId: newUser.profileId,
+      });
+      setUsers(prev => [...prev, created]);
+      setIsAddingUser(false);
+      setNewUser({ name: '', email: '', profileId: permissionProfiles[0]?.id || '' });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao cadastrar usuário.');
+    }
   };
 
   const handleSaveLabel = useCallback(async () => {
@@ -495,14 +494,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className={styles.logoSection}>
                     <label className={styles.sectionFieldLabel}>Logo da Agência</label>
                     <div className={styles.logoWrapper}>
-                      <div className={styles.logoPreviewContainer}>
-                        <div className={styles.logoPreviewBox} style={{ borderColor: themeConfig.general.border }}>
-                          {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImg} />
-                          ) : (
+                      <div className={agencyConfig.logoUrl ? styles.logoPreviewContainerPlain : styles.logoPreviewContainer}>
+                        {agencyConfig.logoUrl ? (
+                          <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImgOnly} />
+                        ) : (
+                          <div className={styles.logoPreviewBox} style={{ borderColor: themeConfig.general.border }}>
                             <ImageIcon size={32} className={styles.logoPlaceholderIcon} />
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <label className={styles.logoOverlay}>
                           <input 
                             type="file" 
@@ -1858,7 +1857,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
                 <h2 className={styles.modalTitle}>Cadastrar Novo Usuário</h2>
-                <p className={styles.modalSubtitle}>Um convite será enviado para o e-mail informado</p>
+                <p className={styles.modalSubtitle}>Senha inicial padrão: Admin@2026! (o usuário pode alterá-la no perfil)</p>
               </div>
               <div className={styles.modalBody}>
                 <div className={styles.fieldGroup}>

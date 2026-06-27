@@ -11,7 +11,6 @@ import {
   INITIAL_REPORT_CONFIG,
   INITIAL_THEME_CONFIG,
   INITIAL_AGENCY_CONFIG,
-  INITIAL_RECEIVED_NEWS,
   INITIAL_PERMISSION_PROFILES
 } from './constants';
 import { 
@@ -35,6 +34,8 @@ import {
 } from './types';
 import { generateDraftReport, reviewReport } from './services/geminiService';
 import { apiService, normalizeReportStructure } from './services/apiService';
+import { mergeChecagemIntoNews } from './lib/newsAssignment';
+import { mergeConteudoDetail } from './lib/aiAnalysis';
 import { clearToken } from './services/apiClient';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
@@ -117,7 +118,7 @@ function AppContent() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [user, setUser] = useState<UserProfile>(PLACEHOLDER_USER);
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>(INITIAL_RECEIVED_NEWS);
+  const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [permissionProfiles, setPermissionProfiles] = useState<PermissionProfile[]>(() => {
     const saved = localStorage.getItem('platform_permission_profiles');
@@ -259,6 +260,46 @@ function AppContent() {
     };
     loadData();
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Atualiza conteúdos recebidos da API externa (polling). */
+  const RECEIVED_NEWS_POLL_INTERVAL_MS = 30_000;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const profile = permissionProfiles.find((p) => p.id === user.profileId);
+    const canManageReceived = profile?.permissions.includes('manage_received') ?? false;
+    if (!canManageReceived) return;
+
+    let cancelled = false;
+
+    const pollReceivedNews = async () => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        const items = await apiService.listarConteudosRecebidos();
+        if (!cancelled) {
+          setReceivedNews(items);
+        }
+      } catch (err) {
+        console.error('Erro no polling de conteúdos recebidos:', err);
+      }
+    };
+
+    pollReceivedNews();
+    const timer = window.setInterval(pollReceivedNews, RECEIVED_NEWS_POLL_INTERVAL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') pollReceivedNews();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isAuthenticated, user.profileId, permissionProfiles]);
+
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('platform_theme_config');
@@ -398,29 +439,41 @@ function AppContent() {
     const item = news.find(n => n.id === id);
     if (!item) return;
 
-    if (item.checagemId) {
-      try {
-        await apiService.iniciarChecagem(item.checagemId);
-      } catch {
-        // Pode já ter sido iniciada; continua normalmente
-      }
-    }
-
-    if (!item.reportStructure) {
-      setNews(prev => prev.map(n => n.id === id ? {
-        ...n,
-        status: 'in_progress' as const,
-        startTime: new Date().toISOString(),
-        assignedTo: n.assignedTo ?? user.id,
-        reportStructure: {
-          summary: '',
-          questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
-          sources: Array(Math.min(1, reportConfig.maxSources)).fill(''),
-          isInverifiable: false,
-          contactWithAuthor: { hadContact: null },
-          label: undefined
+    try {
+      const checagem = await apiService.assumirConteudo(id);
+      setNews(prev => prev.map(n => {
+        if (n.id !== id) return n;
+        const merged = mergeChecagemIntoNews(n, checagem);
+        if (!merged.reportStructure) {
+          return {
+            ...merged,
+            status: 'in_progress' as const,
+            startTime: new Date().toISOString(),
+            reportStructure: {
+              summary: '',
+              questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
+              sources: Array(Math.min(1, reportConfig.maxSources)).fill(''),
+              isInverifiable: false,
+              contactWithAuthor: { hadContact: null },
+              label: undefined
+            }
+          };
         }
-      } : n));
+        return { ...merged, status: 'in_progress' as const };
+      }));
+
+      const checagemId = checagem.id ?? item.checagemId;
+      if (checagemId) {
+        try {
+          await apiService.iniciarChecagem(checagemId);
+        } catch {
+          // Pode já ter sido iniciada; continua normalmente
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao assumir conteúdo:', err);
+      alert(err instanceof Error ? err.message : 'Não foi possível assumir o conteúdo.');
+      return;
     }
 
     setSelectedNewsId(id);
@@ -428,31 +481,22 @@ function AppContent() {
   };
 
   const handleAssign = async (newsId: string, checkerId: string, briefing: string) => {
-    const updated = await apiService.atribuirConteudo(newsId, {
+    await apiService.atribuirConteudo(newsId, {
       checadorId: Number(checkerId),
-      briefing,
+      briefing: briefing.trim() || undefined,
     });
 
+    const updated = await apiService.obterConteudo(newsId);
     setNews(prev => prev.map(n => n.id === newsId ? {
-      ...n,
       ...updated,
-      assignmentHistory: [
-        ...(n.assignmentHistory || []),
-        {
-          id: Math.random().toString(36).substr(2, 9),
-          assignedTo: updated.assignedTo ?? checkerId,
-          assignedBy: user.id,
-          timestamp: new Date().toISOString(),
-          action: 'assigned' as const,
-          reason: briefing,
-        },
-      ],
+      status: 'in_progress' as const,
     } : n));
 
     const targetUser = users.find(u => u.id === checkerId);
+    const newsTitle = news.find(n => n.id === newsId)?.title ?? `Notícia #${newsId}`;
     addNotification({
       title: 'Nova Tarefa Atribuída',
-      message: `Você recebeu uma nova tarefa: ${updated.title}`,
+      message: `Você recebeu uma nova tarefa: ${newsTitle}`,
       type: 'info',
       category: 'assignment',
       targetUserId: checkerId,
@@ -463,6 +507,19 @@ function AppContent() {
       'assign_task',
       `Notícia #${newsId}`,
       `Atribuiu para ${targetUser?.name ?? checkerId}. Briefing: ${briefing}`,
+    );
+  };
+
+  const handleUnassign = async (newsId: string, checkerId: string) => {
+    await apiService.desatribuirConteudo(newsId, checkerId);
+    const updated = await apiService.obterConteudo(newsId);
+    setNews(prev => prev.map(n => n.id === newsId ? updated : n));
+
+    const targetUser = users.find(u => u.id === checkerId);
+    addAuditLog(
+      'unassign_task',
+      `Notícia #${newsId}`,
+      `Removeu atribuição de ${targetUser?.name ?? checkerId}.`,
     );
   };
 
@@ -811,10 +868,14 @@ function AppContent() {
       }
 
       if (newsData.assignedTo) {
-        created = await apiService.atribuirConteudo(created.id, {
+        const checagem = await apiService.atribuirConteudo(created.id, {
           checadorId: Number(newsData.assignedTo),
           briefing: newsData.briefing ?? '',
         });
+        created = mergeChecagemIntoNews(
+          { ...created, status: 'in_progress' },
+          checagem,
+        );
       }
 
       setNews(prev => [created, ...prev]);
@@ -876,216 +937,101 @@ function AppContent() {
     }
   };
 
-  const handleForwardToTriage = (receivedItem: ReceivedNewsItem) => {
-    const newId = Math.random().toString(36).substr(2, 9);
-    const newNewsItem: NewsItem = {
-      id: newId,
-      title: receivedItem.title,
-      content: receivedItem.content,
-      source: receivedItem.sourceType,
-      senderName: receivedItem.senderName,
-      senderAddress: receivedItem.senderAddress,
-      receivedAt: receivedItem.receivedAt,
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      isAIProcessing: true,
-      aiScores: {
-        gravity: 0,
-        urgency: 0,
-        trend: 0
-      },
-      media: receivedItem.media?.map(m => ({
-        type: m.type as 'image' | 'video' | 'audio' | 'document',
-        url: m.url
-      })),
-      evidence: [],
-      reportStructure: {
-        summary: '',
-        questions: [''],
-        sources: [''],
-        isInverifiable: false,
-        contactWithAuthor: { hadContact: null }
-      },
-      assignmentHistory: [{
-        id: 'h-' + Math.random().toString(36).substr(2, 5),
-        assignedTo: '',
-        assignedBy: user.id,
-        timestamp: new Date().toISOString(),
-        action: 'assigned',
-        reason: 'Recuperado de Curadoria Externa'
-      }]
-    };
+  const handleForwardToTriage = async (receivedItem: ReceivedNewsItem) => {
+    try {
+      const created = await apiService.encaminharConteudoRecebido(receivedItem.id);
 
-    setNews(prev => [newNewsItem, ...prev]);
-    setReceivedNews(prev => prev.filter(rn => rn.id !== receivedItem.id));
+      setNews(prev => [created, ...prev]);
+      setReceivedNews(prev => prev.filter(rn => rn.id !== receivedItem.id));
 
-    // Notify checkers about new item in triage
-    addNotification({
-      title: 'Notícia em Triagem',
-      message: `Uma nova notícia foi encaminhada para triagem: ${newNewsItem.title}`,
-      type: 'info',
-      category: 'queue',
-      targetRole: ['admin', 'curator'],
-      relatedNewsId: newNewsItem.id,
-      link: '/curator'
-    });
+      addNotification({
+        title: 'Notícia em Triagem',
+        message: `Uma nova notícia foi encaminhada para triagem: ${created.title}`,
+        type: 'info',
+        category: 'queue',
+        targetRole: ['admin', 'curator'],
+        relatedNewsId: created.id,
+        link: '/curator'
+      });
 
-    addAuditLog('forward_to_triage', `Notícia Recebida #${receivedItem.id}`, `Encaminhou notícia recebida "${receivedItem.title}" para triagem`);
-
-    // Simulate AI classification
-    setTimeout(() => {
-      setNews(prev => prev.map(n => {
-        if (n.id === newId) {
-          return {
-            ...n,
-            isAIProcessing: false,
-            aiScores: {
-              gravity: Math.floor(Math.random() * 60) + 20,
-              urgency: Math.floor(Math.random() * 70) + 10,
-              trend: Math.floor(Math.random() * 80) + 10
-            },
-            aiEvaluation: {
-              score: 0.5,
-              explanation: "Análise contextual padronizada gerada automaticamente pela plataforma para fins de teste. Pendente de revisão aprofundada.",
-              warningLevel: "nível de alerta moderado / revisão necessária",
-              characteristics: [
-                "**Texto Padrão:** Esta é uma avaliação gerada automaticamente.",
-                "**Dados Simulados:** Os dados apresentados são apenas um exemplo.",
-                "**Necessidade de Checagem:** Requer validação humana para confirmar os fatos."
-              ],
-              topics: ["Geral", "Não Categorizado", "Simulação"],
-              entities: [
-                { name: "Entidade Exemplo", description: "Descrição genérica da entidade mencionada." }
-              ],
-              location: "Indefinido",
-              dates: [new Date().toISOString().split('T')[0]]
-            }
-          };
-        }
-        return n;
-      }));
-    }, 4000);
-  };
-
-  const handleDeleteReceivedNews = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta notícia recebida?')) {
-      setReceivedNews(prev => prev.map(rn => 
-        rn.id === id ? { ...rn, status: 'deleted' as const } : rn
-      ));
-      const targetReceived = receivedNews.find(rn => rn.id === id);
-      addAuditLog('delete_received_news', `Notícia Recebida #${id}`, `Excluiu notícia recebida "${targetReceived?.title}"`);
+      addAuditLog('forward_to_triage', `Notícia Recebida #${receivedItem.id}`, `Encaminhou notícia recebida "${receivedItem.title}" para triagem`);
+    } catch (err) {
+      console.error('Erro ao encaminhar para triagem:', err);
+      addNotification({
+        title: 'Erro ao Encaminhar',
+        message: err instanceof Error ? err.message : 'Não foi possível encaminhar o conteúdo para triagem.',
+        type: 'error',
+        category: 'system',
+      });
     }
   };
 
-  const handleSendToSpecializedNetwork = (newsId: string) => {
-    const checkId = 'sn-' + Math.random().toString(36).substr(2, 9);
-    const newCheck: SpecializedNetworkCheck = {
-      id: checkId,
-      newsId,
-      status: 'pending',
-      sentAt: new Date().toISOString(),
-      consensusSummary: 'Aguardando parecer da rede...',
-      aiAnalysisSummary: 'Em processamento pela IA de Consenso...',
-      checkerResponses: []
-    };
+  const handleDeleteReceivedNews = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta notícia recebida?')) {
+      return;
+    }
+    try {
+      const targetReceived = receivedNews.find(rn => rn.id === id);
+      await apiService.excluirConteudoRecebido(id);
+      setReceivedNews(prev => prev.filter(rn => rn.id !== id));
+      addAuditLog('delete_received_news', `Notícia Recebida #${id}`, `Excluiu notícia recebida "${targetReceived?.title}"`);
+    } catch (err) {
+      console.error('Erro ao excluir conteúdo recebido:', err);
+      addNotification({
+        title: 'Erro ao Excluir',
+        message: err instanceof Error ? err.message : 'Não foi possível excluir o conteúdo recebido.',
+        type: 'error',
+        category: 'system',
+      });
+    }
+  };
 
-    setSpecializedNetworkChecks(prev => [...prev, newCheck]);
-    setNews(prev => prev.map(n => n.id === newsId ? { ...n, sentToSpecializedNetwork: true, specializedCheckId: checkId } : n));
-    
+  const handleDeleteNews = async (newsId: string) => {
+    const target = news.find(n => n.id === newsId);
+    if (!window.confirm(`Tem certeza que deseja excluir "${target?.title ?? 'este conteúdo'}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await apiService.excluirConteudo(newsId);
+      setNews(prev => prev.filter(n => n.id !== newsId));
+      if (selectedNewsId === newsId) {
+        setSelectedNewsId(null);
+        navigate('/curator');
+      }
+      addAuditLog('delete_news', `Conteúdo #${newsId}`, `Excluiu conteúdo "${target?.title ?? newsId}"`);
+      addNotification({
+        title: 'Conteúdo excluído',
+        message: `O conteúdo "${target?.title ?? ''}" foi removido com sucesso.`,
+        type: 'info',
+        category: 'system',
+      });
+    } catch (err) {
+      console.error('Erro ao excluir conteúdo:', err);
+      alert(err instanceof Error ? err.message : 'Não foi possível excluir o conteúdo.');
+    }
+  };
+
+  const handleSendToSpecializedNetwork = (_newsId: string) => {
     addNotification({
-      title: 'Enviado para Rede Especializada',
-      message: `A notícia #${newsId} foi encaminhada para a rede de checadores especializados.`,
-      type: 'success',
-      category: 'system'
+      title: 'Recurso indisponível',
+      message: 'A integração com a rede de checadores especializados ainda não está implementada.',
+      type: 'warning',
+      category: 'system',
     });
-
-    addAuditLog('send_to_specialized_network', `Notícia #${newsId}`, `Notícia encaminhada para rede de checadores especializados`);
-
-    // Simulate checker responses after some time (for demo purposes)
-    setTimeout(() => {
-      const completedCheck: SpecializedNetworkCheck = {
-        ...newCheck,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        consensusSummary: 'A rede de checadores chegou ao consenso de que a informação é DISTORCIDA. Embora existam elementos reais, a narrativa foi manipulada para favorecer um grupo específico para causar pânico.',
-        aiAnalysisSummary: 'A IA de Consenso identificou uma concordância de 82% entre os checadores humanos. Os pontos de divergência residem na escala da distorção, mas todos os 5 especialistas convergem para a classificação de "Distorcido".',
-        checkerResponses: [
-          {
-            checkerId: 'sc-1',
-            checkerName: 'Carlos Mendonça',
-            sources: ['https://link-oficial-1.gov.br', 'https://estatisticas-reais.org'],
-            attachments: [{ name: 'Dados-Brutos.pdf', url: '#', type: 'document' }],
-            conclusiveOpinion: 'Parece haver uma distorção intencional nos números apresentados. Os dados da fonte oficial desmentem a manchete sensacionalista.',
-            guidingQuestions: ['Qual a origem dos dados citados?', 'Quem se beneficia com essa versão distorcida?'],
-            fullProcess: 'Iniciei pesquisando os dados brutos no portal da transparência. Comparei com a versão viral e encontrei erros grosseiros de cálculo propositais.',
-            timestamp: new Date().toISOString()
-          },
-          {
-            checkerId: 'sc-2',
-            checkerName: 'Ana Paula Silva',
-            sources: ['https://arquivo.org/midia', 'https://checagem-independente.com'],
-            attachments: [{ name: 'Captura-de-Tela.png', url: '#', type: 'image' }],
-            conclusiveOpinion: 'A foto utilizada está fora de contexto. Ela pertence a um evento de 2019 e não ao fato atual mencionado.',
-            guidingQuestions: ['A imagem é autêntica?', 'Onde foi publicada pela primeira vez?'],
-            fullProcess: 'Realizei busca reversa de imagens e identifiquei a fonte original de 4 anos atrás em outro país.',
-            timestamp: new Date().toISOString()
-          },
-          {
-            checkerId: 'sc-3',
-            checkerName: 'Ricardo Oliveira',
-            sources: ['https://expert-opinion.edu'],
-            attachments: [],
-            conclusiveOpinion: 'O especialista citado na postagem não existe na instituição mencionada. É um caso claro de apelo à autoridade falsa.',
-            guidingQuestions: ['A autoridade citada existe?', 'O que ela realmente disse?'],
-            fullProcess: 'Entrei em contato com a universidade citada e confirmei que não há registro desse pesquisador.',
-            timestamp: new Date().toISOString()
-          },
-          {
-            checkerId: 'sc-4',
-            checkerName: 'Juliana Torres',
-            sources: ['https://news-archive.com'],
-            attachments: [],
-            conclusiveOpinion: 'A notícia mistura fatos verdadeiros de pequenos incidentes com uma conclusão catastrófica sem fundamento.',
-            guidingQuestions: ['A conexão entre os fatos é lógica?'],
-            fullProcess: 'Fiz a cronologia dos eventos citados e percebi que eles ocorreram em locais diferentes, sem relação entre si.',
-            timestamp: new Date().toISOString()
-          },
-          {
-            checkerId: 'sc-5',
-            checkerName: 'Daniel Costa',
-            sources: ['https://tech-verify.io'],
-            attachments: [],
-            conclusiveOpinion: 'O vídeo foi editado para remover o contexto original da fala da autoridade.',
-            guidingQuestions: ['O vídeo está completo?', 'O que foi dito antes e depois do corte?'],
-            fullProcess: 'Localizei o vídeo original da transmissão ao vivo e comprovei que o corte altera totalmente o sentido da frase.',
-            timestamp: new Date().toISOString()
-          }
-        ]
-      };
-      
-      setSpecializedNetworkChecks(prev => prev.map(c => c.id === checkId ? completedCheck : c));
-    }, 15000); // 15 seconds for simulation
   };
 
   const handleMoveTask = async (newsId: string, targetStatus: 'pending' | 'in_progress') => {
-    const item = news.find(n => n.id === newsId);
-    if (item?.checagemId && targetStatus === 'in_progress') {
+    if (targetStatus === 'in_progress') {
       try {
-        await apiService.iniciarChecagem(item.checagemId);
-      } catch {
-        // Já iniciada; continua
-      }
-    }
-
-    setNews(prev => prev.map(n => {
-      if (n.id === newsId) {
-        if (targetStatus === 'in_progress') {
-          if (!n.reportStructure) {
+        const checagem = await apiService.assumirConteudo(newsId);
+        setNews(prev => prev.map(n => {
+          if (n.id !== newsId) return n;
+          const merged = mergeChecagemIntoNews(n, checagem);
+          if (!merged.reportStructure) {
             return {
-              ...n,
+              ...merged,
               status: 'in_progress' as const,
               startTime: new Date().toISOString(),
-              assignedTo: n.assignedTo ?? user.id,
               reportStructure: {
                 summary: '',
                 questions: Array(Math.min(1, reportConfig.maxQuestions)).fill(''),
@@ -1096,13 +1042,27 @@ function AppContent() {
               }
             };
           }
-          return { ...n, status: 'in_progress' as const, assignedTo: n.assignedTo ?? user.id };
-        } else {
-          return { ...n, status: 'pending' as const, assignedTo: undefined };
+          return { ...merged, status: 'in_progress' as const };
+        }));
+
+        const item = news.find(n => n.id === newsId);
+        if (checagem.id ?? item?.checagemId) {
+          try {
+            await apiService.iniciarChecagem(checagem.id ?? item!.checagemId!);
+          } catch {
+            // Já iniciada
+          }
         }
+      } catch (err) {
+        console.error('Erro ao mover tarefa:', err);
+        return;
       }
-      return n;
-    }));
+    } else {
+      setNews(prev => prev.map(n => {
+        if (n.id !== newsId) return n;
+        return { ...n, status: 'pending' as const };
+      }));
+    }
 
     const targetNews = news.find(n => n.id === newsId);
     const statusLabel = targetStatus === 'in_progress' ? 'Em Análise' : 'Pendente';
@@ -1227,28 +1187,51 @@ function AppContent() {
   useEffect(() => {
     setProfileForm(user);
   }, [user]);
+
   const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const handleSaveProfile = () => {
-    setUser(profileForm);
-    setProfileMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
-    setTimeout(() => setProfileMessage(null), 3000);
+  const handleSaveProfile = async () => {
+    try {
+      const updated = await apiService.atualizarPerfil({
+        nome: profileForm.name,
+        bio: profileForm.bio ?? '',
+        foto: profileForm.avatarUrl,
+      });
+      setUser(updated);
+      setProfileForm(updated);
+      setProfileMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao salvar perfil.',
+      });
+    }
   };
 
-  const handleUpdateEmail = () => {
+  const handleUpdateEmail = async () => {
     if (!emailForm.newEmail || !emailForm.password) {
       setProfileMessage({ type: 'error', text: 'Preencha todos os campos de e-mail.' });
       return;
     }
-    setUser(prev => ({ ...prev, email: emailForm.newEmail }));
-    setProfileMessage({ type: 'success', text: 'E-mail atualizado com sucesso!' });
-    setEmailForm({ newEmail: '', password: '' });
-    setTimeout(() => setProfileMessage(null), 3000);
+    try {
+      const updated = await apiService.alterarEmail(emailForm.newEmail, emailForm.password);
+      setUser(updated);
+      setProfileForm(updated);
+      setProfileMessage({ type: 'success', text: 'E-mail atualizado com sucesso!' });
+      setEmailForm({ newEmail: '', password: '' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao alterar e-mail.',
+      });
+    }
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!passwordForm.current || !passwordForm.new || !passwordForm.confirm) {
       setProfileMessage({ type: 'error', text: 'Preencha todos os campos de senha.' });
       return;
@@ -1257,20 +1240,31 @@ function AppContent() {
       setProfileMessage({ type: 'error', text: 'As senhas não coincidem.' });
       return;
     }
-    setProfileMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
-    setPasswordForm({ current: '', new: '', confirm: '' });
-    setTimeout(() => setProfileMessage(null), 3000);
+    try {
+      await apiService.alterarSenha(passwordForm.current, passwordForm.new);
+      setProfileMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      setPasswordForm({ current: '', new: '', confirm: '' });
+      setTimeout(() => setProfileMessage(null), 3000);
+    } catch (err) {
+      setProfileMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao alterar senha.',
+      });
+    }
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileMessage({ type: 'error', text: 'A imagem deve ter no máximo 2 MB.' });
+      return;
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfileForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleOnboardingComplete = async (agency: AgencyConfig, theme: ThemeConfig) => {
@@ -1409,6 +1403,7 @@ function AppContent() {
                 currentUser={user}
                 themeConfig={themeConfig}
                 onAssign={handleAssign}
+                onUnassign={handleUnassign}
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onReopen={handleReopen}
@@ -1418,6 +1413,7 @@ function AppContent() {
                 receivedNews={receivedNews}
                 onForwardToTriage={handleForwardToTriage}
                 onDeleteReceivedNews={handleDeleteReceivedNews}
+                onDeleteNews={handleDeleteNews}
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
                 onClearNotifs={clearNotifications}
@@ -1455,6 +1451,7 @@ function AppContent() {
               themeConfig={themeConfig}
               currentUser={user}
               agencyConfig={agencyConfig}
+              onDeleteNews={checkPermission('manage_triage') ? handleDeleteNews : undefined}
             />
           } />
           <Route path="/editor/:id" element={
@@ -1512,6 +1509,7 @@ const AnalysisRouteWrapper = (props: any) => {
   const navigate = useNavigate();
   const selectedNews = props.news.find((n: any) => n.id === id);
   const [isLoadingDetail, setIsLoadingDetail] = React.useState(false);
+  const detailRequestIdRef = React.useRef(0);
 
   useEffect(() => {
     if (id) {
@@ -1519,26 +1517,29 @@ const AnalysisRouteWrapper = (props: any) => {
     }
   }, [id, props.setSelectedNewsId]);
 
+  const refreshConteudoDetail = React.useCallback(async (): Promise<NewsItem | null> => {
+    if (!id) return null;
+    const requestId = ++detailRequestIdRef.current;
+    const fresh = await apiService.obterConteudo(id);
+    if (requestId !== detailRequestIdRef.current) return null;
+    props.setNews((prev: NewsItem[]) =>
+      prev.map((n) => (n.id === id ? mergeConteudoDetail(n, fresh) : n))
+    );
+    return fresh;
+  }, [id, props.setNews]);
+
   useEffect(() => {
     if (!id) return;
 
+    const requestId = ++detailRequestIdRef.current;
     let cancelled = false;
     setIsLoadingDetail(true);
 
     apiService.obterConteudo(id)
       .then((fresh) => {
-        if (cancelled) return;
+        if (cancelled || requestId !== detailRequestIdRef.current) return;
         props.setNews((prev: NewsItem[]) =>
-          prev.map((n) => {
-            if (n.id !== id) return n;
-            return {
-              ...n,
-              ...fresh,
-              evidence: fresh.evidence,
-              reportStructure: fresh.reportStructure ?? n.reportStructure,
-              report: fresh.report ?? n.report,
-            };
-          })
+          prev.map((n) => (n.id === id ? mergeConteudoDetail(n, fresh) : n))
         );
       })
       .catch((err) => {
@@ -1570,6 +1571,12 @@ const AnalysisRouteWrapper = (props: any) => {
       {...props}
       selectedNews={props.news.find((n: any) => n.id === id) ?? selectedNews}
       setCurrentView={(view: string) => navigate(`/${view}`)}
+      onNewsUpdated={(updated) => {
+        props.setNews((prev: NewsItem[]) =>
+          prev.map((n: NewsItem) => (n.id === updated.id ? { ...n, ...updated } : n))
+        );
+      }}
+      refreshConteudoDetail={refreshConteudoDetail}
     />
   );
 };
