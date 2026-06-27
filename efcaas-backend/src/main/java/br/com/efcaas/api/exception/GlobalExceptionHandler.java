@@ -1,5 +1,8 @@
 package br.com.efcaas.api.exception;
 
+import br.com.efcaas.api.exception.ChannelValidationException;
+import br.com.efcaas.api.exception.DuplicateContentException;
+import br.com.efcaas.api.exception.RateLimitExceededException;
 import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
 import java.util.NoSuchElementException;
@@ -58,6 +61,35 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         pd.setTitle("Recurso não encontrado");
         pd.setType(URI.create("https://efcaas.com/errors/not-found"));
+        pd.setProperty("timestamp", Instant.now());
+        return pd;
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimit(RateLimitExceededException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        pd.setTitle("Limite de requisições excedido");
+        pd.setType(URI.create("https://efcaas.com/errors/rate-limit"));
+        pd.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.retryAfterSeconds()))
+                .body(pd);
+    }
+
+    @ExceptionHandler(DuplicateContentException.class)
+    public ProblemDetail handleDuplicate(DuplicateContentException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        pd.setTitle("Conteúdo duplicado");
+        pd.setType(URI.create("https://efcaas.com/errors/duplicate"));
+        pd.setProperty("timestamp", Instant.now());
+        return pd;
+    }
+
+    @ExceptionHandler(ChannelValidationException.class)
+    public ProblemDetail handleChannelValidation(ChannelValidationException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        pd.setTitle("Validação de canal falhou");
+        pd.setType(URI.create("https://efcaas.com/errors/channel-validation"));
         pd.setProperty("timestamp", Instant.now());
         return pd;
     }

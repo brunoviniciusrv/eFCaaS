@@ -16,6 +16,14 @@
   @apply w-10 h-10 min-w-[40px] rounded-xl flex items-center justify-center shadow-lg overflow-hidden;
 }
 
+.logoLinkPlain {
+  @apply flex items-center shrink-0 overflow-hidden;
+}
+
+.logoImgPlain {
+  @apply max-h-10 max-w-[120px] object-contain;
+}
+
 .logoLinkMini {
   @apply w-10 h-10 rounded-xl flex items-center justify-center shadow-md overflow-hidden;
 }

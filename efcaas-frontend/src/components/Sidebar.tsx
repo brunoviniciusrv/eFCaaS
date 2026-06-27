@@ -62,11 +62,11 @@ export const Sidebar = ({
             >
               <Link
                 to="/dashboard"
-                className={styles.logoLink}
-                style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                className={agencyConfig.logoUrl ? styles.logoLinkPlain : styles.logoLink}
+                style={agencyConfig.logoUrl ? undefined : { backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={agencyConfig.logoUrl} alt="" className={styles.logoImgPlain} />
                 ) : (
                   <ShieldCheck size={24} />
                 )}
@@ -85,11 +85,11 @@ export const Sidebar = ({
             >
               <Link 
                 to="/dashboard"
-                className={styles.logoLinkMini}
-                style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
+                className={agencyConfig.logoUrl ? styles.logoLinkPlain : styles.logoLinkMini}
+                style={agencyConfig.logoUrl ? undefined : { backgroundColor: themeConfig.general.accent, color: '#fff' }}
               >
                 {agencyConfig.logoUrl ? (
-                  <img src={agencyConfig.logoUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={agencyConfig.logoUrl} alt="" className={styles.logoImgPlain} />
                 ) : (
                   <ShieldCheck size={20} />
                 )}

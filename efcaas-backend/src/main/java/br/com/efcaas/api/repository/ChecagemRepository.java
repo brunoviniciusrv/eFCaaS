@@ -10,5 +10,7 @@ public interface ChecagemRepository extends JpaRepository<Checagem, Long> {
 
     Optional<Checagem> findByConteudoId(Long conteudoId);
 
+    List<Checagem> findAllByConteudo_Id(Long conteudoId);
+
     List<Checagem> findByChecadorId(Long checadorId);
 }

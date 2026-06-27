@@ -1,0 +1,166 @@
+.autocompleteWrap {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tw-ring-color, #3b82f6) 30%, transparent);
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.suggestionItem {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.suggestionItem:hover,
+.suggestionItemActive {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.suggestionAvatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.suggestionName {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.suggestionMeta {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+.emptySuggestions {
+  padding: 0.75rem;
+  font-size: 0.8125rem;
+  opacity: 0.65;
+}
+
+.assigneeList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.assigneeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+}
+
+.assigneeLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.assigneeAvatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.assigneeName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.removeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+.removeBtn:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.emptyAssignees {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px dashed;
+  font-size: 0.8125rem;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  margin-bottom: 0.5rem;
+}
+
+.assignError {
+  color: #ef4444;
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+}
+
+.clickableAssignee {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.clickableAssignee:hover .assigneeNameText {
+  text-decoration: underline;
+}
+
+.assigneeNameText {
+  font-size: 0.8125rem;
+}

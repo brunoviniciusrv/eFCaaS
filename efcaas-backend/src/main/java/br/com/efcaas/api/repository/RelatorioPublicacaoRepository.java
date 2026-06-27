@@ -11,6 +11,8 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
 
     Optional<RelatorioPublicacao> findByParecerId(Long parecerId);
 
+    List<RelatorioPublicacao> findAllByParecer_Id(Long parecerId);
+
     @Query("""
             SELECT r FROM RelatorioPublicacao r
             JOIN FETCH r.parecer p

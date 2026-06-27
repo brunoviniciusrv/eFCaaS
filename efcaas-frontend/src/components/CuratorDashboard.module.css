@@ -202,7 +202,11 @@
 }
 
 .mediaThumb {
-  @apply w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center;
+  @apply w-6 h-6 rounded-md bg-slate-100 border border-white flex items-center justify-center overflow-hidden;
+}
+
+.mediaThumbPreview {
+  @apply w-full h-full object-cover;
 }
 
 .senderBlock {
@@ -1050,15 +1054,24 @@
 }
 
 .checkerOption {
-  @apply flex items-center gap-3 p-3 rounded-2xl border transition-all text-left;
+  @apply flex items-center gap-3 p-3 rounded-2xl border transition-colors text-left outline-none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .checkerOptionSelected {
-  @apply ring-2;
+  /* seleção via border/background inline no componente */
 }
 
 .checkerOptionDefault {
   @apply hover:bg-slate-50;
+}
+
+.checkerOptionDefault:active {
+  @apply bg-slate-100;
+}
+
+.checkerOption:focus-visible {
+  @apply ring-2 ring-offset-2;
 }
 
 .checkerOptionAvatar {

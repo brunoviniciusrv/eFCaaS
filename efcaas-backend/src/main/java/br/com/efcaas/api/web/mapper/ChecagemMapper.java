@@ -3,9 +3,12 @@ package br.com.efcaas.api.web.mapper;
 import br.com.efcaas.api.domain.Checagem;
 import br.com.efcaas.api.domain.Etiqueta;
 import br.com.efcaas.api.domain.Evidencia;
+import br.com.efcaas.api.domain.HistoricoAtribuicao;
 import br.com.efcaas.api.domain.Investigacao;
 import br.com.efcaas.api.domain.Parecer;
 import br.com.efcaas.api.config.ApiProperties;
+import br.com.efcaas.api.repository.ChecagemParticipanteRepository;
+import br.com.efcaas.api.repository.HistoricoAtribuicaoRepository;
 import br.com.efcaas.api.service.EvidenciaAccessTokenService;
 import br.com.efcaas.api.web.dto.*;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -23,8 +26,24 @@ public class ChecagemMapper {
     private final ObjectMapper objectMapper;
     private final EvidenciaAccessTokenService accessTokenService;
     private final ApiProperties apiProperties;
+    private final ChecagemParticipanteRepository participanteRepo;
+    private final HistoricoAtribuicaoRepository historicoRepo;
 
     public ChecagemDto toDto(Checagem ch, Parecer parecer, Investigacao investigacao, List<Evidencia> evidencias) {
+        List<String> checadorIds = participanteRepo.findByChecagem_IdAndAtivoTrue(ch.getId())
+                .stream()
+                .map(p -> str(p.getUsuario().getId()))
+                .toList();
+        if (checadorIds.isEmpty() && ch.getChecador() != null) {
+            checadorIds = List.of(str(ch.getChecador().getId()));
+        }
+
+        List<HistoricoAtribuicaoDto> historico = historicoRepo.findByChecagem_Id(ch.getId())
+                .stream()
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .map(this::toHistoricoDto)
+                .toList();
+
         return new ChecagemDto(
                 str(ch.getId()),
                 str(ch.getConteudo().getId()),
@@ -38,7 +57,22 @@ public class ChecagemMapper {
                 parecer != null ? toParecerDto(parecer) : null,
                 evidencias != null
                         ? evidencias.stream().map(ev -> toEvidenciaDto(ev, ch.getId())).toList()
-                        : Collections.emptyList()
+                        : Collections.emptyList(),
+                checadorIds,
+                historico
+        );
+    }
+
+    private HistoricoAtribuicaoDto toHistoricoDto(HistoricoAtribuicao h) {
+        return new HistoricoAtribuicaoDto(
+                str(h.getId()),
+                h.getUsuario() != null ? str(h.getUsuario().getId()) : null,
+                h.getUsuario() != null ? h.getUsuario().getNome() : null,
+                h.getAtribuidoPor() != null ? str(h.getAtribuidoPor().getId()) : null,
+                h.getAtribuidoPor() != null ? h.getAtribuidoPor().getNome() : null,
+                h.getAcao(),
+                h.getMotivo(),
+                h.getTimestamp() != null ? h.getTimestamp().toString() : null
         );
     }
 

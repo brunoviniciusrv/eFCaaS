@@ -1,2 +1,23 @@
-# Cache local do Maven (gerado ao usar -Dmaven.repo.local=.m2/repository)
+# Maven local cache
 .m2/
+
+# Node (playwright na raiz — não versionar)
+node_modules/
+
+# Debug sessions
+debug-*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.imds
+.DS_Store
+Thumbs.db
+
+# Build outputs
+**/target/
+**/dist/
+
+# Env secrets
+.env
+.env.local

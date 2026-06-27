@@ -39,6 +39,21 @@ services:
       - minio_data:/data
 
   # ──────────────────────────────────────────────────────────
+  # Redis (rate limit / dedup cache)
+  # ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: efcaas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
   # API Spring Boot
   # ──────────────────────────────────────────────────────────
   api:
@@ -52,6 +67,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -59,6 +76,9 @@ services:
       DB_NAME: ${DB_NAME:-efcaas}
       DB_USER: ${DB_USER:-efcaas}
       DB_PASSWORD: ${DB_PASSWORD:-efcaas}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ABUSE_REDIS_ENABLED: ${ABUSE_REDIS_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:-troque-este-secret-em-producao-use-256-bits}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
@@ -67,6 +87,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-efcaas123456}
       MINIO_BUCKET: ${MINIO_BUCKET:-efcaas-evidencias}
       API_PUBLIC_URL: http://localhost:8081/api/v1
+      INGEST_API_KEY: ${INGEST_API_KEY:-efcaas-ingest-dev-key}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
     ports:
       - "8081:8080"
     healthcheck:

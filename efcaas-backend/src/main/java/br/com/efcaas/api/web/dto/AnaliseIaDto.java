@@ -1,8 +1,10 @@
 package br.com.efcaas.api.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Builder
 public record AnaliseIaDto(
@@ -10,14 +12,20 @@ public record AnaliseIaDto(
         String textoAnalise,
         boolean simulado,
 
-        // Eixo Desinformação
+        // Eixo Desinformação (0–100)
         BigDecimal scoreInveracidade,
-        BigDecimal scoreDistorcao,
-        BigDecimal scoreForaContexto,
+        /** fake_score da Guaia — persistido em score_distorcao */
+        @JsonProperty("scoreFalsidade")
+        BigDecimal scoreFalsidade,
+        /** média distortion_level das mídias — persistido em score_fora_contexto; null sem mídia */
+        @JsonProperty("scoreDistorcaoMidia")
+        BigDecimal scoreDistorcaoMidia,
 
         // Eixo Ilicitudes
-        BigDecimal scoreDiscOdio,
-        BigDecimal scoreDiscAntidemo,
+        String classificacaoOdio,
+        String classificacaoAntidemo,
+        BigDecimal confiancaClassificacao,
+        String categoriaFinal,
         BigDecimal scoreRiscoIlicitude,
 
         // Análise semântica
@@ -26,5 +34,9 @@ public record AnaliseIaDto(
         String atributoWhere,
         String atributoWhen,
         String keywords,
-        String pseudoLabel
+        String pseudoLabel,
+        String misinformationFeatures,
+        BigDecimal certezaAlegacao,
+        String faixaCertezaAlegacao,
+        List<String> topicMatch
 ) {}

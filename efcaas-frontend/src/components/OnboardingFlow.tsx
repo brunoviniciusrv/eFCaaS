@@ -182,9 +182,9 @@ export const OnboardingFlow = ({ onComplete, onClose, initialAgency, initialThem
                   <div className={styles.logoSection}>
                     <label className={styles.fieldLabel}>Logotipo da Agência</label>
                     <div className={styles.logoDropzone}>
-                      <div className={styles.logoThumb}>
+                      <div className={agency.logoUrl ? styles.logoThumbPlain : styles.logoThumb}>
                         {agency.logoUrl ? (
-                          <img src={agency.logoUrl} alt="Logo" className={styles.logoImg} />
+                          <img src={agency.logoUrl} alt="Logo" className={styles.logoImgPlain} />
                         ) : (
                           <ImageIcon size={22} className="text-slate-300" />
                         )}
@@ -376,8 +376,8 @@ export const OnboardingFlow = ({ onComplete, onClose, initialAgency, initialThem
               {/* Dynamic Identity Preview Badge */}
               <div className={styles.identityBadge}>
                 <div 
-                  className={styles.identityLogoWrap}
-                  style={{ backgroundColor: theme.general.accent, color: '#fff' }}
+                  className={agency.logoUrl ? styles.identityLogoPlain : styles.identityLogoWrap}
+                  style={agency.logoUrl ? undefined : { backgroundColor: theme.general.accent, color: '#fff' }}
                 >
                   {agency.logoUrl ? (
                     <img src={agency.logoUrl} alt="Logo" className={styles.identityLogoImg} />

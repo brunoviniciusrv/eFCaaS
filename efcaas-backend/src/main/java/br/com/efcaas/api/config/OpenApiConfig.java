@@ -17,8 +17,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("eFCaaS API")
-                        .description("API REST da plataforma de Checagem de Fatos como Serviço (eFCaaS). " +
-                                "MVP — respostas de IA são simuladas com dados fixos.")
+                        .description("API REST da plataforma de Checagem de Fatos como Serviço (eFCaaS).")
                         .version("0.1.0")
                         .contact(new Contact()
                                 .name("Squad eFCaaS")

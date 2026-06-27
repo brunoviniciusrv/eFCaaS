@@ -20,8 +20,16 @@
   @apply w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden;
 }
 
+.logoWrapPlain {
+  @apply flex items-center justify-center mx-auto mb-4;
+}
+
 .logoImg {
   @apply w-full h-full object-fill;
+}
+
+.logoImgPlain {
+  @apply max-h-16 w-auto max-w-[180px] object-contain;
 }
 
 .brandName {

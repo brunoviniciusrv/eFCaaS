@@ -24,6 +24,8 @@ import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { NewsItem, UserProfile, ThemeConfig, PermissionProfile, AuditLog, LabelConfig } from '../types';
 import { cn } from '../lib/utils';
+import { getDesinfoScore } from '../lib/aiAnalysis';
+import { isNewsAssignedTo } from '../lib/newsAssignment';
 import { 
   XAxis, 
   YAxis, 
@@ -94,7 +96,7 @@ export const Dashboard = ({
     const filteredNews = news.filter(n => {
       const nDate = new Date(n.receivedAt || n.date).getTime();
       if (startTime > 0 && nDate < startTime) return false;
-      if (filterUser !== 'all' && n.assignedTo !== filterUser) return false;
+      if (filterUser !== 'all' && !isNewsAssignedTo(n, filterUser)) return false;
       if (filterStatus !== 'all' && n.status !== filterStatus) return false;
       if (filterPriority !== 'all' && n.priority !== filterPriority) return false;
       return true;
@@ -129,19 +131,19 @@ export const Dashboard = ({
 
   const stats = [
     { id: 'pending', name: 'Em Aberto', value: news.filter(n => n.status === 'pending').length, color: themeConfig.status.info, icon: Clock },
-    { id: 'in_progress', name: 'Minhas Tarefas', value: news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && n.assignedTo === user.id).length, color: themeConfig.status.warning, icon: Activity },
+    { id: 'in_progress', name: 'Minhas Tarefas', value: news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && isNewsAssignedTo(n, user.id)).length, color: themeConfig.status.warning, icon: Activity },
     { id: 'urgent', name: 'Urgentes', value: news.filter(n => n.status !== 'completed' && n.priority === 'high').length, color: themeConfig.status.error, icon: AlertTriangle },
     { id: 'completed', name: 'Concluídas', value: news.filter(n => n.status === 'completed').length, color: themeConfig.status.success, icon: CheckCircle2 },
   ];
 
-  const myTasks = news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && n.assignedTo === user.id)
+  const myTasks = news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && isNewsAssignedTo(n, user.id))
                       .filter(n => checkFilter ? (checkFilter === 'urgent' ? n.priority === 'high' : checkFilter === 'in_progress') : true);
   const availableQueue = news.filter(n => n.status === 'pending')
                              .filter(n => checkFilter ? (checkFilter === 'urgent' ? n.priority === 'high' : checkFilter === 'pending') : true);
   const checkDataList = checkFilter === 'completed' ? news.filter(n => n.status === 'completed') : 
                         checkFilter === 'urgent' ? news.filter(n => n.priority === 'high' && n.status !== 'completed') :
                         checkFilter === 'pending' ? news.filter(n => n.status === 'pending') :
-                        checkFilter === 'in_progress' ? news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && n.assignedTo === user.id) :
+                        checkFilter === 'in_progress' ? news.filter(n => ['in_progress', 'to_rectify'].includes(n.status) && isNewsAssignedTo(n, user.id)) :
                         [];
 
   const onDragEnd = (result: DropResult) => {
@@ -183,12 +185,14 @@ export const Dashboard = ({
         <div className={styles.taskFooter}>
           <div className={styles.taskFooterLeft}>
             <div className={styles.sourceTag}>{item.source}</div>
+            {getDesinfoScore(item.aiScores, 'inveracidade') != null && (
             <div className={styles.trendWrap}>
               <div className={styles.trendInner}>
                 <TrendingUp size={10} className="text-blue-400" />
-                <span className={styles.trendText}>{item.aiScores?.trend}% viral</span>
+                <span className={styles.trendText}>{getDesinfoScore(item.aiScores, 'inveracidade')}% desinformação</span>
               </div>
             </div>
+            )}
           </div>
           <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
             Investigar <ArrowRight size={12} />
@@ -206,15 +210,6 @@ export const Dashboard = ({
         {/* Welcome Section */}
         <section className={styles.welcomeSection}>
            <div className={styles.welcomeLeft}>
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={styles.welcomeTag}
-                style={{ color: themeConfig.general.accent }}
-              >
-                <Sparkles size={14} />
-                Plataforma de Inteligência
-              </motion.div>
               <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className={styles.welcomeTitle}>
                 Olá, {user.name.split(' ')[0]}
               </motion.h1>
@@ -409,7 +404,7 @@ export const Dashboard = ({
                                            <div className={styles.riskBar}>
                                               <span className={styles.riskBarLabel}>Risco</span>
                                               <div className={styles.riskBarTrack}>
-                                                 <div className={styles.riskBarFill} style={{ width: `${item.aiScores?.gravity}%` }} />
+                                                 <div className={styles.riskBarFill} style={{ width: `${getDesinfoScore(item.aiScores, 'inveracidade') ?? 0}%` }} />
                                               </div>
                                            </div>
                                         </div>

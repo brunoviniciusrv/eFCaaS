@@ -207,42 +207,6 @@ export function TrendAnalyzer({ themeConfig, onPromoteToFactCheck }: TrendAnalyz
             )}
           </AnimatePresence>
         </div>
-
-        {/* Sidebar Info */}
-        <div className={styles.sidebar}>
-          <div className={styles.radarCard}>
-            <Zap className="absolute top-[-10px] right-[-10px] opacity-10 w-32 h-32 rotate-12" />
-            <h3 className={styles.radarTitle}>Radar de Desinformação</h3>
-            <p className={styles.radarDesc}>
-              Nossa inteligência artificial varre padrões semânticos e de viralização para identificar rumores antes que eles decolem.
-            </p>
-            <div className={styles.radarStats}>
-              <div className={styles.radarStat}>
-                <span className={styles.radarStatValue}>94%</span>
-                <span className={styles.radarStatLabel}>Precisão da IA</span>
-              </div>
-              <div className={styles.divider} />
-              <div className={styles.radarStat}>
-                <span className={styles.radarStatValue}>1.2M</span>
-                <span className={styles.radarStatLabel}>Posts/min</span>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.insightCard} style={{ borderColor: themeConfig.general.border }}>
-            <h3 className={styles.insightTitle}>Insights do Assunto</h3>
-            <div className="space-y-4">
-              {['Bots Ativos', 'Espalhamento Rápido', 'Câmeras de Eco'].map((insight) => (
-                <div key={insight} className={styles.insightRow}>
-                  <span className={styles.insightLabel}>{insight}</span>
-                  <div className={styles.insightBar}>
-                    <div className={styles.insightFill} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

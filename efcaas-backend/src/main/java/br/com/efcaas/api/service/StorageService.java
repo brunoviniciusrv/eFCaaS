@@ -34,6 +34,10 @@ public class StorageService {
         return uploadToPrefix("conteudos/" + conteudoId, file);
     }
 
+    public UploadResult uploadIngestRecebido(MultipartFile file) {
+        return uploadToPrefix("ingest-recebidos", file);
+    }
+
     private UploadResult uploadToPrefix(String prefix, MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo vazio");

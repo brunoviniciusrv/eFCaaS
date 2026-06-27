@@ -20,6 +20,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
   servlet:
     multipart:
       max-file-size: 200MB
@@ -78,6 +84,33 @@ efcaas:
     institution-id: ${GUAIA_INSTITUTION_ID:}
     institution-slug: ${GUAIA_INSTITUTION_SLUG:}
     institution-name: ${GUAIA_INSTITUTION_NAME:eFCaaS}
+  ingest:
+    api-key: ${INGEST_API_KEY:efcaas-ingest-dev-key}
+  abuse:
+    redis:
+      enabled: ${ABUSE_REDIS_ENABLED:true}
+    rate-limit:
+      per-ip: ${ABUSE_RATE_IP:60}
+      per-token: ${ABUSE_RATE_TOKEN:120}
+      per-channel: ${ABUSE_RATE_CHANNEL:200}
+      window-seconds: ${ABUSE_WINDOW:60}
+      cooldown-seconds: ${ABUSE_COOLDOWN:300}
+      max-violations-before-block: ${ABUSE_MAX_VIOLATIONS:5}
+    duplicate:
+      window-seconds: ${ABUSE_DUP_WINDOW:300}
+      reject-duplicates: ${ABUSE_REJECT_DUP:false}
+  channels:
+    whatsapp:
+      enabled: ${WHATSAPP_ENABLED:false}
+      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+      access-token: ${WHATSAPP_ACCESS_TOKEN:}
+      app-secret: ${WHATSAPP_APP_SECRET:}
+      verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+      graph-api-version: ${WHATSAPP_GRAPH_VERSION:v21.0}
+    telegram:
+      enabled: ${TELEGRAM_ENABLED:false}
+      bot-token: ${TELEGRAM_BOT_TOKEN:}
+      secret-token: ${TELEGRAM_SECRET_TOKEN:}
 
 ---
 spring:

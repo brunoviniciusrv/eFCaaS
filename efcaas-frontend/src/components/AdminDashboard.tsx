@@ -494,14 +494,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className={styles.logoSection}>
                     <label className={styles.sectionFieldLabel}>Logo da Agência</label>
                     <div className={styles.logoWrapper}>
-                      <div className={styles.logoPreviewContainer}>
-                        <div className={styles.logoPreviewBox} style={{ borderColor: themeConfig.general.border }}>
-                          {agencyConfig.logoUrl ? (
-                            <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImg} />
-                          ) : (
+                      <div className={agencyConfig.logoUrl ? styles.logoPreviewContainerPlain : styles.logoPreviewContainer}>
+                        {agencyConfig.logoUrl ? (
+                          <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImgOnly} />
+                        ) : (
+                          <div className={styles.logoPreviewBox} style={{ borderColor: themeConfig.general.border }}>
                             <ImageIcon size={32} className={styles.logoPlaceholderIcon} />
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <label className={styles.logoOverlay}>
                           <input 
                             type="file" 

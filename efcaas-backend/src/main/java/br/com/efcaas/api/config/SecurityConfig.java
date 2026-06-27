@@ -1,5 +1,6 @@
 package br.com.efcaas.api.config;
 
+import br.com.efcaas.api.security.IngestApiKeyFilter;
 import br.com.efcaas.api.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final IngestApiKeyFilter ingestApiKeyFilter;
     private final UserDetailsService userDetailsService;
 
     @Value("${efcaas.cors.allowed-origins:http://localhost:5173}")
@@ -46,6 +48,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/ingest/**").permitAll()
+                        .requestMatchers("/api/v1/webhooks/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/ingest/midias/download").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/configuracao/agencia").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/configuracao/agencia").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/checagens/*/evidencias/*/download").permitAll()
@@ -60,6 +65,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(ingestApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
