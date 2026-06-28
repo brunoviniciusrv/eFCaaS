@@ -1,0 +1,10 @@
+# Serviço opcional de object storage (MinIO).
+# No painel: New Service → GitHub Repo → Root Directory = deploy/minio
+# Necessário para upload de evidências, anexos e documentos de cadastro.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"

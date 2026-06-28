@@ -114,6 +114,13 @@ npm run dev
 
 Interface em http://localhost:3000.
 
+### Opção 3 — Railway (deploy online)
+
+Guia completo, checklist de variáveis e arquivos `railway.toml`:
+
+- [`docs/railway-deploy.md`](docs/railway-deploy.md)
+- [`.env.railway.example`](.env.railway.example) — template para colar no painel
+
 ---
 
 ## Credenciais padrão (ambiente de desenvolvimento)
