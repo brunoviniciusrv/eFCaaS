@@ -173,7 +173,7 @@ function AppContent() {
     localStorage.setItem('platform_editor_assignments', JSON.stringify(editorAssignments));
   }, [editorAssignments]);
 
-  const handleSaveArticle = async (article: EditorialArticle) => {
+  const handleSaveArticle = async (article: EditorialArticle): Promise<EditorialArticle> => {
     const saved = await apiService.salvarRelatorioPublicacao(article.newsId, {
       titulo: article.title,
       corpoTexto: article.content,
@@ -192,6 +192,7 @@ function AppContent() {
       return [saved, ...prev];
     });
     addAuditLog('save_article', `Matéria #${saved.id}`, `Matéria salva com status: ${saved.status}`);
+    return saved;
   };
 
   const handleDeleteArticle = async (id: string) => {
@@ -1353,6 +1354,8 @@ function AppContent() {
                 handleStartAnalysis={handleStartAnalysis}
                 handleMoveTask={handleMoveTask}
                 handleMoveRedacao={handleMoveRedacao}
+                onApprove={handleApprove}
+                onReject={handleReject}
                 themeConfig={themeConfig}
                 notifications={notifications}
                 onMarkNotifAsRead={markNotificationAsRead}
