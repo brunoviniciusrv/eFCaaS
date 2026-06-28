@@ -26,5 +26,5 @@ COPY --from=build /app/dist ./dist
 
 ENV NODE_ENV=production
 
-# Railway injeta PORT em runtime
-CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
+# Railway injeta PORT e VITE_API_URL em runtime (config.js evita rebuild só por mudar a URL)
+CMD ["sh", "-c", "node -e \"const fs=require('fs');const u=process.env.VITE_API_URL||'';if(u&&fs.existsSync('dist/runtime-config.js')){fs.writeFileSync('dist/runtime-config.js','window.__EFCAAS_CONFIG__={apiUrl:'+JSON.stringify(u)+'};');}\" && serve -s dist -l ${PORT:-3000}"]

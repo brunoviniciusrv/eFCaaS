@@ -1,4 +1,5 @@
 import { api, setToken, setTenantSlug, clearTenantSlug } from './apiClient';
+import { normalizeResourceUrl } from '../lib/apiBaseUrl';
 import {
   UserProfile,
   NewsItem,
@@ -530,7 +531,7 @@ function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media']
     return {
       id: anexo.id,
       type,
-      url: anexo.urlAcesso ?? '',
+      url: normalizeResourceUrl(anexo.urlAcesso),
       title: anexo.nomeArquivo ?? undefined,
     };
   });
@@ -757,6 +758,11 @@ export const apiService = {
       setTenantSlug(data.tenantSlug);
     }
     return { token: data.token, user: mapUsuario(data.usuario) };
+  },
+
+  async obterUsuarioAtual(): Promise<UserProfile> {
+    const dto = await api.get<ApiUsuarioDto>('/me');
+    return mapUsuario(dto);
   },
 
   async ativarConta(

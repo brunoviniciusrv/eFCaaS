@@ -95,7 +95,7 @@ public class IngestMidiaService {
     }
 
     private String buildDownloadUrl(String objectKey, String contentType) {
-        String base = apiProperties.publicUrl().replaceAll("/$", "");
+        String base = apiProperties.normalizedPublicUrl();
         return base + "/ingest/midias/download?token=" + gerarToken(objectKey, contentType);
     }
 

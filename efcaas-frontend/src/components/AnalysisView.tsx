@@ -114,6 +114,46 @@ const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon
   _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
 };
 
+function MediaImagePreview({
+  url,
+  title,
+  imageClassName,
+  fallbackClassName,
+}: {
+  url: string;
+  title?: string;
+  imageClassName: string;
+  fallbackClassName: string;
+}) {
+  const [failed, setFailed] = React.useState(false);
+
+  if (failed || !url) {
+    return (
+      <div className={fallbackClassName}>
+        <div className={styles.documentIcon}>
+          <ImageIcon size={18} className="text-slate-400" />
+        </div>
+        <div className={styles.documentInfo}>
+          <a href={url || '#'} target="_blank" rel="noopener noreferrer" className={styles.documentLink}>
+            {title ?? 'Abrir imagem'}
+          </a>
+          <p className={styles.documentUrl}>Pré-visualização indisponível — clique para abrir o arquivo.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={title ?? 'Imagem'}
+      className={imageClassName}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 interface AnalysisViewProps {
@@ -307,6 +347,18 @@ export const AnalysisView = ({
     return () => clearTimeout(timer);
   }, [showInvestigationSaveSuccess]);
 
+  useEffect(() => {
+    if (contentUploadStatus !== 'success') return;
+    const timer = setTimeout(() => setContentUploadStatus('idle'), 3000);
+    return () => clearTimeout(timer);
+  }, [contentUploadStatus]);
+
+  useEffect(() => {
+    if (uploadStatus !== 'success') return;
+    const timer = setTimeout(() => setUploadStatus('idle'), 3000);
+    return () => clearTimeout(timer);
+  }, [uploadStatus]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -324,7 +376,6 @@ export const AnalysisView = ({
     try {
       await handleUploadEvidenceFile(file);
       setUploadStatus('success');
-      setTimeout(() => setUploadStatus('idle'), 3000);
     } catch (err) {
       console.error('Erro ao enviar arquivo:', err);
       setUploadStatus('error');
@@ -351,8 +402,8 @@ export const AnalysisView = ({
 
     try {
       await handleUploadMediaFile(file);
+      await refreshConteudoDetail?.();
       setContentUploadStatus('success');
-      setTimeout(() => setContentUploadStatus('idle'), 3000);
     } catch (err) {
       console.error('Erro ao enviar anexo:', err);
       setContentUploadStatus('error');
@@ -690,7 +741,12 @@ export const AnalysisView = ({
                             style={{ borderColor: themeConfig.general.border }}
                           >
                             {m.type === 'image' && (
-                              <img src={m.url} alt={m.title ?? 'Imagem'} className={styles.mediaImage} referrerPolicy="no-referrer" />
+                              <MediaImagePreview
+                                url={m.url}
+                                title={m.title}
+                                imageClassName={styles.mediaImage}
+                                fallbackClassName={styles.documentWrapper}
+                              />
                             )}
                             {m.type === 'video' && (
                               <div className={styles.mediaVideoWrapper}>

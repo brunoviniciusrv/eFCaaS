@@ -1,12 +1,58 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+import { API_BASE_URL } from '../lib/apiBaseUrl';
 
-export const setToken = (token: string) => sessionStorage.setItem('efcaas_token', token);
-export const clearToken = () => sessionStorage.removeItem('efcaas_token');
-export const getToken = () => sessionStorage.getItem('efcaas_token');
+function apiMisconfiguredMessage(): string {
+  return (
+    'A API retornou HTML em vez de JSON. Confira VITE_API_URL no serviço Frontend do Railway ' +
+    `(valor atual: ${API_BASE_URL}) — deve ser https://backend-....up.railway.app/api/v1 ` +
+    'e apontar para o serviço backend, não para o frontend. Depois, redeploy/restart do frontend.'
+  );
+}
 
-export const setTenantSlug = (slug: string) => sessionStorage.setItem('efcaas_tenant_slug', slug);
-export const clearTenantSlug = () => sessionStorage.removeItem('efcaas_tenant_slug');
-export const getTenantSlug = () => sessionStorage.getItem('efcaas_tenant_slug');
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) {
+    return undefined as unknown as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    if (text.trimStart().toLowerCase().startsWith('<!doctype') || text.trimStart().startsWith('<html')) {
+      throw new Error(apiMisconfiguredMessage());
+    }
+    throw new Error('Resposta inválida da API.');
+  }
+}
+
+const TOKEN_KEY = 'efcaas_token';
+const TENANT_SLUG_KEY = 'efcaas_tenant_slug';
+
+function readStored(key: string): string | null {
+  const fromLocal = localStorage.getItem(key);
+  if (fromLocal) return fromLocal;
+
+  const fromSession = sessionStorage.getItem(key);
+  if (fromSession) {
+    localStorage.setItem(key, fromSession);
+    sessionStorage.removeItem(key);
+    return fromSession;
+  }
+  return null;
+}
+
+export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
+export const clearToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+};
+export const getToken = () => readStored(TOKEN_KEY);
+
+export const setTenantSlug = (slug: string) => localStorage.setItem(TENANT_SLUG_KEY, slug);
+export const clearTenantSlug = () => {
+  localStorage.removeItem(TENANT_SLUG_KEY);
+  sessionStorage.removeItem(TENANT_SLUG_KEY);
+};
+export const getTenantSlug = () => readStored(TENANT_SLUG_KEY);
 
 /** Chave de localStorage isolada por tenant (retorna null se slug ausente). */
 export function tenantStorageKey(suffix: string): string | null {
@@ -51,7 +97,14 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
+    let errBody: Record<string, unknown> = {};
+    try {
+      errBody = await parseJsonResponse<Record<string, unknown>>(response);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('HTML')) {
+        throw err;
+      }
+    }
     throw new Error(
       (errBody as any).detail || (errBody as any).message || `Erro ${response.status}`
     );
@@ -61,7 +114,7 @@ async function request<T>(
     return undefined as unknown as T;
   }
 
-  return response.json() as Promise<T>;
+  return parseJsonResponse<T>(response);
 }
 
 async function uploadRequest<T>(
@@ -108,13 +161,20 @@ async function uploadRequest<T>(
         'ou aumente client_max_body_size no nginx.'
       );
     }
-    const errBody = await response.json().catch(() => ({}));
+    let errBody: Record<string, unknown> = {};
+    try {
+      errBody = await parseJsonResponse<Record<string, unknown>>(response);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('HTML')) {
+        throw err;
+      }
+    }
     throw new Error(
       (errBody as any).detail || (errBody as any).message || `Erro ${response.status}`
     );
   }
 
-  return response.json() as Promise<T>;
+  return parseJsonResponse<T>(response);
 }
 
 export const api = {

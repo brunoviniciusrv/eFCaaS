@@ -36,7 +36,8 @@ import { generateDraftReport, reviewReport } from './services/geminiService';
 import { apiService, normalizeReportStructure } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
 import { mergeConteudoDetail } from './lib/aiAnalysis';
-import { clearToken, clearTenantSlug, tenantStorageKey } from './services/apiClient';
+import { normalizeResourceUrl } from './lib/apiBaseUrl';
+import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
@@ -119,6 +120,7 @@ function TenantRootRedirect({ checkPermission }: { checkPermission: (permId: str
 function AppContent() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState(() => Boolean(getToken()));
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [user, setUser] = useState<UserProfile>(PLACEHOLDER_USER);
@@ -317,6 +319,60 @@ function AppContent() {
 
     return resolvedAgency;
   };
+
+  const applyAuthenticatedUser = (loggedUser: UserProfile) => {
+    setUser(loggedUser);
+    const platformUser = loggedUser.profileId === 'p-platform';
+    setPermissionProfiles(
+      platformUser
+        ? INITIAL_PERMISSION_PROFILES.filter((p) => p.id === 'p-platform')
+        : INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'),
+    );
+    setIsAuthenticated(true);
+  };
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setIsAuthBootstrapping(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const loggedUser = await apiService.obterUsuarioAtual();
+        if (cancelled) return;
+
+        applyAuthenticatedUser(loggedUser);
+
+        if (loggedUser.profileId !== 'p-platform') {
+          try {
+            const agency = await loadTenantBranding();
+            if (!agency.isOnboardingCompleted) {
+              setShowOnboarding(true);
+            }
+          } catch (err) {
+            console.warn('Não foi possível restaurar configuração da agência:', err);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          clearToken();
+          clearTenantSlug();
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAuthBootstrapping(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isAuthenticated || isPlatformUser) return;
@@ -687,7 +743,7 @@ function AppContent() {
     const newMedia = {
       id: apiAnexo.id,
       type,
-      url: apiAnexo.urlAcesso ?? '',
+      url: normalizeResourceUrl(apiAnexo.urlAcesso),
       title: apiAnexo.nomeArquivo ?? file.name,
     };
     setNews(prev => prev.map(n => n.id === selectedNewsId ? {
@@ -1305,17 +1361,9 @@ function AppContent() {
     setNews([]);
     setUsers([]);
     setArticles([]);
-    setUser(loggedUser);
+    applyAuthenticatedUser(loggedUser);
 
-    const platformUser = loggedUser.profileId === 'p-platform';
-    setPermissionProfiles(
-      platformUser
-        ? INITIAL_PERMISSION_PROFILES.filter((p) => p.id === 'p-platform')
-        : INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'),
-    );
-
-    if (platformUser) {
-      setIsAuthenticated(true);
+    if (loggedUser.profileId === 'p-platform') {
       navigate('/platform');
       return;
     }
@@ -1330,13 +1378,11 @@ function AppContent() {
       setShowOnboarding(true);
     }
 
-    setIsAuthenticated(true);
     navigate('/');
   };
 
   const handleActivated = async (loggedUser: UserProfile) => {
-    setUser(loggedUser);
-    setPermissionProfiles(INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'));
+    applyAuthenticatedUser(loggedUser);
 
     try {
       const agency = await loadTenantBranding();
@@ -1348,9 +1394,16 @@ function AppContent() {
       setShowOnboarding(true);
     }
 
-    setIsAuthenticated(true);
     navigate('/');
   };
+
+  if (isAuthBootstrapping) {
+    return (
+      <div className="flex items-center justify-center min-h-screen opacity-60">
+        <p className="text-sm font-medium">Restaurando sessão...</p>
+      </div>
+    );
+  }
 
   if (isAuthenticated && isPlatformUser) {
     return (

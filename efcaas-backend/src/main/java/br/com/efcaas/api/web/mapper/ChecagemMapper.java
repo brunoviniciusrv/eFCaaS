@@ -119,7 +119,7 @@ public class ChecagemMapper {
     }
 
     private String buildDownloadUrl(Long checagemId, Long evidenciaId) {
-        String base = apiProperties.publicUrl().replaceAll("/$", "");
+        String base = apiProperties.normalizedPublicUrl();
         String token = accessTokenService.gerarToken(checagemId, evidenciaId);
         return base + "/checagens/" + checagemId + "/evidencias/" + evidenciaId + "/download?token=" + token;
     }
