@@ -15,7 +15,6 @@ export const LANDING_BRAND = {
 export const LANDING_NAV = [
   { id: 'planos', label: 'Planos' },
   { id: 'sobre', label: 'Sobre' },
-  { id: 'recursos', label: 'Recursos' },
 ] as const;
 
 export const LANDING_HERO = {
