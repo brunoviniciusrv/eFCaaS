@@ -11,7 +11,11 @@ import {
   CheckCircle2,
   Sparkles,
   FileText,
-  GripVertical
+  GripVertical,
+  ClipboardCheck,
+  Check,
+  X,
+  Search as SearchIcon,
 } from 'lucide-react';
 import { 
   DragDropContext, 
@@ -47,6 +51,8 @@ interface DashboardProps {
   handleStartAnalysis: (id: string) => void;
   handleMoveTask: (id: string, targetStatus: 'pending' | 'in_progress') => void;
   handleMoveRedacao?: (id: string, assigned: boolean) => void;
+  onApprove?: (newsId: string, comments: string) => Promise<void>;
+  onReject?: (newsId: string, comments: string) => Promise<void>;
   themeConfig: ThemeConfig;
   notifications: any[];
   onMarkNotifAsRead: (id: string) => void;
@@ -65,6 +71,8 @@ export const Dashboard = ({
   handleStartAnalysis,
   handleMoveTask,
   handleMoveRedacao,
+  onApprove,
+  onReject,
   themeConfig,
   notifications,
   onMarkNotifAsRead,
@@ -76,11 +84,14 @@ export const Dashboard = ({
   labels = []
 }: DashboardProps) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'checagem' | 'redacao' | 'metricas'>(
+  const [activeTab, setActiveTab] = useState<'checagem' | 'revisoes' | 'redacao' | 'metricas'>(
     checkPermission('perform_analysis') || checkPermission('view_analysis') ? 'checagem' : 
+    checkPermission('review_and_approve') ? 'revisoes' :
     checkPermission('view_editor') || checkPermission('view_archive') ? 'redacao' :
     'metricas'
   );
+  const [reviewingNewsId, setReviewingNewsId] = useState<string | null>(null);
+  const [reviewComments, setReviewComments] = useState('');
   
   const [dateRange, setDateRange] = useState<'all' | '7d' | '30d' | '90d'>('30d');
   const [checkFilter, setCheckFilter] = useState<string | null>(null);
@@ -229,6 +240,7 @@ export const Dashboard = ({
                    themeConfig={themeConfig}
                    tabs={[
                      { id: 'checagem', label: 'Checagem', icon: Activity, permission: ['perform_analysis', 'view_analysis'] },
+                     { id: 'revisoes', label: 'Revisões', icon: ClipboardCheck, permission: ['review_and_approve'] },
                      { id: 'redacao', label: 'Redação', icon: FileText, permission: ['view_editor', 'view_archive'] },
                      { id: 'metricas', label: 'Métricas', icon: TrendingUp, permission: ['view_admin'] },
                    ].filter(tab => tab.permission.some(p => checkPermission(p)))}
@@ -435,6 +447,180 @@ export const Dashboard = ({
             )}
           </div>
         )}
+
+        {/* ── Aba Revisões ─────────────────────────────────────────────────── */}
+        {activeTab === 'revisoes' && (
+          <div className={styles.tabSection}>
+            {(() => {
+              const pendingReviews = news.filter(n => n.status === 'final_review');
+              return (
+                <>
+                  {pendingReviews.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <ClipboardCheck className={styles.emptyStateIcon} />
+                      <p className={styles.emptyStateTitle}>Nenhuma revisão pendente</p>
+                      <p className={styles.emptyStateSubtext}>Tudo em dia por aqui!</p>
+                    </div>
+                  ) : (
+                    <div className={styles.reviewsList}>
+                      {pendingReviews.map(item => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={styles.reviewCard}
+                          style={{
+                            backgroundColor: themeConfig.general.cardBackground,
+                            borderColor: themeConfig.general.border,
+                          }}
+                        >
+                          <div className={styles.reviewCardLeft}>
+                            <div className={styles.reviewCardTop}>
+                              <div className={styles.reviewMetaLeft}>
+                                <StatusBadge status={item.status} themeConfig={themeConfig} />
+                                {item.assignedTo && (
+                                  <span className={styles.reviewCheckerName} style={{ color: themeConfig.general.mutedText }}>
+                                    Checador: {users.find(u => u.id === item.assignedTo)?.name ?? item.assignedTo}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={styles.reviewDate} style={{ color: themeConfig.general.mutedText }}>{item.date}</span>
+                            </div>
+                            <h3 className={styles.reviewTitle} style={{ color: themeConfig.dashboard.text }}>{item.title}</h3>
+                            {item.report && (
+                              <div className={styles.reviewReportBox} style={{ borderColor: themeConfig.general.border }}>
+                                <p className={styles.reviewReportTitle} style={{ color: themeConfig.general.accent }}>
+                                  <CheckCircle2 size={14} /> Parecer do Checador:
+                                </p>
+                                <p className={styles.reviewReportText} style={{ color: themeConfig.general.mutedText }}>
+                                  "{item.report}"
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div className={styles.reviewCardRight}>
+                            <button
+                              onClick={() => { setReviewingNewsId(item.id); setReviewComments(''); }}
+                              className={styles.reviewNowButton}
+                              style={{ backgroundColor: themeConfig.general.accent, color: themeConfig.buttons.primaryText }}
+                            >
+                              <SearchIcon size={16} />
+                              Revisar Agora
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── Modal Revisão ─────────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {reviewingNewsId && (
+            <div className={styles.modalOverlay}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setReviewingNewsId(null)}
+                className={styles.modalBackdrop}
+                style={{ backgroundColor: themeConfig.general.modalOverlay }}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className={styles.modal}
+                style={{ backgroundColor: themeConfig.general.modalBackground, color: themeConfig.dashboard.text }}
+              >
+                {(() => {
+                  const reviewItem = news.find(n => n.id === reviewingNewsId);
+                  return (
+                    <>
+                      <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                        <div>
+                          <h2 className={styles.modalTitle} style={{ color: themeConfig.dashboard.text }}>Revisão Final</h2>
+                          <p className={styles.modalSubtitle} style={{ color: themeConfig.general.mutedText }}>
+                            Avalie a qualidade e precisão da checagem realizada.
+                          </p>
+                        </div>
+                        <button onClick={() => setReviewingNewsId(null)} className={styles.modalCloseBtn}>
+                          <X size={20} />
+                        </button>
+                      </div>
+
+                      <div className={styles.modalBody}>
+                        <div className={styles.reviewOriginalBox} style={{ borderColor: themeConfig.general.border }}>
+                          <h4 className={styles.reviewBoxLabel} style={{ color: themeConfig.general.mutedText }}>Notícia Original</h4>
+                          <p className={styles.reviewNewsTitle} style={{ color: themeConfig.dashboard.text }}>{reviewItem?.title}</p>
+                          <p className={styles.reviewNewsExcerpt} style={{ color: themeConfig.general.mutedText }}>{reviewItem?.content}</p>
+                        </div>
+
+                        {reviewItem?.report && (
+                          <div className={styles.reviewReportPanel} style={{ borderColor: themeConfig.general.border }}>
+                            <h4 className={styles.reviewBoxLabel} style={{ color: themeConfig.general.mutedText }}>Parecer do Checador</h4>
+                            <p className={styles.reviewProse} style={{ color: themeConfig.dashboard.text }}>{reviewItem.report}</p>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className={styles.reviewCommentLabel} style={{ color: themeConfig.dashboard.text }}>
+                            Comentários de Revisão <span style={{ color: themeConfig.general.mutedText }}>(obrigatório se rejeitar)</span>
+                          </label>
+                          <textarea
+                            value={reviewComments}
+                            onChange={(e) => setReviewComments(e.target.value)}
+                            placeholder="Adicione observações para o checador ou justificativa da aprovação..."
+                            rows={3}
+                            className={styles.reviewCommentTextarea}
+                            style={{
+                              backgroundColor: themeConfig.general.inputBackground,
+                              borderColor: themeConfig.general.inputBorder,
+                              color: themeConfig.general.inputText,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.modalFooter} style={{ borderColor: themeConfig.general.border }}>
+                        <button
+                          onClick={async () => {
+                            if (!reviewComments.trim()) return;
+                            await onReject?.(reviewingNewsId, reviewComments);
+                            setReviewingNewsId(null);
+                            setReviewComments('');
+                          }}
+                          disabled={!reviewComments.trim()}
+                          className={styles.reviewRejectBtn}
+                          style={{ color: themeConfig.status.error, borderColor: themeConfig.status.error }}
+                        >
+                          <X size={16} />
+                          Rejeitar e Devolver
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await onApprove?.(reviewingNewsId, reviewComments);
+                            setReviewingNewsId(null);
+                            setReviewComments('');
+                          }}
+                          className={styles.reviewApproveBtn}
+                          style={{ backgroundColor: themeConfig.status.success, color: themeConfig.buttons.primaryText }}
+                        >
+                          <Check size={16} />
+                          Aprovar e Publicar
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {activeTab === 'redacao' && (
           <div className={styles.tabSection}>

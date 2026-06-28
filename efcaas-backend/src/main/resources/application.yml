@@ -112,6 +112,11 @@ efcaas:
       bot-token: ${TELEGRAM_BOT_TOKEN:}
       secret-token: ${TELEGRAM_SECRET_TOKEN:}
 
+denodare:
+  base-url: ${DENODARE_BASE_URL:https://homolog.denodare.inf.ufg.br/api}
+  email: ${DENODARE_EMAIL:}
+  password: ${DENODARE_PASSWORD:}
+
 ---
 spring:
   config:

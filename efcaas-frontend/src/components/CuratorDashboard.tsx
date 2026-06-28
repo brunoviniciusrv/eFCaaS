@@ -70,6 +70,7 @@ import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
+import { apiService, YoutubeResultadoDto } from '../services/apiService';
 import { NewsAssignmentModal } from './NewsAssignmentModal';
 import { CheckerNameAutocomplete } from './CheckerNameAutocomplete';
 import assignStyles from './CheckerAssign.module.css';
@@ -441,6 +442,21 @@ export const CuratorDashboard = ({
     setRegisterAssignQuery('');
   };
 
+  const mapYoutubeToReceivedNews = (dto: YoutubeResultadoDto): ReceivedNewsItem => ({
+    id: 'yt-' + Math.random().toString(36).substr(2, 9),
+    title: dto.titulo,
+    content: dto.conteudo ?? dto.descricao ?? '',
+    excerpt: dto.descricao ?? dto.conteudo?.substring(0, 120) ?? '',
+    sourceType: 'YouTube',
+    receivedAt: dto.publishedAt ?? new Date().toISOString(),
+    status: 'received',
+    senderName: dto.channelTitle ?? 'YouTube',
+    originalLink: dto.url,
+    media: dto.thumbnailHigh
+      ? [{ type: 'image' as const, url: dto.thumbnailHigh }]
+      : [],
+  });
+
   const formatAttachmentSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -474,10 +490,52 @@ export const CuratorDashboard = ({
     if (e.dataTransfer.files?.length) addPendingAttachments(e.dataTransfer.files);
   };
 
-  const handleExecuteExtraction = () => {
-    setIsExtracting(false);
-    setIsExtractionModalOpen(false);
-    window.alert('A extração de conteúdo de redes sociais ainda não está integrada à API.');
+  const handleExecuteExtraction = async () => {
+    if (!extractionParams.query.trim()) {
+      alert('Informe um termo de busca antes de iniciar.');
+      return;
+    }
+    setIsExtracting(true);
+    try {
+      const results = await apiService.buscarYoutube({
+        query: extractionParams.query,
+        limit: extractionParams.userLimit || 10,
+        startDate: extractionParams.startDate || undefined,
+        endDate: extractionParams.endDate || undefined,
+      });
+
+      setExtractionResults(results.map(mapYoutubeToReceivedNews));
+      setIsExtractionModalOpen(false);
+      setShowExtractionResults(true);
+      setExtractionParams({
+        query: '',
+        userLimit: 100,
+        comments: '',
+        startDate: '',
+        endDate: '',
+        platforms: {
+          youtube: true,
+          reddit: true,
+          facebook: true,
+          telegram: true
+        }
+      });
+    } catch (err) {
+      alert('Erro na busca do YouTube: ' + (err instanceof Error ? err.message : 'Tente novamente.'));
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const getSLAStatus = (startTime?: string) => {
+    if (!startTime) return null;
+    const start = new Date(startTime).getTime();
+    const now = new Date().getTime();
+    const hours = (now - start) / (1000 * 60 * 60);
+    
+    if (hours > 24) return { label: 'Atrasado', color: 'text-red-600 bg-red-50' };
+    if (hours > 12) return { label: 'Alerta', color: 'text-amber-600 bg-amber-50' };
+    return { label: 'No prazo', color: 'text-green-600 bg-green-50' };
   };
 
   const handleDragEnd = (result: DropResult) => {

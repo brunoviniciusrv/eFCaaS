@@ -69,7 +69,7 @@ interface EditorViewProps {
   user: UserProfile;
   news: NewsItem[];
   labels: LabelConfig[];
-  onSaveArticle: (article: EditorialArticle) => Promise<void>;
+  onSaveArticle: (article: EditorialArticle) => Promise<EditorialArticle>;
   articles: EditorialArticle[];
   checkPermission: (permId: string) => boolean;
   themeConfig: ThemeConfig;
@@ -81,6 +81,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const [showHistory, setShowHistory] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingComment, setIsSavingComment] = useState(false);
   
   const newsItem = news.find(n => n.id === id);
   const [loadedArticle, setLoadedArticle] = useState<EditorialArticle | null>(null);
@@ -207,8 +208,8 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
     setEditorContent((prev) => prev + sourceHtml);
   };
 
-  const addComment = () => {
-    if (!newComment.trim()) return;
+  const addComment = async () => {
+    if (!newComment.trim() || isSavingComment) return;
     const comment: EditorialComment = {
       id: `comm-${Date.now()}`,
       userId: user.id,
@@ -217,8 +218,37 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
       timestamp: new Date().toISOString(),
       resolved: false
     };
-    setComments(prev => [comment, ...prev]);
+    const updatedComments = [comment, ...comments];
+    setComments(updatedComments);
     setNewComment('');
+
+    // Persiste imediatamente no backend sem navegar
+    setIsSavingComment(true);
+    try {
+      const plainExcerpt = content.replace(/<[^>]*>/g, '').trim();
+      const article: EditorialArticle = {
+        id: existingArticle?.id || '',
+        newsId: id || '',
+        title,
+        content,
+        excerpt: plainExcerpt
+          ? `${plainExcerpt.substring(0, 150)}${plainExcerpt.length > 150 ? '...' : ''}`
+          : title,
+        status,
+        template,
+        authorId: user.id,
+        createdAt: existingArticle?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        comments: updatedComments,
+        versions: existingArticle?.versions || [],
+      };
+      const saved = await onSaveArticle(article);
+      setLoadedArticle(saved);
+    } catch (err) {
+      console.error('Erro ao persistir comentário:', err);
+    } finally {
+      setIsSavingComment(false);
+    }
   };
 
   const getLabelBadgeClass = (label: string | undefined) => {
@@ -517,11 +547,15 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
                   <button
                     type="button"
                     onClick={addComment}
-                    disabled={!newComment.trim()}
+                    disabled={!newComment.trim() || isSavingComment}
                     className={styles.commentSubmit}
-                    style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                    style={{
+                      backgroundColor: themeConfig.buttons.primary,
+                      color: themeConfig.buttons.primaryText,
+                      opacity: isSavingComment ? 0.65 : 1,
+                    }}
                   >
-                    Publicar comentário
+                    {isSavingComment ? 'Salvando...' : 'Publicar comentário'}
                   </button>
                 </div>
               </div>
