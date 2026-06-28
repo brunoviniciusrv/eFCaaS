@@ -28,6 +28,76 @@ export function mapHistoricoAtribuicao(h: ApiHistoricoAtribuicaoDto): Assignment
   };
 }
 
+export interface RectificationReason {
+  text: string;
+  authorName?: string;
+  timestamp?: string;
+  label: string;
+}
+
+/** Motivo mais recente de retificação/reabertura para conteúdos em `to_rectify`. */
+export function getRectificationReason(news: NewsItem): RectificationReason | null {
+  if (news.status !== 'to_rectify') return null;
+
+  const fromHistory = [...(news.assignmentHistory ?? [])]
+    .filter(
+      (h) =>
+        (h.action === 'rejected' || h.action === 'reopened') &&
+        Boolean(h.reason?.trim()),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    )[0];
+
+  if (fromHistory) {
+    return {
+      text: fromHistory.reason!.trim(),
+      authorName: fromHistory.assignedByName ?? fromHistory.assignedToName,
+      timestamp: fromHistory.timestamp,
+      label:
+        fromHistory.action === 'reopened'
+          ? 'Motivo da reabertura'
+          : 'Motivo da retificação',
+    };
+  }
+
+  if (news.reviewComments?.trim()) {
+    return {
+      text: news.reviewComments.trim(),
+      label: 'Motivo da retificação',
+    };
+  }
+
+  return null;
+}
+
+/** Fallback via auditoria quando o motivo não veio no histórico de atribuição. */
+export function getRectificationReasonFromAuditoria(
+  logs: {
+    acao: string;
+    detalhes: string | null;
+    usuarioNome: string;
+    timestamp: string;
+  }[],
+): RectificationReason | null {
+  const match = logs.find(
+    (l) =>
+      (l.acao === 'revisao_rejeitada' || l.acao === 'conteudo_reaberto') &&
+      Boolean(l.detalhes?.trim()),
+  );
+  if (!match?.detalhes?.trim()) return null;
+  return {
+    text: match.detalhes.trim(),
+    authorName: match.usuarioNome,
+    timestamp: match.timestamp,
+    label:
+      match.acao === 'conteudo_reaberto'
+        ? 'Motivo da reabertura'
+        : 'Motivo da retificação',
+  };
+}
+
 /** Briefings de atribuição com orientação (exclui auto-assunção sem texto do curador). */
 export function getAssignmentBriefings(history?: AssignmentHistory[]) {
   return (history ?? [])

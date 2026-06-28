@@ -60,18 +60,31 @@
 }
 
 .sourceItem {
-  @apply p-2 bg-white border border-slate-200 rounded-md text-xs flex items-center justify-between hover:border-blue-200 transition-all;
-  /* REMOVED from @apply (not supported): group */
+  @apply p-3 border rounded-lg text-xs flex items-center justify-between gap-2 transition-all;
 }
 
-.sourceUrl {
-  @apply truncate max-w-[180px] text-slate-500;
+.sourceInfo {
+  @apply flex-1 min-w-0 space-y-1;
+}
+
+.sourceTitle {
+  @apply block text-xs font-semibold truncate;
+}
+
+.sourceLink {
+  @apply block text-[10px] truncate underline-offset-2 hover:underline;
+}
+
+.emptySources {
+  @apply text-xs italic py-2;
+}
+
+.sourceActionBtn {
+  @apply p-1.5 rounded-md border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors;
 }
 
 .sourceActions {
-  @apply flex gap-1 opacity-0 transition-opacity;
-  /* REMOVED from @apply (not supported): group-hover:opacity-100 */
-  /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
+  @apply flex gap-1 shrink-0;
 }
 
 .notesList {
@@ -91,7 +104,7 @@
 }
 
 .toolbar {
-  @apply h-16 border-b flex items-center justify-between px-6 shrink-0 z-10;
+  @apply h-16 border-b flex items-center justify-end px-6 shrink-0 z-10;
 }
 
 .toolbarLeft {
@@ -441,6 +454,38 @@
   @apply text-[10px] text-slate-500 font-medium text-center;
 }
 
+.commentsBtn {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all;
+}
+
+.commentsBtnBadge {
+  @apply min-w-[1.25rem] h-5 px-1 text-[10px] font-bold text-white rounded-full flex items-center justify-center;
+}
+
+.modalOverlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+}
+
+.modalPanel {
+  @apply w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden;
+}
+
+.modalHeader {
+  @apply flex items-center justify-between px-5 py-4 border-b shrink-0;
+}
+
+.modalTitle {
+  @apply font-semibold flex items-center gap-2 text-base;
+}
+
+.modalClose {
+  @apply p-1.5 rounded-lg hover:bg-black/5 transition-colors;
+}
+
+.modalBody {
+  @apply flex-1 overflow-y-auto p-5 flex flex-col gap-4 min-h-0;
+}
+
 .loadingState {
   @apply flex h-screen items-center justify-center;
 }
@@ -460,16 +505,4 @@
 /* ── Hover reveal rules (replaces group-hover) ── */
 .sidebarSection:hover .insertBtn {
   opacity: 1;
-}
-
-.sourceItem:hover .sourceActions {
-  opacity: 1;
-}
-
-.historyCard:hover .historyActions {
-  opacity: 1;
-}
-
-.coverArea:hover .coverLabel {
-  color: #3b82f6;
 }

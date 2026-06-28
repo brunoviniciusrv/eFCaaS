@@ -10,7 +10,6 @@ import {
   FileText, 
   Search, 
   Download, 
-  Globe, 
   CheckCircle2, 
   Clock, 
   AlertTriangle,
@@ -19,7 +18,6 @@ import {
   Trash2
 } from 'lucide-react';
 import { EditorialArticle, ArticleStatus, UserProfile, NewsItem, ThemeConfig } from '../types';
-import { cn } from '../lib/utils';
 import styles from './EditorialArchive.module.css';
 
 interface EditorialArchiveProps {
@@ -31,26 +29,29 @@ interface EditorialArchiveProps {
   themeConfig: ThemeConfig;
 }
 
-export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpdateStatus, themeConfig }: EditorialArchiveProps) {
+export function EditorialArchive({ articles, news, user, onDeleteArticle, themeConfig }: EditorialArchiveProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'all'>('all');
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [openExportMenuId, setOpenExportMenuId] = useState<string | null>(null);
 
   const filteredArticles = articles.filter(art => {
     const matchesSearch = art.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || art.status === statusFilter;
+    const normalizedStatus = art.status === 'published' ? 'approved' : art.status;
+    const matchesStatus = statusFilter === 'all' || normalizedStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const countByStatus = (status: ArticleStatus) =>
+    articles.filter(a => a.status === status || (status === 'approved' && a.status === 'published')).length;
 
   const getNewsTitle = (newsId: string) => {
     return news.find(n => n.id === newsId)?.title || "Notícia não encontrada";
   };
 
   const getStatusIcon = (status: ArticleStatus) => {
-    switch (status) {
-      case 'published': return <Globe className="w-4 h-4 text-green-500" />;
+    const normalized = status === 'published' ? 'approved' : status;
+    switch (normalized) {
       case 'approved': return <CheckCircle2 className="w-4 h-4 text-blue-500" />;
       case 'review': return <AlertTriangle className="w-4 h-4 text-orange-500" />;
       default: return <Clock className="w-4 h-4 text-slate-400" />;
@@ -58,8 +59,8 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
   };
 
   const getStatusLabel = (status: ArticleStatus) => {
-    switch (status) {
-      case 'published': return 'Publicado';
+    const normalized = status === 'published' ? 'approved' : status;
+    switch (normalized) {
       case 'approved': return 'Aprovado';
       case 'review': return 'Em Revisão';
       case 'in_editing': return 'Em Edição';
@@ -68,8 +69,8 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
   };
 
   const getStatusBadgeClass = (status: ArticleStatus) => {
-    switch (status) {
-      case 'published': return styles.statusBadgePublished;
+    const normalized = status === 'published' ? 'approved' : status;
+    switch (normalized) {
       case 'approved': return styles.statusBadgeApproved;
       case 'review': return styles.statusBadgeReview;
       default: return styles.statusBadgeDefault;
@@ -124,7 +125,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
               <FileText className="w-8 h-8" style={{ color: themeConfig.general.accent }} />
               Acervo Editorial
             </h1>
-            <p className={styles.pageSubtitle}>Gerencie, exporte e publique suas checagens finalizadas.</p>
+            <p className={styles.pageSubtitle}>Gerencie e exporte as matérias editoriais das checagens finalizadas.</p>
           </div>
           
           <div className={styles.controls}>
@@ -152,7 +153,6 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
               <option value="draft">Rascunhos</option>
               <option value="review">Revisão</option>
               <option value="approved">Aprovados</option>
-              <option value="published">Publicados</option>
             </select>
           </div>
         </header>
@@ -160,10 +160,9 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
         {/* Categories / Tabs */}
         <div className={styles.categoryGrid}>
           {[
-            { id: 'draft', label: 'Rascunhos', color: 'slate', count: articles.filter(a => a.status === 'draft').length },
-            { id: 'review', label: 'Em Revisão', color: 'orange', count: articles.filter(a => a.status === 'review').length },
-            { id: 'approved', label: 'Aprovados', color: 'blue', count: articles.filter(a => a.status === 'approved').length },
-            { id: 'published', label: 'Publicados', color: 'green', count: articles.filter(a => a.status === 'published').length }
+            { id: 'draft', label: 'Rascunhos', color: 'slate', count: countByStatus('draft') },
+            { id: 'review', label: 'Em Revisão', color: 'orange', count: countByStatus('review') },
+            { id: 'approved', label: 'Aprovados', color: 'blue', count: countByStatus('approved') },
           ].map(cat => (
             <button 
               key={cat.id}
@@ -278,23 +277,6 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, onUpda
                               )}
                             </AnimatePresence>
                           </div>
-
-                          {article.status !== 'published' && (
-                            <button 
-                              onClick={async () => {
-                                if (confirm('Publicar esta checagem oficialmente?')) {
-                                  try {
-                                    await onUpdateStatus(article.id, 'published');
-                                  } catch (err) {
-                                    alert(err instanceof Error ? err.message : 'Erro ao publicar.');
-                                  }
-                                }
-                              }}
-                              className={styles.publishBtn}
-                            >
-                              <Globe className="w-4 h-4" /> Publicar
-                            </button>
-                          )}
 
                           <button 
                             onClick={async () => {

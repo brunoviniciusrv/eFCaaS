@@ -382,8 +382,52 @@
   @apply mt-6;
 }
 
+.orientationsCard {
+  @apply rounded-3xl border shadow-sm overflow-hidden mt-8;
+}
+
+.orientationsHeader {
+  @apply p-5 border-b flex items-center gap-2;
+}
+
+.orientationsTitle {
+  @apply text-sm font-bold uppercase tracking-wider;
+}
+
+.orientationsBody {
+  @apply p-5 flex flex-col gap-4;
+}
+
+.rectificationCard {
+  @apply rounded-2xl border p-4;
+}
+
+.rectificationCardHeader {
+  @apply flex items-start gap-3 mb-2;
+}
+
+.rectificationLabel {
+  @apply text-xs font-bold uppercase tracking-wide;
+}
+
+.rectificationMeta {
+  @apply text-[10px] opacity-60 mt-0.5;
+}
+
+.rectificationText {
+  @apply text-sm leading-relaxed whitespace-pre-wrap;
+}
+
+.briefingBlock {
+  @apply flex flex-col gap-3;
+}
+
+.briefingBlockLabel {
+  @apply text-[10px] font-bold uppercase tracking-widest opacity-50;
+}
+
 .briefingList {
-  @apply flex flex-col gap-3 mt-3;
+  @apply flex flex-col gap-3;
 }
 
 .briefingCard {
@@ -421,11 +465,19 @@
 }
 
 .historyCardHeader {
-  @apply p-5 border-b flex items-center justify-between;
+  @apply w-full p-5 border-b flex items-center justify-between text-left cursor-pointer transition-opacity hover:opacity-90;
 }
 
 .historyCardHeaderLeft {
   @apply flex items-center gap-2;
+}
+
+.historyCardHeaderRight {
+  @apply flex items-center gap-2 shrink-0;
+}
+
+.historyToggleIcon {
+  @apply opacity-50;
 }
 
 .historyTitle {

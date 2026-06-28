@@ -546,7 +546,7 @@ function AppContent() {
       await apiService.rejeitarConteudo(newsId, comments);
       setNews(prev => prev.map(n => n.id === newsId ? {
         ...n,
-        status: 'in_progress',
+        status: 'to_rectify',
         rejectedBy: user.id,
         reviewComments: comments,
         assignmentHistory: [
