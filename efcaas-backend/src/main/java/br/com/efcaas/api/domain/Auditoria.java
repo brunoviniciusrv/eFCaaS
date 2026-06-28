@@ -34,6 +34,9 @@ public class Auditoria {
     @Column(nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
 
+    @Column(name = "tenant_id")
+    private Long tenantId;
+
     public Auditoria(Usuario usuario, String acao, String alvo, String detalhes) {
         this.usuario = usuario;
         this.acao = acao;

@@ -22,8 +22,9 @@ public class ConfiguracaoAgenciaController {
 
     @GetMapping
     @Operation(summary = "Obter configuração da agência (painéis do Ajustar)")
-    public ResponseEntity<ConfiguracaoAgenciaDto> obter() {
-        return ResponseEntity.ok(service.obter());
+    public ResponseEntity<ConfiguracaoAgenciaDto> obter(
+            @RequestParam(required = false) String tenant) {
+        return ResponseEntity.ok(service.obter(tenant));
     }
 
     @PutMapping

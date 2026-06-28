@@ -21,7 +21,6 @@ export type AiModuleKey =
 export interface AiEngineModule {
   id: AiModuleKey;
   label: string;
-  desc: string;
   icon: LucideIcon;
   color: string;
 }
@@ -29,36 +28,31 @@ export interface AiEngineModule {
 export const AI_ENGINE_MODULES: AiEngineModule[] = [
   {
     id: 'enableAI',
-    label: 'Copiloto de IA Generativa',
-    desc: 'Sugerir resumos automáticos e triar de forma proativa as investigações de fake news.',
+    label: 'I.A Generativa para Textos',
     icon: Sparkles,
     color: 'bg-blue-500',
   },
   {
     id: 'enableSocialSearch',
-    label: 'Monitor de Redes Sociais',
-    desc: 'Varrer tendências virais e palavras chaves suspeitas em contas do X, Facebook e WhatsApp.',
+    label: 'Extrator e Busca em Redes',
     icon: Search,
     color: 'bg-sky-500',
   },
   {
     id: 'enableTrendAnalyzer',
     label: 'Analisador de Desinformações',
-    desc: 'Cruzamentos estatísticos automáticos com bancos de falsidade conhecidos.',
     icon: Zap,
     color: 'bg-amber-500',
   },
   {
     id: 'enableMisinfoRisk',
-    label: 'Classificação de Risco de Engajamento',
-    desc: 'Cálculo de propagação tóxica de posts em canais abertos.',
+    label: 'Risco de Ilicitude',
     icon: AlertTriangle,
     color: 'bg-rose-500',
   },
   {
     id: 'enableSpecializedNetwork',
-    label: 'Conexão de Rede Global de Checadores',
-    desc: 'Ativar alertas urgentes para moderadores de terceiras agências parceiras.',
+    label: 'Conexão com Rede de Checadores',
     icon: Globe,
     color: 'bg-indigo-500',
   },

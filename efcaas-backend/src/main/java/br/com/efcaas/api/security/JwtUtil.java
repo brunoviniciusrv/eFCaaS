@@ -26,17 +26,35 @@ public class JwtUtil {
     }
 
     public String generateToken(Long userId, String email, List<String> permissoes) {
+        return generateToken(userId, email, permissoes, null, null, false);
+    }
+
+    public String generateToken(
+            Long userId,
+            String email,
+            List<String> permissoes,
+            Long tenantId,
+            String tenantSlug,
+            boolean platformAdmin) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMillis);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("permissoes", permissoes)
+                .claim("platformAdmin", platformAdmin)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(secretKey)
-                .compact();
+                .expiration(expiry);
+
+        if (tenantId != null) {
+            builder.claim("tenantId", tenantId);
+        }
+        if (tenantSlug != null) {
+            builder.claim("tenantSlug", tenantSlug);
+        }
+
+        return builder.signWith(secretKey).compact();
     }
 
     public Claims parseToken(String token) {
@@ -63,5 +81,29 @@ public class JwtUtil {
 
     public String getSubject(String token) {
         return parseToken(token).getSubject();
+    }
+
+    public Long getTenantId(String token) {
+        return toLong(parseToken(token).get("tenantId"));
+    }
+
+    public String getTenantSlug(String token) {
+        Object value = parseToken(token).get("tenantSlug");
+        return value != null ? value.toString() : null;
+    }
+
+    public boolean isPlatformAdmin(String token) {
+        Object value = parseToken(token).get("platformAdmin");
+        return value instanceof Boolean b && b;
+    }
+
+    private static Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
     }
 }

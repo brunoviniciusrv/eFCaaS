@@ -22,4 +22,7 @@ public class Etiqueta {
 
     @Column(length = 20)
     private String cor;
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

@@ -64,6 +64,10 @@ management:
 efcaas:
   api:
     public-url: ${API_PUBLIC_URL:http://localhost:8080/api/v1}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:noreply@efcaas.com}
   jwt:
     secret: ${JWT_SECRET:efcaas-dev-secret-key-must-be-changed-in-production-use-256bit}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
@@ -86,6 +90,7 @@ efcaas:
     institution-name: ${GUAIA_INSTITUTION_NAME:eFCaaS}
   ingest:
     api-key: ${INGEST_API_KEY:efcaas-ingest-dev-key}
+    default-tenant-slug: ${INGEST_DEFAULT_TENANT_SLUG:dev}
   abuse:
     redis:
       enabled: ${ABUSE_REDIS_ENABLED:true}

@@ -50,4 +50,7 @@ public class RelatorioPublicacao {
 
     @Column(name = "data_publicacao")
     private LocalDateTime dataPublicacao;
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

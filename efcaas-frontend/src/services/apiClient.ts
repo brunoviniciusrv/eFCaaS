@@ -4,13 +4,37 @@ export const setToken = (token: string) => sessionStorage.setItem('efcaas_token'
 export const clearToken = () => sessionStorage.removeItem('efcaas_token');
 export const getToken = () => sessionStorage.getItem('efcaas_token');
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = getToken();
+export const setTenantSlug = (slug: string) => sessionStorage.setItem('efcaas_tenant_slug', slug);
+export const clearTenantSlug = () => sessionStorage.removeItem('efcaas_tenant_slug');
+export const getTenantSlug = () => sessionStorage.getItem('efcaas_tenant_slug');
+
+/** Chave de localStorage isolada por tenant (retorna null se slug ausente). */
+export function tenantStorageKey(suffix: string): string | null {
+  const slug = getTenantSlug();
+  return slug ? `tenant_${slug}_${suffix}` : null;
+}
+
+type RequestOptions = {
+  skipAuth?: boolean;
+  tenantSlug?: string;
+};
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  options: RequestOptions = {},
+): Promise<T> {
+  const token = options.skipAuth ? null : getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  const tenantSlug = options.tenantSlug ?? getTenantSlug();
+  if (tenantSlug) {
+    headers['X-Tenant-Slug'] = tenantSlug;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -19,8 +43,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && !options.skipAuth) {
     clearToken();
+    clearTenantSlug();
     window.location.hash = '#/';
     throw new Error('Sessão expirada. Faça login novamente.');
   }
@@ -39,11 +64,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return response.json() as Promise<T>;
 }
 
-async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
-  const token = getToken();
+async function uploadRequest<T>(
+  path: string,
+  formData: FormData,
+  options: RequestOptions = {},
+): Promise<T> {
+  const token = options.skipAuth ? null : getToken();
   const headers: Record<string, string> = {};
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  const tenantSlug = options.tenantSlug ?? getTenantSlug();
+  if (tenantSlug) {
+    headers['X-Tenant-Slug'] = tenantSlug;
   }
 
   let response: Response;
@@ -61,8 +94,9 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
     );
   }
 
-  if (response.status === 401) {
+  if (response.status === 401 && !options.skipAuth) {
     clearToken();
+    clearTenantSlug();
     window.location.hash = '#/';
     throw new Error('Sessão expirada. Faça login novamente.');
   }
@@ -84,10 +118,14 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
-  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
-  upload: <T>(path: string, formData: FormData) => uploadRequest<T>(path, formData),
+  get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>('POST', path, body, options),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>('PUT', path, body, options),
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>('PATCH', path, body, options),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
+  upload: <T>(path: string, formData: FormData, options?: RequestOptions) =>
+    uploadRequest<T>(path, formData, options),
 };

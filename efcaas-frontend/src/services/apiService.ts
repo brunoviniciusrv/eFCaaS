@@ -1,4 +1,4 @@
-import { api, setToken } from './apiClient';
+import { api, setToken, setTenantSlug, clearTenantSlug } from './apiClient';
 import {
   UserProfile,
   NewsItem,
@@ -46,6 +46,9 @@ export function normalizeReportStructure(
 export interface ApiLoginResponse {
   token: string;
   usuario: ApiUsuarioDto;
+  tenantId?: number | null;
+  tenantSlug?: string | null;
+  platformAdmin?: boolean;
 }
 
 export interface ApiUsuarioDto {
@@ -324,6 +327,61 @@ export interface AdicionarEvidenciaBody {
   descricao?: string;
 }
 
+export type AgencyPlan = 'FREE' | 'PAID';
+
+export type SolicitacaoStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface DocumentoSolicitacaoDto {
+  id: string;
+  nomeArquivo: string;
+  tipoMime?: string | null;
+  tamanhoBytes?: number | null;
+  urlAcesso?: string | null;
+}
+
+export interface SolicitacaoCadastroDto {
+  id: string;
+  nomeAgencia: string;
+  cnpj?: string | null;
+  nomeResponsavel: string;
+  emailContato: string;
+  telefone?: string | null;
+  pais: string;
+  estado?: string | null;
+  cidade?: string | null;
+  planoSolicitado: AgencyPlan;
+  informacoesExtras?: string | null;
+  status: SolicitacaoStatus;
+  motivoReprovacao?: string | null;
+  tenantSlug?: string | null;
+  criadoEm: string;
+  atualizadoEm?: string | null;
+  documentos?: DocumentoSolicitacaoDto[];
+}
+
+export interface TenantSummaryDto {
+  id: string;
+  slug: string;
+  nome: string;
+  plano: AgencyPlan;
+  status: string;
+  compartilhaDadosEcossistema: boolean;
+  criadoEm: string;
+}
+
+export interface PlatformTenantUsuarioDto {
+  id: string;
+  nome: string;
+  email: string;
+  status: string;
+  perfil: string;
+}
+
+export interface AtivacaoResponse {
+  token: string;
+  usuario: ApiUsuarioDto;
+}
+
 // ─────────────────────────────────────────────
 // Mapeadores: Backend DTO → Tipo do frontend
 // ─────────────────────────────────────────────
@@ -333,6 +391,7 @@ const ROLE_MAP: Record<string, UserProfile['role']> = {
   Curador: 'curator',
   Checador: 'checker',
   Editor: 'editor',
+  'Platform Admin': 'admin',
 };
 
 const PROFILE_ID_MAP: Record<string, string> = {
@@ -340,6 +399,7 @@ const PROFILE_ID_MAP: Record<string, string> = {
   Curador: 'p-curator',
   Checador: 'p-checker',
   Editor: 'p-editor',
+  'Platform Admin': 'p-platform',
 };
 
 const PROFILE_ID_TO_TIPO_NOME: Record<string, string> = {
@@ -427,9 +487,7 @@ function mapUsuario(dto: ApiUsuarioDto): UserProfile {
     email: dto.email,
     role: ROLE_MAP[tipoNome] ?? 'checker',
     profileId: PROFILE_ID_MAP[tipoNome] ?? 'p-checker',
-    avatarUrl:
-      dto.avatarUrl ||
-      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(dto.nome)}`,
+    avatarUrl: dto.avatarUrl ?? '',
     bio: dto.bio ?? undefined,
     status: dto.status === 'active' ? 'active' : 'suspended',
   };
@@ -683,10 +741,107 @@ function mapAgencyConfigToApi(agency: AgencyConfig): ApiAgencyConfigDto {
 
 export const apiService = {
   // Auth
-  async login(email: string, senha: string): Promise<{ token: string; user: UserProfile }> {
-    const data = await api.post<ApiLoginResponse>('/auth/login', { email, senha });
+  async login(
+    email: string,
+    senha: string,
+    tenantSlug?: string,
+  ): Promise<{ token: string; user: UserProfile }> {
+    const data = await api.post<ApiLoginResponse>(
+      '/auth/login',
+      { email, senha, tenantSlug: tenantSlug || undefined },
+      { skipAuth: true, tenantSlug: tenantSlug || undefined },
+    );
     setToken(data.token);
+    clearTenantSlug();
+    if (data.tenantSlug) {
+      setTenantSlug(data.tenantSlug);
+    }
     return { token: data.token, user: mapUsuario(data.usuario) };
+  },
+
+  async ativarConta(
+    tenantSlug: string,
+    token: string,
+    senha: string,
+  ): Promise<{ token: string; user: UserProfile }> {
+    const data = await api.post<ApiLoginResponse>(
+      '/public/ativacao',
+      { tenant: tenantSlug, token, senha },
+      { skipAuth: true },
+    );
+    setToken(data.token);
+    setTenantSlug(tenantSlug);
+    return { token: data.token, user: mapUsuario(data.usuario) };
+  },
+
+  async enviarSolicitacaoCadastro(
+    payload: {
+      nomeAgencia: string;
+      cnpj?: string;
+      nomeResponsavel: string;
+      emailContato: string;
+      senha: string;
+      telefone?: string;
+      pais?: string;
+      estado?: string;
+      cidade?: string;
+      planoSolicitado: AgencyPlan;
+      informacoesExtras?: string;
+    },
+    documentos: File[],
+  ): Promise<SolicitacaoCadastroDto> {
+    const formData = new FormData();
+    formData.append('nomeAgencia', payload.nomeAgencia);
+    if (payload.cnpj) formData.append('cnpj', payload.cnpj);
+    formData.append('nomeResponsavel', payload.nomeResponsavel);
+    formData.append('emailContato', payload.emailContato);
+    formData.append('senha', payload.senha);
+    if (payload.telefone) formData.append('telefone', payload.telefone);
+    formData.append('pais', payload.pais ?? 'Brasil');
+    if (payload.estado) formData.append('estado', payload.estado);
+    if (payload.cidade) formData.append('cidade', payload.cidade);
+    formData.append('planoSolicitado', payload.planoSolicitado);
+    if (payload.informacoesExtras) {
+      formData.append('informacoesExtras', payload.informacoesExtras);
+    }
+    documentos.forEach((file) => formData.append('documentos', file));
+    return api.upload<SolicitacaoCadastroDto>(
+      '/public/solicitacoes-cadastro',
+      formData,
+      { skipAuth: true },
+    );
+  },
+
+  async verificarTenantDisponivel(slug: string): Promise<{ disponivel: boolean }> {
+    return api.get<{ disponivel: boolean }>(
+      `/public/tenants/${encodeURIComponent(slug)}/exists`,
+      { skipAuth: true },
+    );
+  },
+
+  async listarSolicitacoesCadastro(status?: SolicitacaoStatus): Promise<SolicitacaoCadastroDto[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api.get<SolicitacaoCadastroDto[]>(`/platform/solicitacoes${qs}`);
+  },
+
+  async obterSolicitacaoCadastro(id: string): Promise<SolicitacaoCadastroDto> {
+    return api.get<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}`);
+  },
+
+  async aprovarSolicitacaoCadastro(id: string): Promise<SolicitacaoCadastroDto> {
+    return api.post<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}/aprovar`, {});
+  },
+
+  async reprovarSolicitacaoCadastro(id: string, motivo?: string): Promise<SolicitacaoCadastroDto> {
+    return api.post<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}/reprovar`, { motivo });
+  },
+
+  async listarTenantsPlatform(): Promise<TenantSummaryDto[]> {
+    return api.get<TenantSummaryDto[]>('/platform/tenants');
+  },
+
+  async listarUsuariosTenantPlatform(tenantId: string): Promise<PlatformTenantUsuarioDto[]> {
+    return api.get<PlatformTenantUsuarioDto[]>(`/platform/tenants/${tenantId}/usuarios`);
   },
 
   async atualizarPerfil(data: {
@@ -714,8 +869,12 @@ export const apiService = {
     await api.patch<void>('/me/senha', { senhaAtual, novaSenha });
   },
 
-  async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
-    const dto = await api.get<ApiConfiguracaoAgenciaDto>('/configuracao/agencia');
+  async obterConfiguracaoAgencia(tenantSlug?: string): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const qs = tenantSlug ? `?tenant=${encodeURIComponent(tenantSlug)}` : '';
+    const dto = await api.get<ApiConfiguracaoAgenciaDto>(`/configuracao/agencia${qs}`, {
+      skipAuth: Boolean(tenantSlug),
+      tenantSlug,
+    });
     const theme = dto.theme && Object.keys(dto.theme).length > 0 ? dto.theme : undefined;
     return {
       agency: mapAgencyConfigFromApi(dto.agency),

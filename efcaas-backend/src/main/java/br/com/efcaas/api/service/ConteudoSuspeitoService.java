@@ -4,6 +4,7 @@ import br.com.efcaas.api.domain.*;
 import br.com.efcaas.api.repository.*;
 import br.com.efcaas.api.repository.RevisaoRepository;
 import br.com.efcaas.api.stub.IaService;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.AnaliseIaTopicMatchCodec;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
@@ -43,10 +44,12 @@ public class ConteudoSuspeitoService {
     private final AuditoriaService auditoria;
     private final IaService iaService;
     private final StorageService storageService;
+    private final TenantScope tenantScope;
 
     @Transactional(readOnly = true)
     public List<ConteudoSuspeitoDto> listar(String status, String prioridade, Long checadorId) {
-        List<ConteudoSuspeito> conteudos = conteudoRepo.findByFilters(status, prioridade);
+        Long tenantId = tenantScope.requireTenantId();
+        List<ConteudoSuspeito> conteudos = conteudoRepo.findByFilters(tenantId, status, prioridade);
 
         if (checadorId != null) {
             Set<Long> ids = checagemRepo.findByChecadorId(checadorId)
@@ -80,8 +83,7 @@ public class ConteudoSuspeitoService {
 
     @Transactional(readOnly = true)
     public ConteudoSuspeitoDto obterDetalhe(Long id) {
-        ConteudoSuspeito c = conteudoRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        ConteudoSuspeito c = requireConteudo(id);
         Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
         Parecer parecer = ch != null ? parecerRepo.findByChecagemId(ch.getId()).orElse(null) : null;
         Investigacao investigacao = ch != null
@@ -104,6 +106,7 @@ public class ConteudoSuspeitoService {
         c.setDescricao(req.descricao());
         c.setPrioridade(req.prioridade());
         c.setStatus("pending");
+        c.setTenantId(tenantScope.requireTenantId());
         conteudoRepo.save(c);
 
         auditoria.registrar(curadorId, "conteudo_criado", "conteudo:" + c.getId(), req.titulo());
@@ -112,8 +115,7 @@ public class ConteudoSuspeitoService {
 
     @Transactional
     public ConteudoSuspeitoDto atualizar(Long id, AtualizarConteudoRequest req, Long usuarioId) {
-        ConteudoSuspeito c = conteudoRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        ConteudoSuspeito c = requireConteudo(id);
         c.setTitulo(req.titulo());
         if (req.alegacao()   != null) c.setAlegacao(req.alegacao());
         if (req.link()       != null) c.setLink(req.link());
@@ -129,8 +131,7 @@ public class ConteudoSuspeitoService {
 
     @Transactional
     public ConteudoSuspeitoDto atualizarStatus(Long id, String novoStatus, Long usuarioId) {
-        ConteudoSuspeito c = conteudoRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        ConteudoSuspeito c = requireConteudo(id);
         c.setStatus(novoStatus);
         conteudoRepo.save(c);
         Checagem ch = checagemRepo.findByConteudoId(id).orElse(null);
@@ -166,7 +167,7 @@ public class ConteudoSuspeitoService {
         participanteRepo.save(participante);
 
         Usuario removido = participante.getUsuario();
-        Usuario responsavel = usuarioRepo.findById(usuarioId).orElse(null);
+        Usuario responsavel = requireUsuario(usuarioId);
         historicoRepo.save(new HistoricoAtribuicao(checagem, removido, responsavel, "removed", null));
         auditoria.registrar(usuarioId, "checagem_desatribuida",
                 "checagem:" + checagem.getId(), "checador:" + removido.getNome());
@@ -196,17 +197,15 @@ public class ConteudoSuspeitoService {
             String briefing,
             String acaoHistorico,
             String acaoAuditoria) {
-        ConteudoSuspeito conteudo = conteudoRepo.findById(conteudoId)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + conteudoId));
+        ConteudoSuspeito conteudo = requireConteudo(conteudoId);
 
-        Usuario checador = usuarioRepo.findById(checadorId)
-                .orElseThrow(() -> new NoSuchElementException("Checador não encontrado: " + checadorId));
+        Usuario checador = requireUsuario(checadorId);
 
-        Usuario atribuidoPor = usuarioRepo.findById(atribuidoPorId)
-                .orElseThrow(() -> new NoSuchElementException("Usuário não encontrado: " + atribuidoPorId));
+        Usuario atribuidoPor = requireUsuario(atribuidoPorId);
 
         Checagem checagem = checagemRepo.findByConteudoId(conteudoId).orElse(new Checagem());
         checagem.setConteudo(conteudo);
+        checagem.setTenantId(conteudo.getTenantId());
         if (checagem.getCurador() == null) {
             checagem.setCurador(atribuidoPor);
         }
@@ -295,8 +294,7 @@ public class ConteudoSuspeitoService {
 
     @Transactional
     public ConteudoSuspeitoDto analisarConteudo(Long id) {
-        ConteudoSuspeito conteudo = conteudoRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        ConteudoSuspeito conteudo = requireConteudo(id);
 
         AnaliseIa analise = obterOuCriarAnaliseIa(conteudo);
         AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
@@ -370,7 +368,7 @@ public class ConteudoSuspeitoService {
         conteudo.setStatus("to_rectify");
         conteudoRepo.save(conteudo);
 
-        Usuario usuario = usuarioRepo.findById(usuarioId).orElse(null);
+        Usuario usuario = requireUsuario(usuarioId);
         if (checagem.getChecador() != null) {
             historicoRepo.save(new HistoricoAtribuicao(
                     checagem, checagem.getChecador(), usuario, "reopened", justificativa));
@@ -381,8 +379,7 @@ public class ConteudoSuspeitoService {
 
     @Transactional
     public void excluir(Long id, Long usuarioId) {
-        ConteudoSuspeito conteudo = conteudoRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+        ConteudoSuspeito conteudo = requireConteudo(id);
 
         if (!STATUS_EXCLUIVEIS.contains(conteudo.getStatus())) {
             throw new IllegalStateException(
@@ -439,5 +436,21 @@ public class ConteudoSuspeitoService {
 
         historicoRepo.deleteAll(historicoRepo.findByChecagem_Id(checagemId));
         checagemRepo.delete(checagem);
+    }
+
+    private ConteudoSuspeito requireConteudo(Long id) {
+        return conteudoRepo.findByIdAndTenantId(id, tenantScope.requireTenantId())
+                .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + id));
+    }
+
+    private Usuario requireUsuario(Long id) {
+        return usuarioRepo.findByIdAndTenant_Id(id, tenantScope.requireTenantId())
+                .orElseThrow(() -> new NoSuchElementException("Usuário não encontrado nesta agência: " + id));
+    }
+
+    private Checagem requireChecagemDoTenant(Long conteudoId) {
+        ConteudoSuspeito conteudo = requireConteudo(conteudoId);
+        return checagemRepo.findByConteudoId(conteudo.getId())
+                .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteudo: " + conteudoId));
     }
 }

@@ -53,4 +53,7 @@ public class ConteudoSuspeito {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_responsavel")
     private Usuario responsavel;
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

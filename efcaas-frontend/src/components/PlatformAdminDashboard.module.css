@@ -1,0 +1,213 @@
+@reference "../index.css";
+
+.page {
+  @apply p-6 lg:p-8 space-y-6;
+}
+
+.header {
+  @apply flex items-start justify-between gap-4;
+}
+
+.title {
+  @apply text-2xl font-black tracking-tight;
+}
+
+.subtitle {
+  @apply text-sm text-slate-500;
+}
+
+.refreshBtn {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50;
+}
+
+.tabs {
+  @apply flex gap-2;
+}
+
+.tab {
+  @apply px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100;
+}
+
+.tabActive {
+  @apply bg-blue-50 text-blue-700;
+}
+
+.errorBanner {
+  @apply p-3 rounded-xl bg-red-50 text-red-600 text-sm font-semibold;
+}
+
+.toolbar {
+  @apply flex flex-col sm:flex-row gap-3;
+}
+
+.searchWrap {
+  @apply relative flex-1;
+}
+
+.searchIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400;
+}
+
+.searchInput {
+  @apply w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-100;
+}
+
+.filterSelect {
+  @apply px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm;
+}
+
+.tableWrap {
+  @apply rounded-2xl border border-slate-200 bg-white overflow-hidden;
+}
+
+.table {
+  @apply w-full text-sm;
+}
+
+.table th {
+  @apply text-left px-4 py-3 text-xs uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-100;
+}
+
+.table td {
+  @apply px-4 py-3 border-b border-slate-50;
+}
+
+.rowClickable {
+  @apply cursor-pointer hover:bg-slate-50;
+}
+
+.agencyCell {
+  @apply inline-flex items-center gap-2 font-semibold;
+}
+
+.badgeFree {
+  @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700;
+}
+
+.badgePaid {
+  @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-green-50 text-green-700;
+}
+
+.statusBadge {
+  @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase;
+}
+
+.status_PENDING {
+  @apply bg-amber-50 text-amber-700;
+}
+
+.status_APPROVED {
+  @apply bg-green-50 text-green-700;
+}
+
+.status_REJECTED {
+  @apply bg-red-50 text-red-700;
+}
+
+.loading,
+.empty {
+  @apply p-8 text-center text-sm text-slate-500;
+}
+
+.overlay {
+  @apply fixed inset-0 z-50 flex justify-end;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.drawer {
+  @apply w-full max-w-xl h-full bg-white shadow-2xl flex flex-col;
+}
+
+.drawerHeader {
+  @apply flex items-center justify-between px-6 py-4 border-b border-slate-100;
+}
+
+.drawerTitle {
+  @apply text-lg font-bold;
+}
+
+.closeBtn {
+  @apply p-2 rounded-lg hover:bg-slate-100;
+}
+
+.drawerBody {
+  @apply flex-1 overflow-y-auto p-6 space-y-6;
+}
+
+.detailGrid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm;
+}
+
+.detailLabel {
+  @apply block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1;
+}
+
+.extraBox,
+.rejectBox {
+  @apply p-4 rounded-xl bg-slate-50 text-sm leading-relaxed;
+}
+
+.rejectBox {
+  @apply bg-red-50;
+}
+
+.docsSection {
+  @apply space-y-2;
+}
+
+.emptyDocs {
+  @apply text-sm text-slate-500;
+}
+
+.docList {
+  @apply space-y-2;
+}
+
+.docItem {
+  @apply flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 text-sm;
+}
+
+.docName {
+  @apply flex-1 truncate font-medium;
+}
+
+.docLink {
+  @apply inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline;
+}
+
+.actions {
+  @apply space-y-4 pt-2 border-t border-slate-100;
+}
+
+.rejectArea {
+  @apply space-y-2;
+}
+
+.motivoInput {
+  @apply w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-y;
+}
+
+.rejectBtn {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50;
+}
+
+.approveBtn {
+  @apply w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-bold;
+}
+
+.approveBtn:disabled,
+.rejectBtn:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}
+
+.usersTable {
+  @apply w-full text-sm mt-2;
+}
+
+.usersTable th {
+  @apply text-left text-xs uppercase tracking-wide text-slate-500 font-semibold pb-2 pr-4;
+}
+
+.usersTable td {
+  @apply py-2 pr-4 border-t border-slate-100 text-slate-700;
+}

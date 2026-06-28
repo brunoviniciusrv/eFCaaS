@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, LogIn, Settings, HelpCircle, X, Shield, User, Search, CheckCircle } from 'lucide-react';
-import { ThemeConfig } from '../types';
+import { Mail, Lock, LogIn, HelpCircle, X, Shield, User, Search, CheckCircle, ArrowLeft } from 'lucide-react';
+import { PLATFORM_BRAND, PLATFORM_THEME } from '../platform/platformBranding';
 import styles from './LoginView.module.css';
 
 interface LoginViewProps {
   onLogin: (email: string, password: string) => Promise<void>;
-  onOpenOnboarding: () => void;
-  themeConfig: ThemeConfig;
-  agencyConfig: any;
 }
 
 const TEST_ACCOUNTS = [
-  { role: 'admin',   email: 'admin@efcaas.com' },
+  { role: 'platform', email: 'platform@efcaas.com' },
+  { role: 'admin', email: 'admin@efcaas.com' },
   { role: 'checker', email: 'beatriz.santos@factcheck.org' },
-  { role: 'editor',  email: 'cadu.editor@ais-news.com' },
+  { role: 'editor', email: 'cadu.editor@ais-news.com' },
   { role: 'curator', email: 'juliana.mendes@curadoria.com' },
 ] as const;
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding, themeConfig, agencyConfig }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const accentColor = PLATFORM_THEME.general.accent;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,36 +47,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
     setShowHelp(false);
   };
 
-  const isConfigured = agencyConfig?.isOnboardingCompleted;
-  const brandName = isConfigured ? agencyConfig.name : 'eFCaaS';
-  const brandSub = isConfigured ? '' : 'Evidence-based Fact-Checking as a Service';
-  const accentColor = themeConfig.general.accent;
-
   return (
     <div className={styles.page} style={{ backgroundColor: `${accentColor}05` }}>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className={styles.card}
       >
         <div className={styles.cardBody}>
-          {/* Header */}
           <div className={styles.header}>
-            <div 
-              className={agencyConfig?.logoUrl ? styles.logoWrapPlain : styles.logoWrap}
-              style={agencyConfig?.logoUrl ? undefined : { backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}30` }}
-            >
-              {agencyConfig?.logoUrl ? (
-                <img src={agencyConfig.logoUrl} alt="Logo" className={styles.logoImgPlain} />
-              ) : (
-                <Shield className="text-white" size={32} />
-              )}
+            <div className={styles.logoWrapPlain}>
+              <img src={PLATFORM_BRAND.logoUrl} alt={PLATFORM_BRAND.name} className={styles.logoImgPlain} />
             </div>
-            <h1 className={styles.brandName}>{brandName}</h1>
-            {brandSub && <p className={styles.brandSub}>{brandSub}</p>}
+            <h1 className={styles.brandName}>{PLATFORM_BRAND.name}</h1>
+            <p className={styles.brandSub}>{PLATFORM_BRAND.tagline}</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleLogin} className={styles.form}>
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>E-mail</label>
@@ -82,13 +70,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                 <div className={styles.inputIcon}>
                   <Mail size={18} />
                 </div>
-                <input 
+                <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Seu e-mail de acesso"
                   className={styles.input}
-                  style={{ '--tw-ring-color': `${accentColor}30` } as any}
+                  style={{ '--tw-ring-color': `${accentColor}30` } as React.CSSProperties}
                   required
                 />
               </div>
@@ -100,20 +88,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
                 <div className={styles.inputIcon}>
                   <Lock size={18} />
                 </div>
-                <input 
+                <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className={styles.input}
-                  style={{ '--tw-ring-color': `${accentColor}30` } as any}
+                  style={{ '--tw-ring-color': `${accentColor}30` } as React.CSSProperties}
                   required
                 />
               </div>
             </div>
 
             {error && (
-              <motion.p 
+              <motion.p
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={styles.errorMsg}
@@ -122,7 +110,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
               </motion.p>
             )}
 
-            <button 
+            <button
               type="submit"
               disabled={isLoading}
               className={styles.submitBtn}
@@ -139,40 +127,32 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
             </button>
           </form>
 
-          {/* Footer Actions */}
           <div className={styles.footerSection}>
-            <div className={styles.onboardingCard}>
-              <div className={styles.onboardingCardContent}>
-                <p className={styles.onboardingCardTitle}>Identidade Corporativa</p>
-                <p className={styles.onboardingCardDesc}>Personalize a identidade visual, governança e ferramentas de IA da sua agência.</p>
-              </div>
-              <button 
-                onClick={onOpenOnboarding}
-                className={styles.onboardingBtn}
-                style={{ backgroundColor: accentColor }}
-              >
-                <Settings size={10} strokeWidth={3} />
-                Ajustar
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className={styles.backLink}
+              style={{ color: accentColor }}
+            >
+              <ArrowLeft size={14} />
+              Voltar ao início
+            </button>
           </div>
         </div>
       </motion.div>
 
-      {/* Help Button */}
-      <button 
+      <button
         onClick={() => setShowHelp(true)}
         className={styles.helpBtn}
-        style={{ color: themeConfig.general.accent }}
+        style={{ color: accentColor }}
       >
         <HelpCircle size={24} />
       </button>
 
-      {/* Help Modal */}
       <AnimatePresence>
         {showHelp && (
           <div className={styles.overlay}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -186,22 +166,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onOpenOnboarding,
               </div>
               <div className={styles.accountGrid}>
                 {TEST_ACCOUNTS.map((account) => (
-                  <button 
+                  <button
                     key={account.email}
                     onClick={() => fillCredentials(account.email)}
                     className={styles.accountCard}
-                    style={{ borderColor: `${themeConfig.general.accent}20` }}
+                    style={{ borderColor: `${accentColor}20` }}
                   >
                     <div className={styles.accountCardTop}>
-                       <div className={styles.accountIconWrap}>
-                          {account.role === 'admin'   && <Shield      size={16} className="text-red-500" />}
-                          {account.role === 'curator' && <Search      size={16} style={{ color: themeConfig.general.accent }} />}
-                          {account.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
-                          {account.role === 'editor'  && <User        size={16} className="text-slate-500" />}
-                       </div>
-                       <div className="flex-1">
-                          <p className={styles.accountRoleLabel}>{account.role}</p>
-                       </div>
+                      <div className={styles.accountIconWrap}>
+                        {account.role === 'platform' && <Shield size={16} className="text-purple-500" />}
+                        {account.role === 'admin' && <Shield size={16} className="text-red-500" />}
+                        {account.role === 'curator' && <Search size={16} style={{ color: accentColor }} />}
+                        {account.role === 'checker' && <CheckCircle size={16} className="text-green-500" />}
+                        {account.role === 'editor' && <User size={16} className="text-slate-500" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className={styles.accountRoleLabel}>{account.role}</p>
+                      </div>
                     </div>
                     <p className={styles.accountEmail}>{account.email}</p>
                     <p className={styles.accountHint}>Clique para preencher</p>

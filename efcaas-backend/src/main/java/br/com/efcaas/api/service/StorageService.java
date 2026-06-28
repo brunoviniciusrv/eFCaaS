@@ -1,6 +1,7 @@
 package br.com.efcaas.api.service;
 
 import br.com.efcaas.api.config.StorageProperties;
+import br.com.efcaas.api.tenant.TenantContext;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
@@ -38,14 +39,19 @@ public class StorageService {
         return uploadToPrefix("ingest-recebidos", file);
     }
 
+    public UploadResult uploadSolicitacao(Long solicitacaoId, MultipartFile file) {
+        return uploadToPrefix("solicitacoes/" + solicitacaoId, file);
+    }
+
     private UploadResult uploadToPrefix(String prefix, MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo vazio");
         }
 
+        String scopedPrefix = scopePrefix(prefix);
         String originalName = sanitizeFilename(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "arquivo");
-        String objectKey = prefix + "/" + UUID.randomUUID() + "_" + originalName;
+        String objectKey = scopedPrefix + "/" + UUID.randomUUID() + "_" + originalName;
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
         long size = file.getSize();
         long partSize = 5 * 1024 * 1024L;
@@ -139,6 +145,14 @@ public class StorageService {
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao remover arquivo do storage: " + e.getMessage(), e);
         }
+    }
+
+    private static String scopePrefix(String prefix) {
+        String slug = TenantContext.getTenantSlug();
+        if (slug != null && !slug.isBlank()) {
+            return slug + "/" + prefix;
+        }
+        return prefix;
     }
 
     private static String sanitizeFilename(String name) {

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
+import { UserAvatar } from './UserAvatar';
 import { NewsItem, UserProfile, NewsStatus, AssignmentHistory, AuditLog } from '../types';
 import { PermissionsManager } from './PermissionsManager';
 import { apiService } from '../services/apiService';
@@ -390,7 +391,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <tr key={user.id} className={cn("custom-table-row", styles.tableRow)} style={{ color: themeConfig.dashboard.text }}>
                     <td className={styles.td}>
                       <div className={styles.avatarCell}>
-                        <img src={user.avatarUrl} alt="" className={styles.avatar} />
+                        <UserAvatar src={user.avatarUrl} name={user.name} className={styles.avatar} />
                         <span className={styles.userName} style={{ color: themeConfig.dashboard.text }}>{user.name}</span>
                       </div>
                     </td>
@@ -411,9 +412,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </td>
                     <td className={styles.actionsCell}>
                       <div className={styles.actionsDiv}>
-                        <button className={styles.actionBtnShield}>
-                          <Shield size={18} />
-                        </button>
                         <button 
                           onClick={() => handleToggleUserStatus(user.id)}
                           className={cn(

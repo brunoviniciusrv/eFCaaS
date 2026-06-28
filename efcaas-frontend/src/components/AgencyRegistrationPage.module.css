@@ -1,0 +1,166 @@
+@reference "../index.css";
+
+.page {
+  @apply min-h-screen bg-slate-50 text-slate-900 font-sans py-10 px-4;
+}
+
+.container {
+  @apply max-w-3xl mx-auto;
+}
+
+.backLink {
+  @apply inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 mb-6;
+}
+
+.header {
+  @apply mb-8 space-y-2;
+}
+
+.title {
+  @apply text-3xl font-black tracking-tight;
+}
+
+.subtitle {
+  @apply text-slate-500 leading-relaxed;
+}
+
+.planPicker {
+  @apply grid grid-cols-2 gap-3 mb-4;
+}
+
+.planOption {
+  @apply py-3 rounded-xl border text-sm font-bold transition-all;
+  border-color: #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.planOptionActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.planOptionActivePaid {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.planInfo {
+  @apply p-4 rounded-xl border border-slate-200 bg-white mb-6;
+}
+
+.planInfoTitle {
+  @apply text-sm font-bold mb-1;
+}
+
+.planInfoText {
+  @apply text-xs text-slate-500 leading-relaxed;
+}
+
+.form {
+  @apply p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6;
+}
+
+.grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.field {
+  @apply block space-y-2;
+}
+
+.label {
+  @apply text-xs font-bold uppercase tracking-widest text-slate-400;
+}
+
+.hint {
+  @apply text-xs text-slate-500 leading-snug;
+}
+
+.inputWrap {
+  @apply relative;
+}
+
+.inputIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400;
+}
+
+.input {
+  @apply w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200;
+}
+
+.inputPlain {
+  @apply w-full px-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200;
+}
+
+.textarea {
+  @apply w-full px-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-y;
+}
+
+.uploadSection {
+  @apply space-y-3;
+}
+
+.uploadDrop {
+  @apply flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-500 cursor-pointer hover:border-blue-300 hover:bg-blue-50/40 transition-colors;
+}
+
+.fileInput {
+  @apply hidden;
+}
+
+.fileList {
+  @apply space-y-2;
+}
+
+.fileItem {
+  @apply flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100;
+}
+
+.fileName {
+  @apply text-xs font-medium truncate;
+}
+
+.fileRemove {
+  @apply p-1 rounded-md hover:bg-slate-200 text-slate-500;
+}
+
+.checkboxRow {
+  @apply flex items-start gap-3 text-xs text-slate-600 leading-relaxed;
+}
+
+.error {
+  @apply text-sm font-semibold text-red-500;
+}
+
+.primaryBtn {
+  @apply w-full py-3 rounded-xl text-sm font-bold text-white transition-all;
+  background: #2563eb;
+}
+
+.primaryBtn:hover {
+  background: #1d4ed8;
+}
+
+.primaryBtn:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}
+
+.successCard {
+  @apply max-w-lg mx-auto mt-16 p-10 rounded-3xl bg-white border border-slate-200 shadow-xl text-center space-y-4;
+}
+
+.successIcon {
+  @apply mx-auto;
+  color: #22c55e;
+}
+
+.successTitle {
+  @apply text-2xl font-black;
+}
+
+.successText {
+  @apply text-sm text-slate-500 leading-relaxed;
+}

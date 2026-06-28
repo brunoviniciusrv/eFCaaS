@@ -7,6 +7,7 @@ import br.com.efcaas.api.repository.ChecagemRepository;
 import br.com.efcaas.api.repository.ParecerRepository;
 import br.com.efcaas.api.repository.RelatorioPublicacaoRepository;
 import br.com.efcaas.api.repository.UsuarioRepository;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.AtualizarStatusRelatorioRequest;
 import br.com.efcaas.api.web.dto.RelatorioPublicacaoDto;
 import br.com.efcaas.api.web.dto.SalvarRelatorioPublicacaoRequest;
@@ -29,17 +30,19 @@ public class RelatorioPublicacaoService {
     private final UsuarioRepository usuarioRepo;
     private final RelatorioPublicacaoMapper mapper;
     private final AuditoriaService auditoria;
+    private final TenantScope tenantScope;
 
     @Transactional(readOnly = true)
     public List<RelatorioPublicacaoDto> listar() {
-        return relatorioRepo.findAllComDetalhes().stream()
+        return relatorioRepo.findAllComDetalhes(tenantScope.requireTenantId()).stream()
                 .map(mapper::toDto)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public RelatorioPublicacaoDto obterPorConteudo(Long conteudoId) {
-        RelatorioPublicacao rel = relatorioRepo.findDetalhadosByConteudoId(conteudoId)
+        RelatorioPublicacao rel = relatorioRepo
+                .findDetalhadosByConteudoId(conteudoId, tenantScope.requireTenantId())
                 .stream().findFirst()
                 .orElseThrow(() -> new NoSuchElementException(
                         "Relatório de publicação não encontrado para conteúdo: " + conteudoId));
@@ -48,7 +51,8 @@ public class RelatorioPublicacaoService {
 
     @Transactional
     public RelatorioPublicacaoDto salvar(Long conteudoId, SalvarRelatorioPublicacaoRequest req, Long editorId) {
-        Checagem checagem = checagemRepo.findByConteudoId(conteudoId)
+        Long tenantId = tenantScope.requireTenantId();
+        Checagem checagem = checagemRepo.findByConteudoIdAndTenantId(conteudoId, tenantId)
                 .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteúdo: " + conteudoId));
         Parecer parecer = parecerRepo.findByChecagemId(checagem.getId())
                 .orElseThrow(() -> new NoSuchElementException("Parecer não encontrado para conteúdo: " + conteudoId));
@@ -58,6 +62,7 @@ public class RelatorioPublicacaoService {
             novo.setParecer(parecer);
             novo.setEditor(usuarioRepo.getReferenceById(editorId));
             novo.setDataCriacao(LocalDateTime.now());
+            novo.setTenantId(checagem.getTenantId());
             return novo;
         });
 
@@ -79,7 +84,8 @@ public class RelatorioPublicacaoService {
 
         relatorioRepo.save(rel);
         auditoria.registrar(editorId, "relatorio_publicacao_salvo", "conteudo:" + conteudoId, req.statusPublicacao());
-        return mapper.toDto(relatorioRepo.findDetalhadosByConteudoId(conteudoId).stream().findFirst().orElseThrow());
+        return mapper.toDto(relatorioRepo.findDetalhadosByConteudoId(conteudoId, tenantScope.requireTenantId())
+                .stream().findFirst().orElseThrow());
     }
 
     @Transactional
@@ -95,7 +101,7 @@ public class RelatorioPublicacaoService {
         relatorioRepo.save(rel);
         Long conteudoId = rel.getParecer().getChecagem().getConteudo().getId();
         auditoria.registrar(usuarioId, "relatorio_publicacao_status", "conteudo:" + conteudoId, req.statusPublicacao());
-        return mapper.toDto(relatorioRepo.findDetalhadoById(relatorioId).orElseThrow());
+        return mapper.toDto(relatorioRepo.findDetalhadoById(relatorioId, tenantScope.requireTenantId()).orElseThrow());
     }
 
     @Transactional
@@ -107,7 +113,7 @@ public class RelatorioPublicacaoService {
     }
 
     private RelatorioPublicacao buscarRelatorio(Long id) {
-        return relatorioRepo.findDetalhadoById(id)
+        return relatorioRepo.findDetalhadoById(id, tenantScope.requireTenantId())
                 .orElseThrow(() -> new NoSuchElementException("Relatório de publicação não encontrado: " + id));
     }
 }

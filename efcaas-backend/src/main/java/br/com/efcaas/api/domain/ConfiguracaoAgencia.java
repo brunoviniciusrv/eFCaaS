@@ -12,10 +12,13 @@ import java.time.OffsetDateTime;
 @Setter
 public class ConfiguracaoAgencia {
 
-    public static final long SINGLETON_ID = 1L;
-
     @Id
-    private Long id = SINGLETON_ID;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "tenant_id", nullable = false, unique = true)
+    private Tenant tenant;
 
     @Column(nullable = false, length = 150)
     private String nome;

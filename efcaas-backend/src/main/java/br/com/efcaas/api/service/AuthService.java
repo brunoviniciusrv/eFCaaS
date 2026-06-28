@@ -1,6 +1,8 @@
 package br.com.efcaas.api.service;
 
+import br.com.efcaas.api.domain.Tenant;
 import br.com.efcaas.api.domain.Usuario;
+import br.com.efcaas.api.repository.TenantRepository;
 import br.com.efcaas.api.repository.UsuarioRepository;
 import br.com.efcaas.api.security.JwtUtil;
 import br.com.efcaas.api.web.dto.LoginRequest;
@@ -8,14 +10,13 @@ import br.com.efcaas.api.web.dto.LoginResponse;
 import br.com.efcaas.api.web.dto.UsuarioDto;
 import br.com.efcaas.api.web.mapper.UsuarioMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,20 +24,26 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
     private final UsuarioRepository usuarioRepository;
+    private final TenantRepository tenantRepository;
     private final JwtUtil jwtUtil;
     private final UsuarioMapper usuarioMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.senha())
-        );
+        String email = request.email().trim().toLowerCase();
+        String tenantSlugParam = request.tenantSlug();
 
-        Usuario usuario = usuarioRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalStateException("Usuário não encontrado após autenticação"));
+        Usuario usuario = resolveUsuario(email, tenantSlugParam, request.senha());
+
+        if (!usuario.isAtivo()) {
+            throw new DisabledException("Usuário suspenso");
+        }
+
+        Long tenantId = usuario.getTenant() != null ? usuario.getTenant().getId() : null;
+        String tenantSlug = usuario.getTenant() != null ? usuario.getTenant().getSlug() : null;
+        boolean platformAdmin = usuario.getTenant() == null;
 
         List<String> permissoes = usuario.getTipoUsuario()
                 .getPermissoes()
@@ -44,10 +51,49 @@ public class AuthService {
                 .map(p -> p.getNome())
                 .collect(Collectors.toList());
 
-        String token = jwtUtil.generateToken(usuario.getId(), usuario.getEmail(), permissoes);
+        String token = jwtUtil.generateToken(
+                usuario.getId(), usuario.getEmail(), permissoes, tenantId, tenantSlug, platformAdmin);
         UsuarioDto usuarioDto = usuarioMapper.toDto(usuario);
 
-        return new LoginResponse(token, usuarioDto);
+        return new LoginResponse(token, usuarioDto, tenantId, tenantSlug, platformAdmin);
+    }
+
+    private Usuario resolveUsuario(String email, String tenantSlugParam, String senha) {
+        if (tenantSlugParam != null && !tenantSlugParam.isBlank()) {
+            Tenant tenant = tenantRepository.findBySlug(tenantSlugParam.trim())
+                    .orElseThrow(() -> new BadCredentialsException("Tenant não encontrado"));
+            Usuario usuario = usuarioRepository.findByEmailAndTenant_Id(email, tenant.getId())
+                    .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
+            assertPassword(senha, usuario);
+            return usuario;
+        }
+
+        List<Usuario> matches = new ArrayList<>();
+        usuarioRepository.findByEmailAndTenantIsNull(email).ifPresent(u -> {
+            if (passwordEncoder.matches(senha, u.getSenha())) {
+                matches.add(u);
+            }
+        });
+        for (Usuario tenantUser : usuarioRepository.findTenantUsersByEmail(email)) {
+            if (passwordEncoder.matches(senha, tenantUser.getSenha())) {
+                matches.add(tenantUser);
+            }
+        }
+
+        if (matches.isEmpty()) {
+            throw new BadCredentialsException("Credenciais inválidas");
+        }
+        if (matches.size() > 1) {
+            throw new BadCredentialsException(
+                    "Este e-mail está associado a mais de uma conta. Entre em contato com o suporte eFCaaS.");
+        }
+        return matches.get(0);
+    }
+
+    private void assertPassword(String senha, Usuario usuario) {
+        if (!passwordEncoder.matches(senha, usuario.getSenha())) {
+            throw new BadCredentialsException("Credenciais inválidas");
+        }
     }
 
     @Transactional(readOnly = true)

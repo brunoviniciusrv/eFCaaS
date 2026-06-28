@@ -36,7 +36,7 @@ import { generateDraftReport, reviewReport } from './services/geminiService';
 import { apiService, normalizeReportStructure } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
 import { mergeConteudoDetail } from './lib/aiAnalysis';
-import { clearToken } from './services/apiClient';
+import { clearToken, clearTenantSlug, tenantStorageKey } from './services/apiClient';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
@@ -100,10 +100,15 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { CuratorDashboard } from './components/CuratorDashboard';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
+import { LandingPage } from './components/LandingPage';
+import { AgencyRegistrationPage } from './components/AgencyRegistrationPage';
+import { ActivationPage } from './components/ActivationPage';
+import { PlatformAdminDashboard } from './components/PlatformAdminDashboard';
 import { EditorView } from './components/EditorView';
 import { EditorialArchive } from './components/EditorialArchive';
+import { PlatformShell } from './platform/PlatformShell';
 
-function RootRedirect({ checkPermission }: { checkPermission: (permId: string) => boolean }) {
+function TenantRootRedirect({ checkPermission }: { checkPermission: (permId: string) => boolean }) {
   if (checkPermission('view_dashboard')) return <Navigate to="/dashboard" replace />;
   if (checkPermission('view_curator')) return <Navigate to="/curator" replace />;
   if (checkPermission('view_archive')) return <Navigate to="/editorial-archive" replace />;
@@ -153,25 +158,11 @@ function AppContent() {
     setPermissionProfiles(prev => prev.filter(p => p.id !== id));
     addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
   };
-  const [specializedNetworkChecks, setSpecializedNetworkChecks] = useState<SpecializedNetworkCheck[]>(() => {
-    const saved = localStorage.getItem('platform_specialized_checks');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('platform_specialized_checks', JSON.stringify(specializedNetworkChecks));
-  }, [specializedNetworkChecks]);
+  const [specializedNetworkChecks, setSpecializedNetworkChecks] = useState<SpecializedNetworkCheck[]>([]);
 
   const [articles, setArticles] = useState<EditorialArticle[]>([]);
 
-  const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('platform_editor_assignments');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('platform_editor_assignments', JSON.stringify(editorAssignments));
-  }, [editorAssignments]);
+  const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>({});
 
   const handleSaveArticle = async (article: EditorialArticle) => {
     const saved = await apiService.salvarRelatorioPublicacao(article.newsId, {
@@ -259,7 +250,7 @@ function AppContent() {
       }
     };
     loadData();
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Atualiza conteúdos recebidos da API externa (polling). */
   const RECEIVED_NEWS_POLL_INTERVAL_MS = 30_000;
@@ -301,57 +292,76 @@ function AppContent() {
   }, [isAuthenticated, user.profileId, permissionProfiles]);
 
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
-    const saved = localStorage.getItem('platform_theme_config');
-    const savedAgency = localStorage.getItem('platform_agency_config');
-    let theme = saved ? normalizeThemeConfig(JSON.parse(saved)) : INITIAL_THEME_CONFIG;
-    if (savedAgency) {
-      try {
-        const agency = JSON.parse(savedAgency) as AgencyConfig;
-        const preset = findThemePresetById(agency.templateId);
-        if (preset) theme = applyThemePreset(theme, preset);
-      } catch {
-        // mantém tema salvo
-      }
-    }
-    return theme;
-  });
-  const [agencyConfig, setAgencyConfig] = useState<AgencyConfig>(() => {
-    const saved = localStorage.getItem('platform_agency_config');
-    return saved ? JSON.parse(saved) : INITIAL_AGENCY_CONFIG;
-  });
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
+  const [agencyConfig, setAgencyConfig] = useState<AgencyConfig>(INITIAL_AGENCY_CONFIG);
   const configSyncReady = useRef(false);
 
-  useEffect(() => {
-    apiService.obterConfiguracaoAgencia()
-      .then(({ agency, theme }) => {
-        const templateId = resolveThemeTemplateId(agency.templateId);
-        setAgencyConfig(templateId !== agency.templateId ? { ...agency, templateId } : agency);
-        if (theme) {
-          let normalized = normalizeThemeConfig(theme);
-          const preset = findThemePresetById(templateId);
-          if (preset) normalized = applyThemePreset(normalized, preset);
-          setThemeConfig(normalized);
-        }
-      })
-      .catch((err) => {
-        console.warn('Não foi possível carregar configuração da agência da API:', err);
-      })
-      .finally(() => {
-        configSyncReady.current = true;
-      });
-  }, []);
+  const isPlatformUser = isAuthenticated && user.profileId === 'p-platform';
+
+  const loadTenantBranding = async (): Promise<AgencyConfig> => {
+    const { agency, theme } = await apiService.obterConfiguracaoAgencia();
+    const templateId = resolveThemeTemplateId(agency.templateId);
+    const resolvedAgency = templateId !== agency.templateId ? { ...agency, templateId } : agency;
+    setAgencyConfig(resolvedAgency);
+    let resolvedTheme = INITIAL_THEME_CONFIG;
+    if (theme) {
+      let normalized = normalizeThemeConfig(theme);
+      const preset = findThemePresetById(templateId);
+      if (preset) normalized = applyThemePreset(normalized, preset);
+      resolvedTheme = normalized;
+      setThemeConfig(normalized);
+    }
+    localStorage.setItem(tenantStorageKey('agency_config') ?? 'tenant_agency_config', JSON.stringify(resolvedAgency));
+    localStorage.setItem(tenantStorageKey('theme_config') ?? 'tenant_theme_config', JSON.stringify(resolvedTheme));
+    configSyncReady.current = true;
+
+    return resolvedAgency;
+  };
 
   useEffect(() => {
-    localStorage.setItem('platform_theme_config', JSON.stringify(themeConfig));
-  }, [themeConfig]);
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('theme_config');
+    if (key) localStorage.setItem(key, JSON.stringify(themeConfig));
+  }, [themeConfig, isAuthenticated, isPlatformUser]);
 
   useEffect(() => {
-    localStorage.setItem('platform_agency_config', JSON.stringify(agencyConfig));
-  }, [agencyConfig]);
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('agency_config');
+    if (key) localStorage.setItem(key, JSON.stringify(agencyConfig));
+  }, [agencyConfig, isAuthenticated, isPlatformUser]);
 
   useEffect(() => {
-    if (!configSyncReady.current) return;
+    if (!isAuthenticated || isPlatformUser) return;
+    const checksKey = tenantStorageKey('specialized_checks');
+    const assignmentsKey = tenantStorageKey('editor_assignments');
+    if (checksKey) {
+      const saved = localStorage.getItem(checksKey);
+      setSpecializedNetworkChecks(saved ? JSON.parse(saved) : []);
+    } else {
+      setSpecializedNetworkChecks([]);
+    }
+    if (assignmentsKey) {
+      const saved = localStorage.getItem(assignmentsKey);
+      setEditorAssignments(saved ? JSON.parse(saved) : {});
+    } else {
+      setEditorAssignments({});
+    }
+  }, [isAuthenticated, isPlatformUser, user.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('specialized_checks');
+    if (key) localStorage.setItem(key, JSON.stringify(specializedNetworkChecks));
+  }, [specializedNetworkChecks, isAuthenticated, isPlatformUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('editor_assignments');
+    if (key) localStorage.setItem(key, JSON.stringify(editorAssignments));
+  }, [editorAssignments, isAuthenticated, isPlatformUser]);
+
+  useEffect(() => {
+    if (!configSyncReady.current || isPlatformUser) return;
 
     const podePersistir =
       !agencyConfig.isOnboardingCompleted ||
@@ -365,7 +375,7 @@ function AppContent() {
     }, 800);
 
     return () => window.clearTimeout(timer);
-  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted]);
+  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted, isPlatformUser]);
 
   // Monitor received news for new items and notify
   useEffect(() => {
@@ -1281,28 +1291,87 @@ function AppContent() {
 
   const handleLogout = () => {
     clearToken();
+    clearTenantSlug();
     setIsAuthenticated(false);
     setUser(PLACEHOLDER_USER);
     setNews([]);
     setUsers([]);
+    setShowOnboarding(false);
     navigate('/');
   };
-  (window as any).handleAppLogout = handleLogout;
 
   const handleLogin = async (email: string, password: string) => {
     const { user: loggedUser } = await apiService.login(email, password);
+    setNews([]);
+    setUsers([]);
+    setArticles([]);
     setUser(loggedUser);
-    // Garante que perfis de permissão usem sempre a configuração mais recente,
-    // ignorando qualquer versão antiga que possa estar no localStorage.
-    setPermissionProfiles(INITIAL_PERMISSION_PROFILES);
+
+    const platformUser = loggedUser.profileId === 'p-platform';
+    setPermissionProfiles(
+      platformUser
+        ? INITIAL_PERMISSION_PROFILES.filter((p) => p.id === 'p-platform')
+        : INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'),
+    );
+
+    if (platformUser) {
+      setIsAuthenticated(true);
+      navigate('/platform');
+      return;
+    }
+
+    try {
+      const agency = await loadTenantBranding();
+      if (!agency.isOnboardingCompleted) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.warn('Não foi possível carregar configuração da agência após login:', err);
+      setShowOnboarding(true);
+    }
+
     setIsAuthenticated(true);
+    navigate('/');
   };
 
-  if (showOnboarding) {
+  const handleActivated = async (loggedUser: UserProfile) => {
+    setUser(loggedUser);
+    setPermissionProfiles(INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'));
+
+    try {
+      const agency = await loadTenantBranding();
+      if (!agency.isOnboardingCompleted) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.warn('Configuração da agência indisponível após ativação:', err);
+      setShowOnboarding(true);
+    }
+
+    setIsAuthenticated(true);
+    navigate('/');
+  };
+
+  if (isAuthenticated && isPlatformUser) {
+    return (
+      <PlatformShell user={user} onLogout={handleLogout}>
+        <Routes>
+          <Route
+            path="/platform"
+            element={
+              <PlatformAdminDashboard checkPermission={checkPermission} />
+            }
+          />
+          <Route path="*" element={<Navigate to="/platform" replace />} />
+        </Routes>
+      </PlatformShell>
+    );
+  }
+
+  if (isAuthenticated && showOnboarding && !agencyConfig.isOnboardingCompleted) {
     return (
       <OnboardingFlow
         onComplete={handleOnboardingComplete}
-        onClose={agencyConfig.isOnboardingCompleted ? () => setShowOnboarding(false) : undefined}
         initialAgency={agencyConfig}
         initialTheme={themeConfig}
       />
@@ -1311,12 +1380,19 @@ function AppContent() {
 
   if (!isAuthenticated) {
     return (
-      <LoginView 
-        onLogin={handleLogin} 
-        onOpenOnboarding={() => setShowOnboarding(true)}
-        themeConfig={themeConfig}
-        agencyConfig={agencyConfig}
-      />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/cadastro-agencia" element={<AgencyRegistrationPage />} />
+        <Route
+          path="/ativar"
+          element={<ActivationPage onActivated={handleActivated} />}
+        />
+        <Route
+          path="/login"
+          element={<LoginView onLogin={handleLogin} />}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     );
   }
 
@@ -1339,11 +1415,12 @@ function AppContent() {
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
         checkPermission={checkPermission}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 relative overflow-y-auto">
         <Routes>
-          <Route path="/" element={<RootRedirect checkPermission={checkPermission} />} />
+          <Route path="/" element={<TenantRootRedirect checkPermission={checkPermission} />} />
           <Route path="/dashboard" element={
             checkPermission('view_dashboard') ? (
               <Dashboard 

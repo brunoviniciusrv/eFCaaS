@@ -4,5 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "efcaas.ingest")
 public record IngestProperties(
-        String apiKey
+        String apiKey,
+        String defaultTenantSlug
 ) {}

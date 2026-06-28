@@ -72,6 +72,7 @@ import { TrendAnalyzer } from './TrendAnalyzer';
 import { SpecializedNetworkView } from './SpecializedNetworkView';
 import { NewsAssignmentModal } from './NewsAssignmentModal';
 import { CheckerNameAutocomplete } from './CheckerNameAutocomplete';
+import { UserAvatar } from './UserAvatar';
 import assignStyles from './CheckerAssign.module.css';
 import styles from './CuratorDashboard.module.css';
 
@@ -1250,7 +1251,7 @@ export const CuratorDashboard = ({
                         >
                           {assignedUsers.length > 0 ? (
                             <div className={styles.assignedRow}>
-                              <img src={assignedUsers[0].avatarUrl} alt="" className={styles.assignedAvatar} />
+                              <UserAvatar src={assignedUsers[0].avatarUrl} name={assignedUsers[0].name} className={styles.assignedAvatar} />
                               <span className={cn(styles.slaTime, assignStyles.assigneeNameText)}>
                                 {assignedUsers.map((u) => u.name).join(', ')}
                               </span>
@@ -1392,9 +1393,9 @@ export const CuratorDashboard = ({
                               
                               {(item.assignedToIds?.length ? item.assignedToIds : item.assignedTo ? [item.assignedTo] : []).length > 0 && (
                                 <div className={styles.kanbanCardAssignee} style={{ borderColor: themeConfig.general.border }}>
-                                  <img 
-                                    src={users.find(u => u.id === (item.assignedToIds?.[0] ?? item.assignedTo))?.avatarUrl} 
-                                    alt="" 
+                                  <UserAvatar
+                                    src={users.find(u => u.id === (item.assignedToIds?.[0] ?? item.assignedTo))?.avatarUrl}
+                                    name={users.find(u => u.id === (item.assignedToIds?.[0] ?? item.assignedTo))?.name}
                                     className={styles.kanbanCardAvatar}
                                   />
                                   <span className={styles.kanbanCardAssigneeName}>
@@ -1445,7 +1446,7 @@ export const CuratorDashboard = ({
                 style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
               >
                 <div className={styles.checkerHeader}>
-                  <img src={checker.avatarUrl} alt="" className={styles.checkerAvatar} />
+                  <UserAvatar src={checker.avatarUrl} name={checker.name} className={styles.checkerAvatar} />
                   <div>
                     <h3 className={styles.checkerName}>{checker.name}</h3>
                     <p className={styles.checkerEmail}>{checker.email}</p>
@@ -1767,7 +1768,11 @@ export const CuratorDashboard = ({
             >
               <div className={styles.modalHeaderFlex} style={{ borderColor: themeConfig.general.border }}>
                 <div className={styles.detailModalHeaderLeft}>
-                  <img src={users.find(u => u.id === detailedCheckerId)?.avatarUrl} alt="" className={styles.detailCheckerAvatar} />
+                  <UserAvatar
+                    src={users.find(u => u.id === detailedCheckerId)?.avatarUrl}
+                    name={users.find(u => u.id === detailedCheckerId)?.name}
+                    className={styles.detailCheckerAvatar}
+                  />
                   <div>
                     <h2 className={styles.detailModalTitle}>Tarefas de {users.find(u => u.id === detailedCheckerId)?.name}</h2>
                     <p className={styles.detailModalSubtitle}>Lista detalhada de atribuições correntes.</p>

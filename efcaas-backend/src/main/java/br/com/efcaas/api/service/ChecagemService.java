@@ -2,6 +2,7 @@ package br.com.efcaas.api.service;
 
 import br.com.efcaas.api.domain.*;
 import br.com.efcaas.api.repository.*;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +37,7 @@ public class ChecagemService {
     private final StorageService storageService;
     private final EvidenciaAccessTokenService accessTokenService;
     private final ObjectMapper objectMapper;
+    private final TenantScope tenantScope;
 
     @Transactional
     public ChecagemDto iniciar(Long checagemId, Long checadorId) {
@@ -109,7 +111,9 @@ public class ChecagemService {
     @Transactional
     public ChecagemDto finalizarParecer(Long checagemId, FinalizarParecerRequest req, Long usuarioId) {
         Checagem ch = buscarChecagem(checagemId);
+        Long tenantId = tenantScope.requireTenantId();
         Etiqueta etiqueta = etiquetaRepo.findById(req.etiquetaId())
+                .filter(e -> tenantId.equals(e.getTenantId()))
                 .orElseThrow(() -> new NoSuchElementException("Etiqueta não encontrada: " + req.etiquetaId()));
 
         Parecer parecer = parecerRepo.findByChecagemId(checagemId).orElse(new Parecer());
@@ -233,7 +237,7 @@ public class ChecagemService {
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private Checagem buscarChecagem(Long id) {
-        return checagemRepo.findById(id)
+        return checagemRepo.findByIdAndTenantId(id, tenantScope.requireTenantId())
                 .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada: " + id));
     }
 
