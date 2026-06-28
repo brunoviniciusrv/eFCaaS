@@ -49,7 +49,11 @@ import { isAiModuleEnabled } from '../config/aiModules';
 import { formatAiScore, getDesinfoScore, hasAiEvaluation, hasAiMetrics, mergeAiAnalysisUpdate } from '../lib/aiAnalysis';
 import { AiModelEvaluationPanel } from './AiModelEvaluationPanel';
 import { IllicitAxisPanel } from './IllicitAxisPanel';
-import { getAssignmentBriefings } from '../lib/newsAssignment';
+import {
+  getAssignmentBriefings,
+  getRectificationReason,
+  getRectificationReasonFromAuditoria,
+} from '../lib/newsAssignment';
 import { TOOLS } from '../constants';
 import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
 import styles from './AnalysisView.module.css';
@@ -67,6 +71,9 @@ const NOMES_CAMPOS: Record<string, string> = {
 
 function formatarCamposAlterados(acao: string, detalhes: string | null): string {
   if (acao === 'checagem_assumida') return '';
+  if (acao === 'revisao_rejeitada' || acao === 'conteudo_reaberto') {
+    return detalhes?.trim() ? `: ${detalhes.trim()}` : '';
+  }
   if ((acao === 'checagem_atribuida' || acao === 'checagem_desatribuida') && detalhes?.startsWith('checador:')) {
     return detalhes.replace('checador:', '');
   }
@@ -102,6 +109,8 @@ const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon
   parecer_finalizado:  { verbo: 'finalizou o Parecer',         color: '#10b981', icon: <CheckCircle size={12} /> },
   evidencia_adicionada:{ verbo: 'adicionou Evidência',         color: '#f59e0b', icon: <Plus size={12} /> },
   evidencia_removida:  { verbo: 'removeu uma Evidência',       color: '#ef4444', icon: <Trash2 size={12} /> },
+  revisao_rejeitada:   { verbo: 'solicitou retificação',       color: '#ef4444', icon: <AlertCircle size={12} /> },
+  conteudo_reaberto:   { verbo: 'reabriu para retificação',    color: '#f59e0b', icon: <RotateCcw size={12} /> },
   _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
 };
 
@@ -233,6 +242,7 @@ export const AnalysisView = ({
   const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'tools' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
+  const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
 
   useEffect(() => {
@@ -269,6 +279,14 @@ export const AnalysisView = ({
       return true;
     });
   }, [auditoriaLogs]);
+  const rectificationReason = useMemo(
+    () =>
+      getRectificationReason(selectedNews) ??
+      getRectificationReasonFromAuditoria(auditoriaLogs),
+    [selectedNews, auditoriaLogs],
+  );
+  const showOrientations =
+    Boolean(rectificationReason) || assignmentBriefings.length > 0;
   const [isAddingLink, setIsAddingLink] = React.useState(false);
   const [linkInput, setLinkInput] = React.useState('');
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
@@ -612,42 +630,6 @@ export const AnalysisView = ({
                       </div>
                     )}
 
-                    {assignmentBriefings.length > 0 && (
-                      <div className={styles.briefingSection}>
-                        <label className={styles.sectionLabel}>Briefings de Atribuição</label>
-                        <div className={styles.briefingList}>
-                          {assignmentBriefings.map((b) => (
-                            <div
-                              key={b.id}
-                              className={styles.briefingCard}
-                              style={{
-                                backgroundColor: `${themeConfig.dashboard.background}20`,
-                                borderColor: themeConfig.general.border,
-                              }}
-                            >
-                              <div className={styles.briefingCardHeader}>
-                                <MessageSquareText size={16} className={styles.briefingIcon} />
-                                <div>
-                                  <p className={styles.briefingAuthor} style={{ color: themeConfig.dashboard.text }}>
-                                    {b.authorName}
-                                    {b.checkerName ? (
-                                      <span className={styles.briefingTarget}> → {b.checkerName}</span>
-                                    ) : null}
-                                  </p>
-                                  <p className={styles.briefingTime}>
-                                    {formatarDataAuditoria(b.timestamp)}
-                                  </p>
-                                </div>
-                              </div>
-                              <p className={styles.briefingText} style={{ color: themeConfig.dashboard.text }}>
-                                {b.text}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     <div className={styles.mediaSection}>
                       <div className={styles.mediaSectionHeader}>
                         <label className={styles.sectionLabel}>
@@ -840,22 +822,162 @@ export const AnalysisView = ({
                       </div>
                     </section>
 
+                    {showOrientations && (
+                      <section
+                        className={styles.orientationsCard}
+                        style={{
+                          backgroundColor: themeConfig.general.cardBackground,
+                          borderColor: themeConfig.general.border,
+                        }}
+                      >
+                        <div
+                          className={styles.orientationsHeader}
+                          style={{
+                            backgroundColor: `${themeConfig.dashboard.background}20`,
+                            borderColor: themeConfig.general.border,
+                          }}
+                        >
+                          <MessageSquareText size={18} className="opacity-60" />
+                          <h3
+                            className={styles.orientationsTitle}
+                            style={{ color: themeConfig.dashboard.text }}
+                          >
+                            Orientações do Curador
+                          </h3>
+                        </div>
+                        <div className={styles.orientationsBody}>
+                          {rectificationReason && (
+                            <div
+                              className={styles.rectificationCard}
+                              style={{
+                                backgroundColor: `${themeConfig.status.error}12`,
+                                borderColor: `${themeConfig.status.error}40`,
+                              }}
+                            >
+                              <div className={styles.rectificationCardHeader}>
+                                <AlertCircle
+                                  size={18}
+                                  style={{ color: themeConfig.status.error }}
+                                />
+                                <div>
+                                  <p
+                                    className={styles.rectificationLabel}
+                                    style={{ color: themeConfig.status.error }}
+                                  >
+                                    {rectificationReason.label}
+                                  </p>
+                                  {(rectificationReason.authorName ||
+                                    rectificationReason.timestamp) && (
+                                    <p className={styles.rectificationMeta}>
+                                      {rectificationReason.authorName}
+                                      {rectificationReason.authorName &&
+                                      rectificationReason.timestamp
+                                        ? ' · '
+                                        : ''}
+                                      {rectificationReason.timestamp
+                                        ? formatarDataAuditoria(
+                                            rectificationReason.timestamp,
+                                          )
+                                        : null}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <p
+                                className={styles.rectificationText}
+                                style={{ color: themeConfig.dashboard.text }}
+                              >
+                                {rectificationReason.text}
+                              </p>
+                            </div>
+                          )}
+
+                          {assignmentBriefings.length > 0 && (
+                            <div className={styles.briefingBlock}>
+                              <label className={styles.briefingBlockLabel}>
+                                Briefings de atribuição
+                              </label>
+                              <div className={styles.briefingList}>
+                                {assignmentBriefings.map((b) => (
+                                  <div
+                                    key={b.id}
+                                    className={styles.briefingCard}
+                                    style={{
+                                      backgroundColor: `${themeConfig.dashboard.background}20`,
+                                      borderColor: themeConfig.general.border,
+                                    }}
+                                  >
+                                    <div className={styles.briefingCardHeader}>
+                                      <MessageSquareText
+                                        size={16}
+                                        className={styles.briefingIcon}
+                                      />
+                                      <div>
+                                        <p
+                                          className={styles.briefingAuthor}
+                                          style={{
+                                            color: themeConfig.dashboard.text,
+                                          }}
+                                        >
+                                          {b.authorName}
+                                          {b.checkerName ? (
+                                            <span className={styles.briefingTarget}>
+                                              {' '}
+                                              → {b.checkerName}
+                                            </span>
+                                          ) : null}
+                                        </p>
+                                        <p className={styles.briefingTime}>
+                                          {formatarDataAuditoria(b.timestamp)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <p
+                                      className={styles.briefingText}
+                                      style={{ color: themeConfig.dashboard.text }}
+                                    >
+                                      {b.text}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    )}
+
                     {/* Action History section */}
                     <section
                       className={styles.historyCard}
                       style={{ backgroundColor: themeConfig.general.cardBackground, borderColor: themeConfig.general.border }}
                     >
-                      <div className={styles.historyCardHeader} style={{ backgroundColor: `${themeConfig.dashboard.background}20`, borderColor: themeConfig.general.border }}>
+                      <button
+                        type="button"
+                        className={styles.historyCardHeader}
+                        style={{ backgroundColor: `${themeConfig.dashboard.background}20`, borderColor: themeConfig.general.border }}
+                        onClick={() => setIsHistoryExpanded((open) => !open)}
+                        aria-expanded={isHistoryExpanded}
+                      >
                         <div className={styles.historyCardHeaderLeft}>
                           <History size={18} className="opacity-60" />
                           <h3 className={styles.historyTitle} style={{ color: themeConfig.dashboard.text }}>Histórico de Ações</h3>
                         </div>
-                        {auditoriaLogsUnicos.length > 0 && (
-                          <span className={styles.historyCount}>
-                            {auditoriaLogsUnicos.length} {auditoriaLogsUnicos.length === 1 ? 'registro' : 'registros'}
-                          </span>
-                        )}
-                      </div>
+                        <div className={styles.historyCardHeaderRight}>
+                          {auditoriaLogsUnicos.length > 0 && (
+                            <span className={styles.historyCount}>
+                              {auditoriaLogsUnicos.length}{' '}
+                              {auditoriaLogsUnicos.length === 1 ? 'registro' : 'registros'}
+                            </span>
+                          )}
+                          {isHistoryExpanded ? (
+                            <ChevronUp size={18} className={styles.historyToggleIcon} />
+                          ) : (
+                            <ChevronDown size={18} className={styles.historyToggleIcon} />
+                          )}
+                        </div>
+                      </button>
+                      {isHistoryExpanded && (
                       <div className={styles.historyBody}>
                         {auditoriaLoading ? (
                           <div className={styles.historyLoadingText}>Carregando histórico...</div>
@@ -901,6 +1023,7 @@ export const AnalysisView = ({
                           </div>
                         )}
                       </div>
+                      )}
                     </section>
                   </motion.div>
                 )}

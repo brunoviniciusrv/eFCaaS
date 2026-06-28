@@ -10,24 +10,17 @@ import {
   Save, 
   History, 
   MessageSquare, 
-  Image as ImageIcon, 
-  Type, 
   Link as LinkIcon, 
   Bold, 
   Italic, 
   List, 
   Quote, 
   FileText, 
-  Sparkles, 
   Plus, 
   X, 
-  Download, 
-  Globe,
-  Maximize2,
-  Smartphone,
-  Monitor,
   Layout,
-  ExternalLink
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   NewsItem, 
@@ -39,8 +32,6 @@ import {
   LabelConfig,
   ThemeConfig
 } from '../types';
-import { cn } from '../lib/utils';
-import { generateArticleSuggestions } from '../services/geminiService';
 import { apiService } from '../services/apiService';
 import styles from './EditorView.module.css';
 
@@ -53,6 +44,27 @@ function parecerToEditorHtml(text: string): string {
     .join('');
 }
 
+function htmlToPlainText(value: string): string {
+  if (!value.trim()) return '';
+  if (!value.includes('<')) return value.trim();
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function formatCommentTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 interface EditorViewProps {
   user: UserProfile;
   news: NewsItem[];
@@ -63,14 +75,11 @@ interface EditorViewProps {
   themeConfig: ThemeConfig;
 }
 
-export function EditorView({ user, news, labels, onSaveArticle, articles, checkPermission, themeConfig }: EditorViewProps) {
+export function EditorView({ user, news, labels, onSaveArticle, articles, themeConfig }: EditorViewProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
-  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [showHistory, setShowHistory] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [isAISuggesting, setIsAISuggesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   const newsItem = news.find(n => n.id === id);
@@ -139,7 +148,9 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
     setTitle(defaultTitle);
     setContent(defaultContent);
     editorRef.current.innerHTML = defaultContent;
-    if (existingArticle?.status) setStatus(existingArticle.status);
+    if (existingArticle?.status) {
+      setStatus(existingArticle.status === 'published' ? 'approved' : existingArticle.status);
+    }
     if (existingArticle?.template) setTemplate(existingArticle.template);
     if (existingArticle?.comments) setComments(existingArticle.comments);
     editorInitKeyRef.current = initKey;
@@ -173,21 +184,6 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
       alert(err instanceof Error ? err.message : 'Não foi possível salvar a matéria.');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleAIAction = async (action: string) => {
-    if (!activeNews) return;
-    setIsAISuggesting(true);
-    try {
-      const result = await generateArticleSuggestions(activeNews.title, content);
-      if (action === 'title') setTitle(result.titles[0]);
-      if (action === 'lead') setEditorContent((prev) => result.excerpt + '<br><br>' + prev);
-      if (action === 'summarize') setEditorContent(result.excerpt);
-    } catch (error) {
-      console.error('AI Error:', error);
-    } finally {
-      setIsAISuggesting(false);
     }
   };
 
@@ -241,6 +237,15 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
 
   if (!activeNews) return null;
 
+  const parecerText = activeNews.report?.trim()
+    ? htmlToPlainText(
+        activeNews.report.trim().startsWith('<')
+          ? activeNews.report
+          : parecerToEditorHtml(activeNews.report),
+      )
+    : '';
+  const evidenceSources = activeNews.evidence ?? [];
+
   return (
     <div className={styles.page} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
       {/* Left Sidebar: Context & Evidence */}
@@ -272,39 +277,55 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
           <div className={styles.sidebarSection}>
             <label className={styles.sidebarLabel}>Resumo da Evidência</label>
             <div className={styles.summaryText} style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
-              {activeNews.aiEvaluation?.explanation || "Nenhuma análise de IA disponível."}
+              {parecerText || 'Nenhum parecer registrado na checagem.'}
             </div>
           </div>
 
           <div className={styles.sidebarSection}>
             <label className={styles.sidebarLabel}>Fontes de Apoio</label>
             <div className={styles.sourcesWrap}>
-              {(activeNews.reportStructure?.sources ?? []).map((source, idx) => (
-                <div key={idx} className={styles.sourceItem}>
-                  <span className={styles.sourceUrl}>{source}</span>
-                  <div className={styles.sourceActions}>
-                    <a href={source} target="_blank" rel="noreferrer" className="p-1 hover:text-blue-600">
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <button onClick={() => insertSource(source)} className="p-1 hover:text-green-600">
-                      <Plus className="w-3 h-3" />
-                    </button>
+              {evidenceSources.length === 0 ? (
+                <p className={styles.emptySources} style={{ color: themeConfig.general.mutedText }}>
+                  Nenhuma evidência cadastrada na checagem.
+                </p>
+              ) : (
+                evidenceSources.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className={styles.sourceItem}
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border }}
+                  >
+                    <div className={styles.sourceInfo}>
+                      <span className={styles.sourceTitle} style={{ color: themeConfig.dashboard.text }}>
+                        {ev.title?.trim() || 'Evidência'}
+                      </span>
+                      <a
+                        href={ev.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.sourceLink}
+                        style={{ color: themeConfig.general.accent }}
+                        title={ev.url}
+                      >
+                        {ev.url}
+                      </a>
+                    </div>
+                    <div className={styles.sourceActions}>
+                      <a href={ev.url} target="_blank" rel="noreferrer" className={styles.sourceActionBtn} title="Abrir link">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => insertSource(ev.url)}
+                        className={styles.sourceActionBtn}
+                        title="Inserir no editor"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {activeNews.evidence.map((ev) => (
-                <div key={ev.id} className={styles.sourceItem}>
-                  <span className={styles.sourceUrl}>{ev.title}</span>
-                  <div className={styles.sourceActions}>
-                    <a href={ev.url} target="_blank" rel="noreferrer" className="p-1 hover:text-blue-600">
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <button onClick={() => insertSource(ev.url)} className="p-1 hover:text-green-600">
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -326,70 +347,40 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
       <main className={styles.main} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
         {/* Editor Toolbar */}
         <header className={styles.toolbar} style={{ borderBottomColor: themeConfig.general.border, backgroundColor: themeConfig.general.cardBackground, color: themeConfig.dashboard.text }}>
-          <div className={styles.toolbarLeft}>
-            <div className={styles.tabGroup} style={{ backgroundColor: themeConfig.general.inputBackground }}>
-              <button 
-                onClick={() => setActiveTab('editor')}
-                className={styles.tabBtn}
-                style={{
-                  backgroundColor: activeTab === 'editor' ? themeConfig.general.cardBackground : 'transparent',
-                  color: activeTab === 'editor' ? themeConfig.general.accent : themeConfig.buttons.secondaryText
-                }}
-              >
-                Editor
-              </button>
-              <button 
-                onClick={() => setActiveTab('preview')}
-                className={styles.tabBtn}
-                style={{
-                  backgroundColor: activeTab === 'preview' ? themeConfig.general.cardBackground : 'transparent',
-                  color: activeTab === 'preview' ? themeConfig.general.accent : themeConfig.buttons.secondaryText
-                }}
-              >
-                Preview
-              </button>
-            </div>
-            
-            <div className={styles.toolbarDivider} style={{ backgroundColor: themeConfig.general.border }} />
-            
-            <div className="flex items-center gap-2">
-              <select 
-                value={template}
-                onChange={(e) => setTemplate(e.target.value as ArticleTemplateType)}
-                className={styles.templateSelect}
-                style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText }}
-              >
-                <option value="short">Artigo Curto</option>
-                <option value="breaking">Breaking News</option>
-                <option value="complete">Análise Completa</option>
-                <option value="quick_check">Fact-Check Rápido</option>
-              </select>
-            </div>
-          </div>
-
           <div className={styles.toolbarRight}>
-            <button 
-              onClick={() => setShowComments(!showComments)}
-              className={styles.iconBtn}
+            <button
+              type="button"
+              onClick={() => {
+                setShowHistory(false);
+                setShowComments(true);
+              }}
+              className={styles.commentsBtn}
               style={{
-                color: showComments ? themeConfig.general.accent : themeConfig.buttons.secondaryText,
-                backgroundColor: showComments ? `${themeConfig.general.accent}15` : 'transparent'
+                borderColor: themeConfig.general.border,
+                color: themeConfig.dashboard.text,
+                backgroundColor: showComments ? `${themeConfig.general.accent}15` : themeConfig.general.inputBackground,
               }}
             >
-              <MessageSquare className="w-5 h-5" />
-              {comments.filter(c => !c.resolved).length > 0 && (
-                <span className={styles.commentBadge} style={{ borderColor: themeConfig.general.cardBackground }}>
-                  {comments.filter(c => !c.resolved).length}
+              <MessageSquare className="w-4 h-4" />
+              Comentários
+              {comments.length > 0 && (
+                <span className={styles.commentsBtnBadge} style={{ backgroundColor: themeConfig.general.accent }}>
+                  {comments.length}
                 </span>
               )}
             </button>
-            <button 
-              onClick={() => setShowHistory(!showHistory)}
+            <button
+              type="button"
+              onClick={() => {
+                setShowComments(false);
+                setShowHistory(true);
+              }}
               className={styles.iconBtn}
               style={{
                 color: showHistory ? themeConfig.general.accent : themeConfig.buttons.secondaryText,
-                backgroundColor: showHistory ? `${themeConfig.general.accent}15` : 'transparent'
+                backgroundColor: showHistory ? `${themeConfig.general.accent}15` : 'transparent',
               }}
+              title="Histórico de versões"
             >
               <History className="w-5 h-5" />
             </button>
@@ -404,7 +395,6 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
                 <option value="draft">Rascunho</option>
                 <option value="review">Para Revisão</option>
                 <option value="approved">Aprovado</option>
-                <option value="published" disabled={!checkPermission('publish_article')}>Publicado</option>
               </select>
               <button 
                 onClick={handleSave}
@@ -420,231 +410,176 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, checkP
 
         {/* Editor Body */}
         <div className={styles.editorBody}>
-          <AnimatePresence mode="wait">
-            {activeTab === 'editor' ? (
-              <motion.div 
-                key="editor-panel"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className={styles.editorPane}
-              >
-                {/* AI Tools Bar */}
-                <div className={styles.aiBar}>
-                  <div className={styles.aiToolbar}>
-                    <button onClick={() => handleAIAction('title')} disabled={isAISuggesting} className={styles.aiBtn}>
-                      <Sparkles className="w-3.5 h-3.5 text-blue-500" /> {isAISuggesting ? 'Gerando...' : 'Sugerir Título'}
-                    </button>
-                    <div className={styles.aiDivider} />
-                    <button onClick={() => handleAIAction('lead')} disabled={isAISuggesting} className={styles.aiBtn}>
-                      <Type className="w-3.5 h-3.5 text-purple-500" /> Lead Jornalístico
-                    </button>
-                    <div className={styles.aiDivider} />
-                    <button onClick={() => handleAIAction('summarize')} disabled={isAISuggesting} className={styles.aiBtn}>
-                      <FileText className="w-3.5 h-3.5 text-green-500" /> Resumir
-                    </button>
-                  </div>
-                </div>
+          <div className={styles.editorPane}>
+            <div className={styles.writingCanvas}>
+              <textarea 
+                placeholder="Título da matéria..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={styles.titleTextarea}
+                rows={1}
+              />
 
-                {/* Cover Image Area */}
-                <div className={styles.coverArea}>
-                  <ImageIcon className={styles.coverIcon} />
-                  <span className={styles.coverLabel}>Adicionar Capa</span>
-                  <p className={styles.coverHint}>Recomendado: 1200x630 (aspecto 1.91:1)</p>
-                </div>
+              <div className={styles.rtfToolbar}>
+                <button className={styles.rtfBtn} title="Negrito"><Bold className="w-4 h-4" /></button>
+                <button className={styles.rtfBtn} title="Itálico"><Italic className="w-4 h-4" /></button>
+                <div className={styles.rtfDivider} />
+                <button className={styles.rtfBtn} title="Título H2"><Layout className="w-4 h-4" /></button>
+                <button className={styles.rtfBtn} title="Citação"><Quote className="w-4 h-4" /></button>
+                <button className={styles.rtfBtn} title="Lista"><List className="w-4 h-4" /></button>
+                <div className={styles.rtfDivider} />
+                <button className={styles.rtfBtn} title="Link"><LinkIcon className="w-4 h-4" /></button>
+                <button className={styles.rtfBtn} title="Imagem"><ImageIcon className="w-4 h-4" /></button>
+                <div className="flex-1" />
+                <button className={styles.rtfCustomBlocks}>Blocos customizados</button>
+              </div>
 
-                {/* Writing Canvas */}
-                <div className={styles.writingCanvas}>
-                  <textarea 
-                    placeholder="Título da matéria..."
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className={styles.titleTextarea}
-                    rows={1}
-                  />
-
-                  <div className={styles.rtfToolbar}>
-                    <button className={styles.rtfBtn} title="Negrito"><Bold className="w-4 h-4" /></button>
-                    <button className={styles.rtfBtn} title="Itálico"><Italic className="w-4 h-4" /></button>
-                    <div className={styles.rtfDivider} />
-                    <button className={styles.rtfBtn} title="Título H2"><Layout className="w-4 h-4" /></button>
-                    <button className={styles.rtfBtn} title="Citação"><Quote className="w-4 h-4" /></button>
-                    <button className={styles.rtfBtn} title="Lista"><List className="w-4 h-4" /></button>
-                    <div className={styles.rtfDivider} />
-                    <button className={styles.rtfBtn} title="Link"><LinkIcon className="w-4 h-4" /></button>
-                    <button className={styles.rtfBtn} title="Imagem"><ImageIcon className="w-4 h-4" /></button>
-                    <div className="flex-1" />
-                    <button className={styles.rtfCustomBlocks}>Blocos customizados</button>
-                  </div>
-
-                  <div 
-                    ref={editorRef}
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={(e) => setContent(e.currentTarget.innerHTML)}
-                    className={styles.contentEditor}
-                    data-placeholder="Comece a escrever a sua checagem aqui..."
-                  />
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="preview-panel"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className={styles.previewPane}
-              >
-                {/* Preview Controls */}
-                <div className={styles.previewControls}>
-                  <button 
-                    onClick={() => setPreviewMode('desktop')}
-                    className={previewMode === 'desktop' ? styles.previewBtnActive : styles.previewBtnInactive}
-                  >
-                    <Monitor className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => setPreviewMode('mobile')}
-                    className={previewMode === 'mobile' ? styles.previewBtnActive : styles.previewBtnInactive}
-                  >
-                    <Smartphone className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Preview Container */}
-                <div className={previewMode === 'desktop' ? styles.previewContainerDesktop : styles.previewContainerMobile}>
-                  {previewMode === 'desktop' && (
-                    <div className={styles.browserBar}>
-                      <div className={styles.browserDots}>
-                        <div className={styles.browserDotRed} />
-                        <div className={styles.browserDotYellow} />
-                        <div className={styles.browserDotGreen} />
-                      </div>
-                      <div className={styles.browserUrl}>
-                        <Globe className="w-3 h-3 text-slate-400" />
-                        <span className={styles.browserUrlText}>https://efcaas.com/news/{id}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={previewMode === 'mobile' ? styles.previewBodyMobile : styles.previewBodyDesktop}>
-                    <div className={styles.previewContent}>
-                      <header className={styles.previewHeader}>
-                        <div className={styles.previewTag}>
-                          <span className={styles.previewTagLabel}>Fact-Check</span>
-                          <span className={styles.previewTagDot}>•</span>
-                          <span className={styles.previewTagDate}>{new Date().toLocaleDateString('pt-BR')}</span>
-                        </div>
-                        <h1 className={styles.previewTitle}>{title || "Sem Título"}</h1>
-                        <div className={styles.previewAuthorWrap}>
-                          <img src={user.avatarUrl} alt={user.name} className={styles.previewAuthorImg} />
-                          <div>
-                            <p className={styles.previewAuthorName}>{user.name}</p>
-                            <p className={styles.previewAuthorRole}>Editor @ eFCaaS</p>
-                          </div>
-                        </div>
-                      </header>
-                      <div className={styles.previewArticle}>
-                        <div dangerouslySetInnerHTML={{ __html: content }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              <div 
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => setContent(e.currentTarget.innerHTML)}
+                className={styles.contentEditor}
+                data-placeholder="Comece a escrever a sua checagem aqui..."
+              />
+            </div>
+          </div>
         </div>
       </main>
 
-      {/* Right Sidebar: Floating Panels (Comments / History) */}
+      {/* Modals: Comments / History */}
       <AnimatePresence>
-        {(showComments || showHistory) && (
-          <motion.div 
-            initial={{ x: 320 }}
-            animate={{ x: 0 }}
-            exit={{ x: 320 }}
-            className={styles.rightPanel}
+        {showComments && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.modalOverlay}
+            style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            onClick={() => setShowComments(false)}
           >
-            <div className={styles.rightPanelHeader}>
-              <h3 className={styles.rightPanelTitle}>
-                {showComments ? <MessageSquare className="w-4 h-4" /> : <History className="w-4 h-4" />}
-                {showComments ? "Comentários e Notas" : "Histórico de Versões"}
-              </h3>
-              <button onClick={() => { setShowComments(false); setShowHistory(false); }} className={styles.rightPanelClose}>
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className={styles.modalPanel}
+              style={{ backgroundColor: themeConfig.general.modalBackground, borderColor: themeConfig.general.border, color: themeConfig.general.modalText }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h3 className={styles.modalTitle}>
+                  <MessageSquare className="w-4 h-4" />
+                  Comentários editoriais
+                </h3>
+                <button type="button" onClick={() => setShowComments(false)} className={styles.modalClose}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            <div className={styles.rightPanelBody}>
-              {showComments ? (
-                <>
-                  <div className={styles.commentsWrap}>
-                    {comments.length === 0 ? (
-                      <div className={styles.commentEmpty}>
-                        <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-3" />
-                        <p className={styles.commentEmptyText}>Nenhum comentário editorial ainda.</p>
-                      </div>
-                    ) : (
-                      comments.map(comment => (
-                        <div key={comment.id} className={comment.resolved ? styles.commentCardResolved : styles.commentCardPending}>
-                          <div className={styles.commentMeta}>
-                            <span className={styles.commentUser}>{comment.userName}</span>
-                            <span className={styles.commentTime}>{new Date(comment.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                          <p className={styles.commentText}>{comment.text}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  
-                  <div className={styles.commentFormWrap}>
-                    <textarea 
-                      placeholder="Adicionar nota para revisão..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className={styles.commentTextarea}
-                    />
-                    <button onClick={addComment} className={styles.commentSubmit}>Comentar</button>
-                  </div>
-                </>
-              ) : (
-                <div className={styles.historyWrap}>
-                  {existingArticle?.versions?.length === 0 ? (
-                    <div className={styles.historyEmpty}>
-                      <History className="w-12 h-12 text-slate-100 mx-auto mb-3" />
-                      <p className={styles.historyEmptyText}>Você ainda não tem versões salvas.</p>
+              <div className={styles.modalBody}>
+                <div className={styles.commentsWrap}>
+                  {comments.length === 0 ? (
+                    <div className={styles.commentEmpty}>
+                      <MessageSquare className="w-10 h-10 opacity-20 mx-auto mb-3" />
+                      <p className={styles.commentEmptyText}>Nenhum comentário ainda.</p>
                     </div>
                   ) : (
-                    existingArticle?.versions?.map((v, idx) => (
-                      <div key={v.id} className={styles.historyCard}>
-                        <div className={styles.historyCardMeta}>
-                          <span className={styles.historyVersion}>Versão v{existingArticle.versions.length - idx}</span>
-                          <span className={styles.historyTime}>{new Date(v.timestamp).toLocaleTimeString()}</span>
+                    comments.map((comment) => (
+                      <div
+                        key={comment.id}
+                        className={styles.commentCardPending}
+                        style={{ borderColor: themeConfig.general.border, backgroundColor: `${themeConfig.dashboard.background}30` }}
+                      >
+                        <div className={styles.commentMeta}>
+                          <span className={styles.commentUser} style={{ color: themeConfig.dashboard.text }}>
+                            {comment.userName}
+                          </span>
+                          <span className={styles.commentTime}>
+                            {formatCommentTimestamp(comment.timestamp)}
+                          </span>
                         </div>
-                        <p className={styles.historyDesc}>{v.authorName} - Modificações menores</p>
-                        <div className={styles.historyActions}>
-                          <button className={styles.historyRestore}>Restaurar</button>
-                          <button className={styles.historyCompare}>Comparar</button>
-                        </div>
+                        <p className={styles.commentText} style={{ color: themeConfig.dashboard.text }}>
+                          {comment.text}
+                        </p>
                       </div>
                     ))
                   )}
-                  <div className={styles.historyNote}>
-                    <p className={styles.historyNoteText}>Auto-save ativado. Próxima versão em 15m.</p>
-                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className={styles.commentFormWrap} style={{ borderColor: themeConfig.general.border }}>
+                  <textarea
+                    placeholder="Escreva um comentário para a equipe..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className={styles.commentTextarea}
+                    style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText }}
+                  />
+                  <button
+                    type="button"
+                    onClick={addComment}
+                    disabled={!newComment.trim()}
+                    className={styles.commentSubmit}
+                    style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText }}
+                  >
+                    Publicar comentário
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.modalOverlay}
+            style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            onClick={() => setShowHistory(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className={styles.modalPanel}
+              style={{ backgroundColor: themeConfig.general.modalBackground, borderColor: themeConfig.general.border, color: themeConfig.general.modalText }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h3 className={styles.modalTitle}>
+                  <History className="w-4 h-4" />
+                  Histórico de versões
+                </h3>
+                <button type="button" onClick={() => setShowHistory(false)} className={styles.modalClose}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className={styles.modalBody}>
+                <div className={styles.historyWrap}>
+                  {!existingArticle?.versions?.length ? (
+                    <div className={styles.historyEmpty}>
+                      <History className="w-10 h-10 opacity-20 mx-auto mb-3" />
+                      <p className={styles.historyEmptyText}>Você ainda não tem versões salvas.</p>
+                    </div>
+                  ) : (
+                    existingArticle.versions.map((v, idx) => (
+                      <div key={v.id} className={styles.historyCard} style={{ borderColor: themeConfig.general.border }}>
+                        <div className={styles.historyCardMeta}>
+                          <span className={styles.historyVersion}>Versão v{existingArticle.versions.length - idx}</span>
+                          <span className={styles.historyTime}>{formatCommentTimestamp(v.timestamp)}</span>
+                        </div>
+                        <p className={styles.historyDesc}>{v.authorName} — modificações registradas</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Floating Action Button (Mobile Only) */}
-      <div className={styles.mobileFab}>
-        <button className={styles.mobileFabBtn}>
-          <Sparkles className="w-6 h-6" />
-        </button>
-      </div>
     </div>
   );
 }

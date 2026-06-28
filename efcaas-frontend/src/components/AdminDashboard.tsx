@@ -586,7 +586,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className={styles.labelsHeader}>
                 <div className={styles.labelsHeaderLeft}>
                   <Tag style={{ color: themeConfig.general.accent }} size={20} />
-                  <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>''Gestão de Etiquet''as</h2>
+                  <h2 className={styles.sectionTitle} style={{ color: themeConfig.dashboard.text }}>Gestão de Etiquetas</h2>
                 </div>
                 <button 
                   onClick={() => {
