@@ -77,6 +77,23 @@ public class ChecagemService {
 
         investigacaoRepo.save(inv);
 
+        if (req.fontes() != null) {
+            for (String fonte : req.fontes()) {
+                if (fonte == null) continue;
+                String url = fonte.trim();
+                if (!isMediaUrl(url)) continue;
+                boolean exists = evidenciaRepo.findByChecagemId(ch.getId()).stream()
+                        .anyMatch(e -> url.equals(e.getLinkArquivo()));
+                if (exists) continue;
+                Evidencia ev = new Evidencia();
+                ev.setChecagem(ch);
+                ev.setTipo("link");
+                ev.setLinkArquivo(url);
+                ev.setDescricao("Fonte de apoio (mídia)");
+                evidenciaRepo.save(ev);
+            }
+        }
+
         List<String> camposAlterados = new ArrayList<>();
         if (req.resumo() != null) camposAlterados.add("resumo_metodologia");
         if (req.perguntas() != null && !req.perguntas().isEmpty()) camposAlterados.add("perguntas");
@@ -261,6 +278,12 @@ public class ChecagemService {
         if (contentType.startsWith("image/")) return "image";
         if (contentType.startsWith("video/")) return "video";
         return "document";
+    }
+
+    private static boolean isMediaUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String lower = url.toLowerCase();
+        return lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm|mov|avi|mp3|wav|ogg|m4a)(\\?.*)?$");
     }
 
     private record ByteRange(long start, long end) {}

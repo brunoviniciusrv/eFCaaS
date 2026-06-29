@@ -60,11 +60,17 @@ public class RelatorioPublicacaoService {
         RelatorioPublicacao rel = relatorioRepo.findByParecerId(parecer.getId()).orElseGet(() -> {
             RelatorioPublicacao novo = new RelatorioPublicacao();
             novo.setParecer(parecer);
-            novo.setEditor(usuarioRepo.getReferenceById(editorId));
+            if (editorId != null) {
+                novo.setEditor(usuarioRepo.getReferenceById(editorId));
+            }
             novo.setDataCriacao(LocalDateTime.now());
             novo.setTenantId(checagem.getTenantId());
             return novo;
         });
+
+        if (rel.getEditor() == null && editorId != null) {
+            rel.setEditor(usuarioRepo.getReferenceById(editorId));
+        }
 
         rel.setTitulo(req.titulo());
         String corpoTexto = req.corpoTexto();
@@ -83,9 +89,39 @@ public class RelatorioPublicacaoService {
         }
 
         relatorioRepo.save(rel);
-        auditoria.registrar(editorId, "relatorio_publicacao_salvo", "conteudo:" + conteudoId, req.statusPublicacao());
+        if (editorId != null) {
+            auditoria.registrar(editorId, "relatorio_publicacao_salvo", "conteudo:" + conteudoId, req.statusPublicacao());
+        }
         return mapper.toDto(relatorioRepo.findDetalhadosByConteudoId(conteudoId, tenantScope.requireTenantId())
                 .stream().findFirst().orElseThrow());
+    }
+
+    @Transactional
+    public void criarRascunhoAutomatico(Long conteudoId) {
+        Long tenantId = tenantScope.requireTenantId();
+        Checagem checagem = checagemRepo.findByConteudoIdAndTenantId(conteudoId, tenantId)
+                .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteúdo: " + conteudoId));
+        Parecer parecer = parecerRepo.findByChecagemId(checagem.getId())
+                .orElseThrow(() -> new NoSuchElementException("Parecer não encontrado para conteúdo: " + conteudoId));
+
+        if (relatorioRepo.findByParecerId(parecer.getId()).isPresent()) {
+            return;
+        }
+
+        RelatorioPublicacao rel = new RelatorioPublicacao();
+        rel.setParecer(parecer);
+        rel.setEditor(null);
+        rel.setTitulo(checagem.getConteudo().getTitulo());
+        rel.setCorpoTexto(parecer.getTextoParecer());
+        rel.setResumo(parecer.getTextoParecer() != null && parecer.getTextoParecer().length() > 150
+                ? parecer.getTextoParecer().substring(0, 150) + "..."
+                : parecer.getTextoParecer());
+        rel.setStatusPublicacao("draft");
+        rel.setTemplate("complete");
+        rel.setDataCriacao(LocalDateTime.now());
+        rel.setDataAtualizacao(LocalDateTime.now());
+        rel.setTenantId(checagem.getTenantId());
+        relatorioRepo.save(rel);
     }
 
     @Transactional

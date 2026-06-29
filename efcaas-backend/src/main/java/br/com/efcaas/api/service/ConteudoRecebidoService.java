@@ -37,6 +37,7 @@ public class ConteudoRecebidoService {
     private final ConteudoSuspeitoRepository conteudoRepo;
     private final ConteudoRecebidoMapper mapper;
     private final ConteudoSuspeitoService conteudoSuspeitoService;
+    private final TenantConteudoSeqService tenantConteudoSeqService;
     private final AuditoriaService auditoria;
     private final TenantScope tenantScope;
     private final TenantRepository tenantRepository;
@@ -106,6 +107,7 @@ public class ConteudoRecebidoService {
         conteudo.setLink(recebido.getLinkOriginal() != null ? recebido.getLinkOriginal() : "");
         conteudo.setStatus("pending");
         conteudo.setTenantId(recebido.getTenantId());
+        conteudo.setNumeroReferencia(tenantConteudoSeqService.proximoNumeroReferencia(recebido.getTenantId()));
         conteudoRepo.save(conteudo);
 
         recebido.setStatus("in_triage");
