@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Briefcase as Toolbox, 
@@ -37,14 +37,18 @@ import {
   Ban,
   ShieldOff,
   AlertTriangle,
-  MessageSquareText
+  MessageSquareText,
+  LockOpen,
+  Download,
+  Eye
 } from 'lucide-react';
+import { MarkdownLite } from './MarkdownLite';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
-import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
+import { NewsItem, Evidence, ReportStructure, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
 import { isAiModuleEnabled } from '../config/aiModules';
 import { formatAiScore, getDesinfoScore, hasAiEvaluation, hasAiMetrics, mergeAiAnalysisUpdate } from '../lib/aiAnalysis';
 import { AiModelEvaluationPanel } from './AiModelEvaluationPanel';
@@ -55,7 +59,14 @@ import {
   getRectificationReasonFromAuditoria,
 } from '../lib/newsAssignment';
 import { TOOLS } from '../constants';
-import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
+import { apiService, ApiAuditoriaDto, normalizeReportStructure, syncQuestionAnswers } from '../services/apiService';
+import { MediaThumbnailGrid } from './MediaThumbnailGrid';
+import { addPendingIaConteudo } from '../lib/iaPolling';
+import { normalizeReportForEditor } from '../lib/parecerHtml';
+import { buildParecerReportData, canDownloadParecerPdf } from '../lib/parecerReportModel';
+import { exportParecerReportPdf } from '../lib/parecerPdfExport';
+import { ParecerRichEditor } from './ParecerRichEditor';
+import { ParecerPdfPreviewModal } from './ParecerPdfPreviewModal';
 import styles from './AnalysisView.module.css';
 
 // ─── Auditoria helpers ──────────────────────────────────────────────────────
@@ -111,8 +122,49 @@ const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon
   evidencia_removida:  { verbo: 'removeu uma Evidência',       color: '#ef4444', icon: <Trash2 size={12} /> },
   revisao_rejeitada:   { verbo: 'solicitou retificação',       color: '#ef4444', icon: <AlertCircle size={12} /> },
   conteudo_reaberto:   { verbo: 'reabriu para retificação',    color: '#f59e0b', icon: <RotateCcw size={12} /> },
+  edicao_concluida_habilitada: { verbo: 'habilitou edição da checagem concluída', color: '#f59e0b', icon: <LockOpen size={12} /> },
   _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
 };
+
+function MediaImagePreview({
+  url,
+  title,
+  imageClassName,
+  fallbackClassName,
+}: {
+  url: string;
+  title?: string;
+  imageClassName: string;
+  fallbackClassName: string;
+}) {
+  const [failed, setFailed] = React.useState(false);
+
+  if (failed || !url) {
+    return (
+      <div className={fallbackClassName}>
+        <div className={styles.documentIcon}>
+          <ImageIcon size={18} className="text-slate-400" />
+        </div>
+        <div className={styles.documentInfo}>
+          <a href={url || '#'} target="_blank" rel="noopener noreferrer" className={styles.documentLink}>
+            {title ?? 'Abrir imagem'}
+          </a>
+          <p className={styles.documentUrl}>Pré-visualização indisponível — clique para abrir o arquivo.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={title ?? 'Imagem'}
+      className={imageClassName}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -123,10 +175,9 @@ interface AnalysisViewProps {
   isToolboxOpen: boolean;
   setIsToolboxOpen: (open: boolean) => void;
   handleSaveFinal: () => void;
+  handleSaveParecer: () => Promise<boolean>;
   handleSaveInvestigation: () => Promise<boolean>;
   handleUpdateReportStructure: (updates: Partial<ReportStructure>) => void;
-  handleGenerateDraft: () => void;
-  handleReviewReport: () => void;
   handleUpdateReport: (text: string) => void;
   handleAddEvidence: (evidence: Omit<Evidence, 'id' | 'timestamp'>) => void;
   handleUploadEvidenceFile: (file: File) => Promise<void>;
@@ -134,8 +185,6 @@ interface AnalysisViewProps {
   handleUploadMediaFile: (file: File) => Promise<void>;
   handleRemoveMedia: (anexoId: string) => Promise<void>;
   isSaving: boolean;
-  isGeneratingDraft: boolean;
-  isReviewing: boolean;
   labels: LabelConfig[];
   reportConfig: ReportStructureConfig;
   themeConfig: ThemeConfig;
@@ -153,10 +202,9 @@ export const AnalysisView = ({
   isToolboxOpen,
   setIsToolboxOpen,
   handleSaveFinal,
+  handleSaveParecer,
   handleSaveInvestigation,
   handleUpdateReportStructure,
-  handleGenerateDraft,
-  handleReviewReport,
   handleUpdateReport,
   handleAddEvidence,
   handleUploadEvidenceFile,
@@ -164,8 +212,6 @@ export const AnalysisView = ({
   handleUploadMediaFile,
   handleRemoveMedia,
   isSaving,
-  isGeneratingDraft,
-  isReviewing,
   labels,
   reportConfig,
   themeConfig,
@@ -176,9 +222,13 @@ export const AnalysisView = ({
   refreshConteudoDetail,
 }: AnalysisViewProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const forceViewMode = searchParams.get('mode') === 'view';
   const [isAnalyzingAI, setIsAnalyzingAI] = React.useState(false);
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiToast, setAiToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPdfPreview, setShowPdfPreview] = React.useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = React.useState(false);
 
   const dismissToast = React.useCallback(() => setAiToast(null), []);
   React.useEffect(() => {
@@ -239,7 +289,59 @@ export const AnalysisView = ({
   const isReadOnly = isEditor && selectedNews.status !== 'in_progress'; // Wait, let's be safe: if editor, always read-only in this view.
   // Actually, if editor is accessing from list, it should be read-only.
   // Full curators/admins can edit.
-  const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
+  const canEditRole = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
+  const isCompletedCheck = selectedNews.status === 'completed';
+  const [editUnlocked, setEditUnlocked] = useState(false);
+  const [isEnablingEdit, setIsEnablingEdit] = useState(false);
+  const effectiveCanEdit = canEditRole && (!isCompletedCheck || editUnlocked) && !forceViewMode;
+
+  useEffect(() => {
+    setEditUnlocked(false);
+  }, [selectedNews.id]);
+
+  useEffect(() => {
+    if (selectedNews.isAIProcessing || selectedNews.iaStatus === 'processando') {
+      setIsAnalyzingAI(true);
+    } else if (selectedNews.iaStatus === 'concluida' || selectedNews.iaStatus === 'erro') {
+      setIsAnalyzingAI(false);
+    }
+  }, [selectedNews.isAIProcessing, selectedNews.iaStatus]);
+
+  useEffect(() => {
+    const processing = selectedNews.iaStatus === 'processando' || selectedNews.isAIProcessing;
+    if (!processing || !refreshConteudoDetail) return;
+    addPendingIaConteudo(selectedNews.id);
+    const interval = setInterval(() => {
+      void refreshConteudoDetail();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedNews.id, selectedNews.iaStatus, selectedNews.isAIProcessing, refreshConteudoDetail]);
+
+  const handleEnableCompletedEdit = async () => {
+    if (!selectedNews?.id || isEnablingEdit) return;
+    setIsEnablingEdit(true);
+    try {
+      await apiService.habilitarEdicaoConcluida(selectedNews.id);
+      setEditUnlocked(true);
+      if (selectedNews.checagemId) {
+        const logs = await apiService.listarAuditoria(selectedNews.checagemId);
+        setAuditoriaLogs(logs);
+      }
+    } catch (err) {
+      console.error('Erro ao habilitar edição:', err);
+      alert(err instanceof Error ? err.message : 'Não foi possível habilitar a edição.');
+    } finally {
+      setIsEnablingEdit(false);
+    }
+  };
+
+  const handleSaveParecerClick = async () => {
+    const saved = await handleSaveParecer();
+    if (saved) {
+      setShowInvestigationSaveSuccess(true);
+    }
+  };
+
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'tools' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
@@ -307,6 +409,18 @@ export const AnalysisView = ({
     return () => clearTimeout(timer);
   }, [showInvestigationSaveSuccess]);
 
+  useEffect(() => {
+    if (contentUploadStatus !== 'success') return;
+    const timer = setTimeout(() => setContentUploadStatus('idle'), 3000);
+    return () => clearTimeout(timer);
+  }, [contentUploadStatus]);
+
+  useEffect(() => {
+    if (uploadStatus !== 'success') return;
+    const timer = setTimeout(() => setUploadStatus('idle'), 3000);
+    return () => clearTimeout(timer);
+  }, [uploadStatus]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -324,7 +438,6 @@ export const AnalysisView = ({
     try {
       await handleUploadEvidenceFile(file);
       setUploadStatus('success');
-      setTimeout(() => setUploadStatus('idle'), 3000);
     } catch (err) {
       console.error('Erro ao enviar arquivo:', err);
       setUploadStatus('error');
@@ -351,8 +464,8 @@ export const AnalysisView = ({
 
     try {
       await handleUploadMediaFile(file);
+      await refreshConteudoDetail?.();
       setContentUploadStatus('success');
-      setTimeout(() => setContentUploadStatus('idle'), 3000);
     } catch (err) {
       console.error('Erro ao enviar anexo:', err);
       setContentUploadStatus('error');
@@ -379,6 +492,20 @@ export const AnalysisView = ({
   };
 
   const reportStructure = normalizeReportStructure(selectedNews.reportStructure);
+  const canDownloadPdf = canDownloadParecerPdf(selectedNews);
+  const parecerReportData = buildParecerReportData(selectedNews, labels, agencyConfig, currentUser);
+
+  const handleDownloadParecerPdf = async () => {
+    if (!canDownloadPdf) return;
+    setIsPdfDownloading(true);
+    try {
+      await exportParecerReportPdf(parecerReportData);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao gerar PDF do parecer.');
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  };
 
   const aiScores = selectedNews.aiScores;
   const aiEvaluation = selectedNews.aiEvaluation;
@@ -455,7 +582,7 @@ export const AnalysisView = ({
                   tabs={[
                     { id: 'content', label: 'Conteúdo', icon: FileIcon },
                     ...(showMetricsTab ? [{ id: 'metrics', label: isAnalyzingAI ? 'Métricas IA ◌' : 'Métricas IA', icon: Sparkles }] : []),
-                    ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
+                    ...(effectiveCanEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
                     { id: 'investigation', label: 'Investigação', icon: Search },
                     { id: 'result', label: 'Parecer', icon: FileText },
                   ]}
@@ -465,7 +592,22 @@ export const AnalysisView = ({
             </nav>
           </div>
           <div className={styles.headerActions}>
-            {canEdit && activeTab === 'investigation' && (
+            {isCompletedCheck && canEditRole && !editUnlocked && (
+              <button
+                onClick={handleEnableCompletedEdit}
+                disabled={isEnablingEdit}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.general.accent,
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.general.accent}30`,
+                }}
+              >
+                <LockOpen size={18} />
+                {isEnablingEdit ? 'Habilitando...' : 'Permitir edição'}
+              </button>
+            )}
+            {effectiveCanEdit && activeTab === 'investigation' && (
               <button
                 onClick={handleSaveInvestigationClick}
                 disabled={isSaving}
@@ -480,7 +622,7 @@ export const AnalysisView = ({
                 {isSaving ? 'Salvando...' : 'Salvar Investigação'}
               </button>
             )}
-            {canEdit && activeTab === 'result' && (
+            {effectiveCanEdit && activeTab === 'result' && !isCompletedCheck && (
               <button 
                 onClick={handleSaveFinal}
                 disabled={isSaving}
@@ -495,6 +637,52 @@ export const AnalysisView = ({
                 {isSaving ? 'Salvando...' : 'Finalizar'}
               </button>
             )}
+            {effectiveCanEdit && activeTab === 'result' && isCompletedCheck && (
+              <button
+                onClick={handleSaveParecerClick}
+                disabled={isSaving}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.status.success,
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.status.success}30`,
+                }}
+              >
+                <Save size={18} />
+                {isSaving ? 'Salvando...' : 'Salvar Parecer'}
+              </button>
+            )}
+            {activeTab === 'result' && canDownloadPdf && (
+              <button
+                type="button"
+                onClick={handleDownloadParecerPdf}
+                disabled={isPdfDownloading}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.buttons.secondary,
+                  color: themeConfig.buttons.secondaryText,
+                  border: `1px solid ${themeConfig.general.border}`,
+                }}
+              >
+                <Download size={18} />
+                {isPdfDownloading ? 'Gerando PDF…' : 'Baixar PDF'}
+              </button>
+            )}
+            {activeTab === 'result' && (
+              <button
+                type="button"
+                onClick={() => setShowPdfPreview(true)}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.general.inputBackground,
+                  color: themeConfig.dashboard.text,
+                  border: `1px solid ${themeConfig.general.border}`,
+                }}
+              >
+                <Eye size={18} />
+                Visualizar PDF
+              </button>
+            )}
             {selectedNews.status === 'completed' && (
               <button 
                 onClick={() => navigate(`/editorial-archive`)}
@@ -504,9 +692,9 @@ export const AnalysisView = ({
                 Ver no Acervo
               </button>
             )}
-            {!canEdit && selectedNews.status !== 'completed' && (
+            {(isCompletedCheck && !editUnlocked) || (!canEditRole && selectedNews.status !== 'completed') ? (
               <span className={styles.viewModeTag}>Modo de Visualização</span>
-            )}
+            ) : null}
           </div>
         </header>
 
@@ -528,7 +716,9 @@ export const AnalysisView = ({
                   <div className={styles.cardHeader} style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
                     <h3 className={styles.cardHeaderTitle} style={{ color: themeConfig.dashboard.text }}>Conteúdo sob Análise</h3>
                     <div className={styles.cardHeaderBadges}>
-                      <span className={styles.refBadge}>REF: {selectedNews.id}</span>
+                      <span className={styles.refBadge}>
+                        Nº {selectedNews.referenceNumber ?? selectedNews.id}
+                      </span>
                       {onDeleteNews && selectedNews.status !== 'completed' && (
                         <button
                           type="button"
@@ -600,7 +790,7 @@ export const AnalysisView = ({
                       <div className={styles.contentViewBlock}>
                         <div className={styles.contentViewHeader}>
                           <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
-                          {canEdit && (
+                          {effectiveCanEdit && (
                             <button onClick={startEditContent} className={styles.contentEditBtn} title="Editar título, alegação e descrição">
                               <Wand2 size={14} />
                               Editar
@@ -637,7 +827,7 @@ export const AnalysisView = ({
                         </label>
                       </div>
 
-                      {canEdit && (
+                      {effectiveCanEdit && (
                         <div
                           className={cn(
                             styles.uploadZone,
@@ -682,78 +872,24 @@ export const AnalysisView = ({
                         </motion.div>
                       )}
 
-                      <div className={styles.mediaGrid}>
-                        {(selectedNews.media ?? []).map((m, i) => (
-                          <div
-                            key={m.id ?? i}
-                            className={styles.mediaItem}
-                            style={{ borderColor: themeConfig.general.border }}
-                          >
-                            {m.type === 'image' && (
-                              <img src={m.url} alt={m.title ?? 'Imagem'} className={styles.mediaImage} referrerPolicy="no-referrer" />
-                            )}
-                            {m.type === 'video' && (
-                              <div className={styles.mediaVideoWrapper}>
-                                <video src={m.url} controls className={styles.mediaVideo} />
-                                <div className={styles.videoLabel}>
-                                  Vídeo Anexo
-                                </div>
-                              </div>
-                            )}
-                            {m.type === 'audio' && (
-                              <div className={styles.audioWrapper}>
-                                <div
-                                  className={styles.audioIconWrapper}
-                                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
-                                >
-                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                                </div>
-                                <div className={styles.audioPlayerWrapper}>
-                                  <div className={styles.audioTitleWrapper}>
-                                    <span className={styles.audioTitleText}>Áudio Original</span>
-                                  </div>
-                                  <audio src={m.url} controls className={styles.audioElement} />
-                                </div>
-                              </div>
-                            )}
-                            {m.type === 'document' && (
-                              <div className={styles.documentWrapper}>
-                                <div className={styles.documentIcon}>
-                                  <FileText size={18} className="text-slate-400" />
-                                </div>
-                                <div className={styles.documentInfo}>
-                                  <a
-                                    href={m.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={styles.documentLink}
-                                  >
-                                    {m.title ?? 'Documento'}
-                                  </a>
-                                  <p className={styles.documentUrl}>{m.url}</p>
-                                </div>
-                              </div>
-                            )}
+                      <MediaThumbnailGrid
+                        items={(selectedNews.media ?? []).map((m) => ({
+                          id: m.id,
+                          type: m.type,
+                          url: m.url,
+                          title: m.title,
+                        }))}
+                        themeConfig={themeConfig}
+                        canEdit={effectiveCanEdit}
+                        onRemove={(anexoId) => {
+                          handleRemoveMedia(anexoId).catch((err) => {
+                            alert(err instanceof Error ? err.message : 'Falha ao remover o anexo.');
+                          });
+                        }}
+                        className={styles.mediaGrid}
+                      />
 
-                            {canEdit && m.id && (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await handleRemoveMedia(m.id!);
-                                  } catch (err) {
-                                    alert(err instanceof Error ? err.message : 'Falha ao remover o anexo.');
-                                  }
-                                }}
-                                className={styles.removeMediaButton}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {(selectedNews.media ?? []).length === 0 && !canEdit && (
+                      {(selectedNews.media ?? []).length === 0 && !effectiveCanEdit && (
                         <div className={styles.noMediaEmptyState}>
                           <Info size={24} />
                           <p className={styles.emptyStateMessage}>Nenhum anexo disponível para este conteúdo.</p>
@@ -1055,19 +1191,30 @@ export const AnalysisView = ({
                           });
                         };
 
+                        let latestIaStatus: NewsItem['iaStatus'] | undefined;
                         apiService.analisarConteudo(selectedNews.id)
-                          .then(() => refreshConteudoDetail?.() ?? apiService.obterConteudo(selectedNews.id))
+                          .then((fresh) => {
+                            latestIaStatus = fresh.iaStatus;
+                            addPendingIaConteudo(selectedNews.id);
+                            applyAiUpdate(fresh);
+                            setAiToast({ type: 'success', message: 'Análise de IA iniciada. Você será notificado ao concluir.' });
+                            return refreshConteudoDetail?.() ?? apiService.obterConteudo(selectedNews.id);
+                          })
                           .then((fresh) => {
                             if (!fresh) return;
+                            latestIaStatus = fresh.iaStatus ?? latestIaStatus;
                             applyAiUpdate(fresh);
-                            setAiToast({ type: 'success', message: 'Análise de IA concluída com sucesso!' });
                           })
                           .catch((err) => {
                             const msg = err instanceof Error ? err.message : 'Erro ao analisar com IA.';
                             setAiError(msg);
                             setAiToast({ type: 'error', message: msg });
                           })
-                          .finally(() => setIsAnalyzingAI(false));
+                          .finally(() => {
+                            if (latestIaStatus !== 'processando') {
+                              setIsAnalyzingAI(false);
+                            }
+                          });
                       }}
                       disabled={isAnalyzingAI}
                       className={styles.analyzeAiButton}
@@ -1231,9 +1378,9 @@ export const AnalysisView = ({
                                 ))}
                               </ul>
                               ) : selectedNews.aiEvaluation.explanation ? (
-                                <p className={styles.semanticListItem} style={{ color: themeConfig.dashboard.text }}>
+                                <MarkdownLite>
                                   {selectedNews.aiEvaluation.explanation}
-                                </p>
+                                </MarkdownLite>
                               ) : (
                                 <p className={styles.metricsEmptyMsg}>—</p>
                               )}
@@ -1314,9 +1461,10 @@ export const AnalysisView = ({
                         <label className={styles.sectionLabel}>Perguntas Balizadoras</label>
                         <div className={styles.questionsList}>
                            {reportStructure.questions.map((q, idx) => (
-                             <div key={idx} className={styles.questionItem}>
+                             <div key={idx} className={styles.questionBlock}>
                                 <input 
                                   value={q}
+                                  disabled={!effectiveCanEdit}
                                   onChange={(e) => {
                                     const newQuestions = [...reportStructure.questions];
                                     newQuestions[idx] = e.target.value;
@@ -1325,23 +1473,57 @@ export const AnalysisView = ({
                                   placeholder="Ex: Qual a origem do vídeo?"
                                   className={styles.questionInput}
                                 />
-                                {idx > 0 && (
+                                <textarea
+                                  value={reportStructure.questionAnswers?.[idx] ?? ''}
+                                  disabled={!effectiveCanEdit}
+                                  onChange={(e) => {
+                                    const answers = syncQuestionAnswers(
+                                      reportStructure.questions,
+                                      reportStructure.questionAnswers
+                                    );
+                                    answers[idx] = e.target.value;
+                                    handleUpdateReportStructure({ questionAnswers: answers });
+                                  }}
+                                  placeholder="Resposta à pergunta (incluída no PDF junto com a pergunta)"
+                                  rows={3}
+                                  className={styles.questionAnswerInput}
+                                />
+                                {idx > 0 && effectiveCanEdit && (
                                   <button onClick={() => {
                                     const newQuestions = [...reportStructure.questions];
                                     newQuestions.splice(idx, 1);
-                                    handleUpdateReportStructure({ questions: newQuestions });
+                                    const newAnswers = syncQuestionAnswers(
+                                      reportStructure.questions,
+                                      reportStructure.questionAnswers
+                                    );
+                                    newAnswers.splice(idx, 1);
+                                    handleUpdateReportStructure({
+                                      questions: newQuestions,
+                                      questionAnswers: newAnswers,
+                                    });
                                   }} className={styles.removeQuestionButton}>
                                     <Trash2 size={20} />
                                   </button>
                                 )}
                              </div>
                            ))}
+                           {effectiveCanEdit && (
                            <button 
-                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
+                             onClick={() => {
+                               const answers = syncQuestionAnswers(
+                                 reportStructure.questions,
+                                 reportStructure.questionAnswers
+                               );
+                               handleUpdateReportStructure({
+                                 questions: [...reportStructure.questions, ''],
+                                 questionAnswers: [...answers, ''],
+                               });
+                             }}
                              className={styles.addQuestionButton}
                            >
                              <Plus size={14} /> Adicionar Pergunta
                            </button>
+                           )}
                         </div>
                      </div>
 
@@ -1349,6 +1531,7 @@ export const AnalysisView = ({
                         <label className={styles.sectionLabel}>Resumo da Metodologia de Checagem</label>
                         <textarea 
                           value={reportStructure.summary || ''}
+                          disabled={!effectiveCanEdit}
                           onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
                           placeholder="Como este conteúdo foi verificado?"
                           rows={3}
@@ -1374,7 +1557,7 @@ export const AnalysisView = ({
                           A classificação final deverá refletir essa condição.
                         </p>
                       </div>
-                      {canEdit && (
+                      {effectiveCanEdit && (
                         <button
                           onClick={() => handleUpdateReportStructure({ isInverifiable: false })}
                           className={styles.inverificavelUndoButton}
@@ -1385,7 +1568,7 @@ export const AnalysisView = ({
                       )}
                     </div>
                   ) : (
-                    canEdit && (
+                    effectiveCanEdit && (
                       <button
                         onClick={() => handleUpdateReportStructure({ isInverifiable: true })}
                         className={styles.markAsInverificavelButton}
@@ -1420,7 +1603,7 @@ export const AnalysisView = ({
                   </div>
                   <div className={styles.evidenceCardBody}>
                     {/* Multi-modal Evidence Input Split */}
-                    {canEdit && (
+                    {effectiveCanEdit && (
                        <div className={styles.evidenceUploadGrid}>
                           {/* File Upload Option */}
                           <div className={cn(
@@ -1557,7 +1740,7 @@ export const AnalysisView = ({
                               )}
                               <p className={styles.evidenceItemUrl}>{ev.url}</p>
                             </div>
-                            {canEdit && (
+                            {effectiveCanEdit && (
                               <button
                                 onClick={() => handleRemoveEvidence(ev.id)}
                                 className={styles.removeEvidenceButton}
@@ -1576,8 +1759,62 @@ export const AnalysisView = ({
                       )}
                     </div>
                     
-                    {/* Contact Step */}
+                    {/* Autor da desinformação */}
                     <div className={styles.contactSection} style={{ borderColor: themeConfig.general.border }}>
+                      <div className={styles.contactLeft}>
+                        <h4 className={styles.contactTitle}>Quem é o autor da desinformação</h4>
+                        <p className={styles.contactSubtitle}>
+                          Identifique quem produziu ou disseminou o conteúdo investigado.
+                        </p>
+                      </div>
+                      <div className={styles.contactRight}>
+                        <input
+                          type="text"
+                          value={reportStructure.disinfoAuthorName || ''}
+                          disabled={!effectiveCanEdit || reportStructure.disinfoAuthorUnverifiable}
+                          onChange={(e) => handleUpdateReportStructure({ disinfoAuthorName: e.target.value })}
+                          placeholder="Nome do autor da desinformação"
+                          className={styles.disinfoAuthorInput}
+                          style={{
+                            backgroundColor: themeConfig.general.inputBackground,
+                            borderColor: themeConfig.general.border,
+                            color: themeConfig.dashboard.text,
+                          }}
+                        />
+                        <label className={styles.disinfoAuthorToggle}>
+                          <input
+                            type="checkbox"
+                            checked={reportStructure.disinfoAuthorUnverifiable ?? false}
+                            disabled={!effectiveCanEdit}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              handleUpdateReportStructure({
+                                disinfoAuthorUnverifiable: checked,
+                                disinfoAuthorName: checked ? '' : reportStructure.disinfoAuthorName,
+                                contactWithAuthor: checked
+                                  ? { hadContact: null }
+                                  : reportStructure.contactWithAuthor,
+                              });
+                            }}
+                          />
+                          <span style={{ color: themeConfig.dashboard.text }}>Autor inverificável</span>
+                        </label>
+                        {reportStructure.disinfoAuthorUnverifiable && (
+                          <p className={styles.disinfoAuthorHint} style={{ color: themeConfig.general.mutedText }}>
+                            Com autor inverificável, não é possível informar o nome nem registrar tentativa de contato.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact Step */}
+                    <div
+                      className={styles.contactSection}
+                      style={{
+                        borderColor: themeConfig.general.border,
+                        opacity: reportStructure.disinfoAuthorUnverifiable ? 0.5 : 1,
+                      }}
+                    >
                       <div className={styles.contactLeft}>
                         <h4 className={styles.contactTitle}>Tentativa de contato com o autor da alegação</h4>
                         <p className={styles.contactSubtitle}>Fundamental para o contraditório e clareza editorial.</p>
@@ -1590,7 +1827,7 @@ export const AnalysisView = ({
                           ].map((opt) => (
                             <button 
                               key={opt.label}
-                              disabled={!canEdit}
+                              disabled={!effectiveCanEdit || reportStructure.disinfoAuthorUnverifiable}
                               onClick={() => handleUpdateReportStructure({ 
                                 contactWithAuthor: { ...reportStructure.contactWithAuthor, hadContact: opt.value } 
                               })}
@@ -1606,11 +1843,22 @@ export const AnalysisView = ({
                             </button>
                           ))}
                         </div>
-                        {reportStructure.contactWithAuthor.hadContact === true && (
+                        {reportStructure.contactWithAuthor.hadContact === true && !reportStructure.disinfoAuthorUnverifiable && (
                           <textarea 
                             value={reportStructure.contactWithAuthor.response || ''}
+                            disabled={!effectiveCanEdit}
                             onChange={(e) => handleUpdateReportStructure({ contactWithAuthor: { ...reportStructure.contactWithAuthor, response: e.target.value } })}
                             placeholder="Quais foram as alegações do autor ou assessoria?"
+                            rows={3}
+                            className={styles.contactResponseTextarea}
+                          />
+                        )}
+                        {reportStructure.contactWithAuthor.hadContact === false && !reportStructure.disinfoAuthorUnverifiable && (
+                          <textarea
+                            value={reportStructure.contactWithAuthor.justification || ''}
+                            disabled={!effectiveCanEdit}
+                            onChange={(e) => handleUpdateReportStructure({ contactWithAuthor: { ...reportStructure.contactWithAuthor, justification: e.target.value } })}
+                            placeholder="Por que o contato não foi realizado?"
                             rows={3}
                             className={styles.contactResponseTextarea}
                           />
@@ -1647,7 +1895,7 @@ export const AnalysisView = ({
                       {labels.map((label) => (
                         <button 
                           key={label.id}
-                          disabled={!canEdit}
+                          disabled={!effectiveCanEdit}
                           onClick={() => handleUpdateReportStructure({ label: label.name })}
                           className={cn(
                             styles.labelButton,
@@ -1672,7 +1920,7 @@ export const AnalysisView = ({
                   </div>
                 </section>
 
-                {/* Dual Column Editor */}
+                {/* Editor de parecer */}
                 <section 
                   className={styles.reportCard}
                   style={{ borderColor: themeConfig.general.border }}
@@ -1684,63 +1932,22 @@ export const AnalysisView = ({
                       </div>
                       <div>
                         <h3 className={styles.reportCardTitle} style={{ color: themeConfig.dashboard.text }}>Redação do Parecer Editorial</h3>
-                        <p className={styles.reportCardSubtitle}>Editor & Preview em Tempo Real</p>
+                        <p className={styles.reportCardSubtitle}>Editor de texto e exportação em PDF</p>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className={styles.reportEditorGrid}>
-                    {/* Editor Column */}
-                    <div className={styles.reportEditorColumn} style={{ borderColor: themeConfig.general.border }}>
-                       <div className={styles.reportEditorColumnHeader}>
-                          <label className={styles.reportEditorLabel}>Editor de Parecer</label>
-                          <div className={styles.reportEditorActions}>
-                            <button className={styles.reportEditorActionButton}><History size={16} /></button>
-                            <button className={styles.reportEditorActionButton}><Info size={16} /></button>
-                          </div>
-                       </div>
-                       <textarea 
-                        value={selectedNews.report}
-                        onChange={(e) => handleUpdateReport(e.target.value)}
-                        placeholder="Inicie a redação do parecer final..."
-                        readOnly={!canEdit}
-                        className={styles.reportEditorTextarea}
-                        style={{ color: themeConfig.general.inputText }}
-                      />
-                    </div>
 
-                    {/* Preview Column */}
-                    <div className={styles.reportPreviewColumn}>
-                       <label className={styles.reportPreviewLabel}>Visualização de Publicação</label>
-                       <div className={styles.reportPreviewContent}>
-                          {reportStructure.label && (
-                            <div 
-                              className={styles.reportPreviewLabelBadge}
-                              style={{ 
-                                backgroundColor: labels.find(l => l.name === reportStructure.label)?.color + '20',
-                                color: labels.find(l => l.name === reportStructure.label)?.color,
-                                border: `1px solid ${labels.find(l => l.name === reportStructure.label)?.color}40`
-                              }}
-                            >
-                              {reportStructure.label}
-                            </div>
-                          )}
-                          <h1 className={styles.reportPreviewTitle}>{selectedNews.title}</h1>
-                          <div className="markdown-body prose prose-slate prose-lg max-w-none">
-                            <Markdown>{selectedNews.report || '_O rascunho aparecerá aqui conforme você escreve no editor ao lado._'}</Markdown>
-                          </div>
-                          
-                          <div className={styles.reportPreviewFooter}>
-                             <h4 className={styles.reportPreviewFooterTitle}>Metodologia e Transparência</h4>
-                             <p className={styles.reportPreviewFooterText}>{reportStructure.summary || 'A metodologia será exibida após o preenchimento na aba de investigação.'}</p>
-                             <div className={styles.reportPreviewStats}>
-                                <div className={styles.reportPreviewStat}>Perguntas: {reportStructure.questions.length}</div>
-                                <div className={styles.reportPreviewStat}>Fontes: {reportStructure.sources.length}</div>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
+                  <ParecerRichEditor
+                    syncKey={selectedNews.id}
+                    value={normalizeReportForEditor(selectedNews.report)}
+                    onChange={handleUpdateReport}
+                    readOnly={!effectiveCanEdit}
+                    themeConfig={themeConfig}
+                    onPreview={() => setShowPdfPreview(true)}
+                    onDownload={handleDownloadParecerPdf}
+                    canDownload={canDownloadPdf}
+                    isDownloading={isPdfDownloading}
+                  />
                 </section>
               </motion.div>
             )}
@@ -1927,6 +2134,17 @@ export const AnalysisView = ({
           </>
         )}
       </AnimatePresence>
+
+      <ParecerPdfPreviewModal
+        open={showPdfPreview}
+        onClose={() => setShowPdfPreview(false)}
+        data={parecerReportData}
+        themeConfig={themeConfig}
+        canDownload={canDownloadPdf}
+        isDownloading={isPdfDownloading}
+        onDownloadStart={() => setIsPdfDownloading(true)}
+        onDownloadEnd={() => setIsPdfDownloading(false)}
+      />
     </div>
   );
 };

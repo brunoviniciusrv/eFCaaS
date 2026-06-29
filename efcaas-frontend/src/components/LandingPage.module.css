@@ -1,0 +1,221 @@
+@reference "../index.css";
+
+.page {
+  @apply min-h-screen bg-[#0a0f1a] text-white font-sans;
+  scroll-behavior: smooth;
+}
+
+/* ── Header ── */
+.header {
+  @apply fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-12 py-4;
+  background: rgba(10, 15, 26, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.headerLogo {
+  @apply flex items-center gap-2.5 shrink-0;
+}
+
+.logoImg {
+  @apply h-10 w-auto max-w-[160px] object-contain;
+}
+
+.footerLogoImg {
+  @apply h-9 w-auto max-w-[140px] object-contain;
+}
+
+.nav {
+  @apply hidden md:flex items-center justify-center gap-8 absolute left-1/2 -translate-x-1/2;
+}
+
+.navLink {
+  @apply text-sm text-slate-300 hover:text-white transition-colors;
+}
+
+.headerActions {
+  @apply flex items-center gap-3 shrink-0;
+}
+
+.registerBtn {
+  @apply hidden sm:inline-flex px-4 py-2 rounded-full text-sm font-semibold border transition-all;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.registerBtn:hover {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.loginBtn {
+  @apply px-5 py-2 rounded-full text-sm font-semibold transition-all;
+  background: #ffffff;
+  color: #0a0f1a;
+}
+
+.loginBtn:hover {
+  background: #f1f5f9;
+}
+
+/* ── Hero ── */
+.hero {
+  @apply relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden;
+}
+
+.heroPattern {
+  @apply absolute inset-0 pointer-events-none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 60%, rgba(37, 99, 235, 0.15) 0%, transparent 70%),
+    radial-gradient(circle at 20% 80%, rgba(37, 99, 235, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 35%);
+}
+
+.heroDots {
+  @apply absolute inset-0 opacity-30 pointer-events-none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 75%);
+}
+
+.heroContent {
+  @apply relative z-10 text-center max-w-3xl mx-auto space-y-6;
+}
+
+.eyebrow {
+  @apply text-xs font-bold uppercase tracking-[0.25em];
+  color: #3b82f6;
+}
+
+.headline {
+  @apply font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight;
+}
+
+.subheadline {
+  @apply text-lg sm:text-xl text-slate-400 max-w-xl mx-auto leading-relaxed;
+}
+
+.heroActions {
+  @apply flex flex-col sm:flex-row items-center justify-center gap-4 pt-4;
+}
+
+.ctaPrimary {
+  @apply px-8 py-3 rounded-full text-sm font-bold transition-all;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.ctaPrimary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.ctaSecondary {
+  @apply px-8 py-3 rounded-full text-sm font-semibold border transition-all;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.ctaSecondary:hover {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* ── Features ── */
+.features {
+  @apply py-24 px-6 lg:px-12;
+  background: #0d1321;
+}
+
+.featuresInner {
+  @apply max-w-6xl mx-auto;
+}
+
+.sectionTitle {
+  @apply font-display text-3xl sm:text-4xl font-bold text-center mb-16 max-w-2xl mx-auto leading-tight;
+}
+
+.featuresGrid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-6;
+}
+
+.featureCard {
+  @apply p-8 rounded-2xl border transition-all;
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.featureCard:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  transform: translateY(-2px);
+}
+
+.featureIcon {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center mb-5;
+  background: rgba(37, 99, 235, 0.15);
+  color: #3b82f6;
+}
+
+.featureTitle {
+  @apply text-lg font-bold mb-3;
+}
+
+.featureDesc {
+  @apply text-sm text-slate-400 leading-relaxed;
+}
+
+/* ── Mission ── */
+.mission {
+  @apply relative py-24 px-6 lg:px-12 overflow-hidden;
+}
+
+.missionBg {
+  @apply absolute inset-0 bg-cover bg-center;
+}
+
+.missionOverlay {
+  @apply absolute inset-0;
+  background: linear-gradient(180deg, rgba(10, 15, 26, 0.92) 0%, rgba(10, 15, 26, 0.85) 50%, rgba(10, 15, 26, 0.95) 100%);
+}
+
+.missionInner {
+  @apply relative z-10 max-w-4xl mx-auto text-center space-y-6;
+}
+
+.missionTitle {
+  @apply font-display text-3xl sm:text-4xl font-bold leading-tight;
+}
+
+.missionText {
+  @apply text-slate-300 leading-relaxed max-w-2xl mx-auto;
+}
+
+.missionActions {
+  @apply flex flex-col sm:flex-row items-center justify-center gap-4 pt-6;
+}
+
+/* ── Footer ── */
+.footer {
+  @apply py-10 px-6 lg:px-12 border-t border-white/10;
+  background: #070b14;
+}
+
+.footerInner {
+  @apply max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6;
+}
+
+.footerBrand {
+  @apply flex items-center gap-2;
+}
+
+.footerCopyright {
+  @apply text-xs text-slate-500;
+}
+
+.footerLinks {
+  @apply flex items-center gap-6;
+}
+
+.footerLink {
+  @apply text-xs text-slate-500 hover:text-slate-300 transition-colors;
+}

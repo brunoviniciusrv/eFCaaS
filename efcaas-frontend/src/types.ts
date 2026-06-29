@@ -1,5 +1,3 @@
-export type View = 'dashboard' | 'analysis' | 'profile' | 'admin' | 'curator';
-
 export interface LabelConfig {
   id: string;
   name: string;
@@ -90,6 +88,12 @@ export interface ThemeConfig {
     mutedText: string;
     hoverBackground: string;
   };
+  icons?: {
+    default: string;
+    active: string;
+    muted: string;
+    accent: string;
+  };
 }
 
 export interface SystemPermission {
@@ -155,8 +159,6 @@ export interface ReceivedNewsItem {
   internalNotes?: string;
 }
 
-export type FactLabel = 'Falso' | 'Verdadeiro' | 'Distorcido' | 'Falta Contexto' | 'Exagerado' | 'Subestimado';
-
 export type ArticleStatus = 'draft' | 'in_editing' | 'review' | 'approved' | 'published';
 
 export type ArticleTemplateType = 'short' | 'breaking' | 'complete' | 'quick_check';
@@ -209,8 +211,11 @@ export interface AssignmentHistory {
 export interface ReportStructure {
   summary: string;
   questions: string[];
+  questionAnswers?: string[];
   sources: string[];
   isInverifiable: boolean;
+  disinfoAuthorName?: string;
+  disinfoAuthorUnverifiable?: boolean;
   contactWithAuthor: {
     hadContact: boolean | null;
     justification?: string;
@@ -275,6 +280,7 @@ export interface SpecializedNetworkCheck {
 
 export interface NewsItem {
   id: string;
+  referenceNumber?: number;
   title: string;
   content: string;   // legado / display (mapeado de alegacao)
   alegacao?: string;  // alegação principal (campo do banco)
@@ -295,6 +301,7 @@ export interface NewsItem {
   completedAt?: string; // ISO string
   isRectified?: boolean;
   isAIProcessing?: boolean;
+  iaStatus?: 'pendente' | 'processando' | 'concluida' | 'erro';
   sentToSpecializedNetwork?: boolean;
   specializedCheckId?: string;
   media?: {

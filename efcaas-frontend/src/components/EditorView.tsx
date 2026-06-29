@@ -20,7 +20,8 @@ import {
   X, 
   Layout,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye,
 } from 'lucide-react';
 import { 
   NewsItem, 
@@ -30,9 +31,13 @@ import {
   ArticleTemplateType,
   EditorialComment,
   LabelConfig,
-  ThemeConfig
+  ThemeConfig,
+  AgencyConfig,
 } from '../types';
 import { apiService } from '../services/apiService';
+import { normalizeResourceUrl } from '../lib/apiBaseUrl';
+import { buildParecerReportData, canDownloadParecerPdf } from '../lib/parecerReportModel';
+import { ParecerPdfPreviewModal } from './ParecerPdfPreviewModal';
 import styles from './EditorView.module.css';
 
 function parecerToEditorHtml(text: string): string {
@@ -42,17 +47,6 @@ function parecerToEditorHtml(text: string): string {
     .split(/\n{2,}/)
     .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
     .join('');
-}
-
-function htmlToPlainText(value: string): string {
-  if (!value.trim()) return '';
-  if (!value.includes('<')) return value.trim();
-  return value
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 }
 
 function formatCommentTimestamp(iso: string): string {
@@ -69,19 +63,26 @@ interface EditorViewProps {
   user: UserProfile;
   news: NewsItem[];
   labels: LabelConfig[];
+  agencyConfig: AgencyConfig;
   onSaveArticle: (article: EditorialArticle) => Promise<EditorialArticle>;
   articles: EditorialArticle[];
   checkPermission: (permId: string) => boolean;
   themeConfig: ThemeConfig;
 }
 
-export function EditorView({ user, news, labels, onSaveArticle, articles, themeConfig }: EditorViewProps) {
+export function EditorView({ user, news, labels, agencyConfig, onSaveArticle, articles, themeConfig }: EditorViewProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showHistory, setShowHistory] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   
   const newsItem = news.find(n => n.id === id);
   const [loadedArticle, setLoadedArticle] = useState<EditorialArticle | null>(null);
@@ -99,7 +100,63 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const [newComment, setNewComment] = useState('');
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const editorInitKeyRef = useRef('');
+
+  const syncEditorContent = () => {
+    if (editorRef.current) {
+      setContent(editorRef.current.innerHTML);
+    }
+  };
+
+  const runEditorCommand = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    syncEditorContent();
+  };
+
+  const handleToolbarMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
+  };
+
+  const handleInsertLink = () => {
+    setLinkUrl('');
+    setLinkText('');
+    setShowLinkModal(true);
+  };
+
+  const confirmInsertLink = () => {
+    const url = linkUrl.trim();
+    if (!url) return;
+    const text = linkText.trim();
+    if (text) {
+      runEditorCommand('insertHTML', `<a href="${url}" target="_blank" rel="noreferrer">${text}</a>`);
+    } else {
+      runEditorCommand('createLink', url);
+    }
+    setShowLinkModal(false);
+    setLinkUrl('');
+    setLinkText('');
+  };
+
+  const handleInsertImage = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handleImageFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !activeNews?.id) return;
+    setIsUploadingImage(true);
+    try {
+      const apiAnexo = await apiService.uploadAnexoConteudo(activeNews.id, file);
+      runEditorCommand('insertImage', normalizeResourceUrl(apiAnexo.urlAcesso));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível enviar a imagem.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const setEditorContent = (value: string | ((prev: string) => string)) => {
     setContent((prev) => {
@@ -267,14 +324,11 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
 
   if (!activeNews) return null;
 
-  const parecerText = activeNews.report?.trim()
-    ? htmlToPlainText(
-        activeNews.report.trim().startsWith('<')
-          ? activeNews.report
-          : parecerToEditorHtml(activeNews.report),
-      )
-    : '';
   const evidenceSources = activeNews.evidence ?? [];
+  const canPreviewParecerPdf = activeNews ? canDownloadParecerPdf(activeNews) : false;
+  const parecerReportData = activeNews
+    ? buildParecerReportData(activeNews, labels, agencyConfig, user)
+    : null;
 
   return (
     <div className={styles.page} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
@@ -305,10 +359,26 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
           </div>
 
           <div className={styles.sidebarSection}>
-            <label className={styles.sidebarLabel}>Resumo da Evidência</label>
-            <div className={styles.summaryText} style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
-              {parecerText || 'Nenhum parecer registrado na checagem.'}
-            </div>
+            <label className={styles.sidebarLabel}>Parecer da Checagem</label>
+            {canPreviewParecerPdf ? (
+              <button
+                type="button"
+                onClick={() => setShowPdfPreview(true)}
+                className={styles.parecerPreviewBtn}
+                style={{
+                  backgroundColor: themeConfig.general.inputBackground,
+                  borderColor: themeConfig.general.border,
+                  color: themeConfig.general.accent,
+                }}
+              >
+                <Eye className="w-4 h-4" />
+                Visualizar PDF do parecer
+              </button>
+            ) : (
+              <p className={styles.parecerUnavailable} style={{ color: themeConfig.general.mutedText }}>
+                Parecer indisponível para visualização.
+              </p>
+            )}
           </div>
 
           <div className={styles.sidebarSection}>
@@ -451,17 +521,43 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
               />
 
               <div className={styles.rtfToolbar}>
-                <button className={styles.rtfBtn} title="Negrito"><Bold className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Itálico"><Italic className="w-4 h-4" /></button>
+                <button type="button" className={styles.rtfBtn} title="Negrito" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('bold')}>
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Itálico" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('italic')}>
+                  <Italic className="w-4 h-4" />
+                </button>
                 <div className={styles.rtfDivider} />
-                <button className={styles.rtfBtn} title="Título H2"><Layout className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Citação"><Quote className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Lista"><List className="w-4 h-4" /></button>
+                <button type="button" className={styles.rtfBtn} title="Título H2" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('formatBlock', 'h2')}>
+                  <Layout className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Citação" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
+                  <Quote className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Lista" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('insertUnorderedList')}>
+                  <List className="w-4 h-4" />
+                </button>
                 <div className={styles.rtfDivider} />
-                <button className={styles.rtfBtn} title="Link"><LinkIcon className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Imagem"><ImageIcon className="w-4 h-4" /></button>
-                <div className="flex-1" />
-                <button className={styles.rtfCustomBlocks}>Blocos customizados</button>
+                <button type="button" className={styles.rtfBtn} title="Link" onMouseDown={handleToolbarMouseDown} onClick={handleInsertLink}>
+                  <LinkIcon className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  className={styles.rtfBtn}
+                  title="Imagem"
+                  disabled={isUploadingImage}
+                  onMouseDown={handleToolbarMouseDown}
+                  onClick={handleInsertImage}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFileSelected}
+                />
               </div>
 
               <div 
@@ -563,6 +659,65 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
           </motion.div>
         )}
 
+        {showLinkModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.modalOverlay}
+            style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            onClick={() => setShowLinkModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className={styles.modalPanel}
+              style={{ backgroundColor: themeConfig.general.modalBackground, borderColor: themeConfig.general.border, color: themeConfig.general.modalText }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h3 className={styles.modalTitle}>
+                  <LinkIcon className="w-4 h-4" />
+                  Inserir link
+                </h3>
+                <button type="button" onClick={() => setShowLinkModal(false)} className={styles.modalClose}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <label className={styles.sidebarLabel}>URL *</label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className={styles.commentTextarea}
+                  style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, minHeight: 'auto', marginBottom: '1rem' }}
+                />
+                <label className={styles.sidebarLabel}>Texto (opcional)</label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Texto do link"
+                  className={styles.commentTextarea}
+                  style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, minHeight: 'auto' }}
+                />
+                <button
+                  type="button"
+                  onClick={confirmInsertLink}
+                  disabled={!linkUrl.trim()}
+                  className={styles.commentSubmit}
+                  style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText, marginTop: '1rem' }}
+                >
+                  Inserir link
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showHistory && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -614,6 +769,19 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
           </motion.div>
         )}
       </AnimatePresence>
+
+      {parecerReportData && (
+        <ParecerPdfPreviewModal
+          open={showPdfPreview}
+          onClose={() => setShowPdfPreview(false)}
+          data={parecerReportData}
+          themeConfig={themeConfig}
+          canDownload={canPreviewParecerPdf}
+          isDownloading={isPdfDownloading}
+          onDownloadStart={() => setIsPdfDownloading(true)}
+          onDownloadEnd={() => setIsPdfDownloading(false)}
+        />
+      )}
     </div>
   );
 }

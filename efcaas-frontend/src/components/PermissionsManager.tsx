@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PermissionProfile, ThemeConfig } from '../types';
-import { SYSTEM_PERMISSIONS } from '../constants';
+import { TENANT_SYSTEM_PERMISSIONS, TENANT_PERMISSION_IDS } from '../constants';
 import { cn } from '../lib/utils';
 import styles from './PermissionsManager.module.css';
 
@@ -44,7 +44,11 @@ export const PermissionsManager: React.FC<PermissionsManagerProps> = ({
   const handleEdit = (profile: PermissionProfile) => {
     setActiveProfile(profile);
     setEditingId(profile.id);
-    setFormData({ name: profile.name, description: profile.description, permissions: [...profile.permissions] });
+    setFormData({
+      name: profile.name,
+      description: profile.description,
+      permissions: profile.permissions.filter((id) => TENANT_PERMISSION_IDS.includes(id)),
+    });
     setIsCreating(false);
   };
 
@@ -65,11 +69,14 @@ export const PermissionsManager: React.FC<PermissionsManagerProps> = ({
 
   const handleSave = () => {
     if (!formData.name.trim()) return;
+    const tenantPermissions = formData.permissions.filter((id) =>
+      TENANT_PERMISSION_IDS.includes(id),
+    );
     if (isCreating) {
-      onCreateProfile({ name: formData.name, description: formData.description, permissions: formData.permissions, isDefault: false });
+      onCreateProfile({ name: formData.name, description: formData.description, permissions: tenantPermissions, isDefault: false });
       setIsCreating(false);
     } else if (editingId) {
-      onUpdateProfile({ id: editingId, name: formData.name, description: formData.description, permissions: formData.permissions, isDefault: activeProfile?.isDefault });
+      onUpdateProfile({ id: editingId, name: formData.name, description: formData.description, permissions: tenantPermissions, isDefault: activeProfile?.isDefault });
       setEditingId(null);
     }
   };
@@ -216,7 +223,7 @@ export const PermissionsManager: React.FC<PermissionsManagerProps> = ({
                             {categoryLabels[category]}
                           </h5>
                           <div className={styles.permGrid}>
-                            {SYSTEM_PERMISSIONS.filter(p => p.category === category).map(perm => {
+                            {TENANT_SYSTEM_PERMISSIONS.filter(p => p.category === category).map(perm => {
                               const isActive = formData.permissions.includes(perm.id);
                               return (
                                 <button

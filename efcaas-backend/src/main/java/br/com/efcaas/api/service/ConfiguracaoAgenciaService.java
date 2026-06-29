@@ -1,9 +1,12 @@
 package br.com.efcaas.api.service;
 
 import br.com.efcaas.api.domain.ConfiguracaoAgencia;
+import br.com.efcaas.api.domain.Tenant;
 import br.com.efcaas.api.domain.Usuario;
 import br.com.efcaas.api.repository.ConfiguracaoAgenciaRepository;
+import br.com.efcaas.api.repository.TenantRepository;
 import br.com.efcaas.api.repository.UsuarioRepository;
+import br.com.efcaas.api.tenant.TenantContext;
 import br.com.efcaas.api.web.dto.AgencyConfigDto;
 import br.com.efcaas.api.web.dto.ConfiguracaoAgenciaDto;
 import br.com.efcaas.api.web.dto.SalvarConfiguracaoAgenciaRequest;
@@ -14,18 +17,23 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.NoSuchElementException;
+
 @Service
 @RequiredArgsConstructor
 public class ConfiguracaoAgenciaService {
 
+    private static final String DEFAULT_TENANT_SLUG = "dev";
+
     private final ConfiguracaoAgenciaRepository repository;
+    private final TenantRepository tenantRepository;
     private final UsuarioRepository usuarioRepository;
     private final AuditoriaService auditoria;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public ConfiguracaoAgenciaDto obter() {
-        return toDto(buscarOuCriar());
+    public ConfiguracaoAgenciaDto obter(String tenantSlug) {
+        return toDto(buscarOuCriar(tenantSlug));
     }
 
     @Transactional
@@ -34,7 +42,11 @@ public class ConfiguracaoAgenciaService {
             Long usuarioId,
             boolean autenticado,
             boolean possuiAdminSettings) {
-        ConfiguracaoAgencia config = buscarOuCriar();
+        ConfiguracaoAgencia config = buscarOuCriar(null);
+
+        if (!autenticado) {
+            throw new AccessDeniedException("Autenticação obrigatória para alterar a configuração da agência.");
+        }
 
         if (config.isOnboardingConcluido() && !possuiAdminSettings) {
             throw new AccessDeniedException(
@@ -63,21 +75,41 @@ public class ConfiguracaoAgenciaService {
         if (autenticado && usuarioId != null) {
             Usuario usuario = usuarioRepository.findById(usuarioId).orElse(null);
             config.setAtualizadoPor(usuario);
-            auditoria.registrar(usuarioId, "configuracao_agencia_atualizada", "configuracao:1", config.getNome());
+            auditoria.registrar(usuarioId, "configuracao_agencia_atualizada", "configuracao:" + config.getId(), config.getNome());
         }
 
         repository.save(config);
         return toDto(config);
     }
 
-    private ConfiguracaoAgencia buscarOuCriar() {
-        return repository.findById(ConfiguracaoAgencia.SINGLETON_ID).orElseGet(() -> {
+    private ConfiguracaoAgencia buscarOuCriar(String tenantSlug) {
+        Tenant tenant = resolveTenant(tenantSlug);
+        return repository.findByTenant_Id(tenant.getId()).orElseGet(() -> {
             ConfiguracaoAgencia nova = new ConfiguracaoAgencia();
-            nova.setId(ConfiguracaoAgencia.SINGLETON_ID);
-            nova.setNome("Agência eFCaaS");
+            nova.setTenant(tenant);
+            nova.setNome(tenant.getNome());
             nova.setTemaJson("{}");
             return repository.save(nova);
         });
+    }
+
+    private Tenant resolveTenant(String tenantSlug) {
+        if (tenantSlug != null && !tenantSlug.isBlank()) {
+            return tenantRepository.findBySlug(tenantSlug.trim())
+                    .orElseThrow(() -> new NoSuchElementException("Tenant não encontrado: " + tenantSlug));
+        }
+        Long contextTenantId = TenantContext.getTenantId();
+        if (contextTenantId != null) {
+            return tenantRepository.findById(contextTenantId)
+                    .orElseThrow(() -> new NoSuchElementException("Tenant não encontrado: " + contextTenantId));
+        }
+        String contextSlug = TenantContext.getTenantSlug();
+        if (contextSlug != null && !contextSlug.isBlank()) {
+            return tenantRepository.findBySlug(contextSlug)
+                    .orElseThrow(() -> new NoSuchElementException("Tenant não encontrado: " + contextSlug));
+        }
+        return tenantRepository.findBySlug(DEFAULT_TENANT_SLUG)
+                .orElseThrow(() -> new NoSuchElementException("Tenant padrão não encontrado: " + DEFAULT_TENANT_SLUG));
     }
 
     private ConfiguracaoAgenciaDto toDto(ConfiguracaoAgencia config) {

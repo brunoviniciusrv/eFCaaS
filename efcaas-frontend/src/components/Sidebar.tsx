@@ -10,10 +10,12 @@ import {
   Eye,
   FileText,
   Menu,
-  LogOut
+  LogOut,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { iconStyle } from '../lib/iconTheme';
 import { UserProfile, ThemeConfig, AgencyConfig } from '../types';
+import { UserAvatar } from './UserAvatar';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -25,6 +27,7 @@ interface SidebarProps {
   themeConfig: ThemeConfig;
   agencyConfig: AgencyConfig;
   checkPermission: (permId: string) => boolean;
+  onLogout: () => void;
 }
 
 export const Sidebar = ({ 
@@ -35,7 +38,8 @@ export const Sidebar = ({
   setIsSidebarOpen,
   themeConfig,
   agencyConfig,
-  checkPermission
+  checkPermission,
+  onLogout,
 }: SidebarProps) => {
   const sidebarWidth = isSidebarOpen ? 260 : 80;
 
@@ -147,7 +151,11 @@ export const Sidebar = ({
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={22} className={!isSidebarOpen && isActive ? styles.navIconActive : styles.navIcon} />
+                  <item.icon
+                    size={22}
+                    className={!isSidebarOpen && isActive ? styles.navIconActive : styles.navIcon}
+                    style={isActive ? undefined : iconStyle(themeConfig, 'muted')}
+                  />
                   <AnimatePresence>
                     {isSidebarOpen && (
                       <motion.span 
@@ -185,7 +193,7 @@ export const Sidebar = ({
             color: isActive ? themeConfig.sidebar.activeText : themeConfig.sidebar.text
           })}
         >
-          <img src={user.avatarUrl} alt="Avatar" className={styles.avatarImg} />
+          <UserAvatar src={user.avatarUrl} name={user.name} className={styles.avatarImg} />
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.div 
@@ -208,7 +216,7 @@ export const Sidebar = ({
         </NavLink>
 
         <button
-          onClick={() => (window as any).handleAppLogout()}
+          onClick={onLogout}
           className={cn(
             styles.logoutBtn,
             isSidebarOpen ? styles.logoutBtnOpen : styles.logoutBtnClosed

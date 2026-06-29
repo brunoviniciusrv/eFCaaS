@@ -21,7 +21,7 @@ public class RelatorioPublicacao {
     private Parecer parecer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_editor", nullable = false)
+    @JoinColumn(name = "id_editor")
     private Usuario editor;
 
     @Column(length = 255)
@@ -50,4 +50,7 @@ public class RelatorioPublicacao {
 
     @Column(name = "data_publicacao")
     private LocalDateTime dataPublicacao;
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

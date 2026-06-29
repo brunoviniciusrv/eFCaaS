@@ -33,6 +33,7 @@ public class ConteudoSuspeitoMapper {
                                      List<AnexoConteudo> anexos) {
         return new ConteudoSuspeitoDto(
                 String.valueOf(c.getId()),
+                c.getNumeroReferencia(),
                 c.getTitulo(),
                 c.getAlegacao(),
                 c.getLink(),
@@ -57,6 +58,7 @@ public class ConteudoSuspeitoMapper {
                                      List<ConteudoRecebidoMidia> midiasRecebidas) {
         return new ConteudoSuspeitoDto(
                 String.valueOf(c.getId()),
+                c.getNumeroReferencia(),
                 c.getTitulo(),
                 c.getAlegacao(),
                 c.getLink(),
@@ -78,6 +80,7 @@ public class ConteudoSuspeitoMapper {
     public ConteudoSuspeitoDto toDtoSimples(ConteudoSuspeito c, Checagem checagem, Parecer parecer, List<AnexoConteudo> anexos, List<ConteudoRecebidoMidia> midiasRecebidas) {
         return new ConteudoSuspeitoDto(
                 String.valueOf(c.getId()),
+                c.getNumeroReferencia(),
                 c.getTitulo(),
                 c.getAlegacao(),
                 c.getLink(),
@@ -144,6 +147,10 @@ public class ConteudoSuspeitoMapper {
                 .certezaAlegacao(a.getCertezaAlegacao())
                 .faixaCertezaAlegacao(a.getFaixaCertezaAlegacao())
                 .topicMatch(AnaliseIaTopicMatchCodec.deserialize(a.getTopicMatchJson()))
+                .statusIa(a.getStatusIa())
+                .iniciadoEm(a.getIniciadoEm() != null ? a.getIniciadoEm().toString() : null)
+                .finalizadoEm(a.getFinalizadoEm() != null ? a.getFinalizadoEm().toString() : null)
+                .mensagemErro(a.getMensagemErro())
                 .build();
     }
 }

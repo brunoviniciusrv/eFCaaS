@@ -1,0 +1,78 @@
+@reference "../index.css";
+
+.editorWrapper {
+  @apply flex flex-col min-h-[560px];
+}
+
+.toolbar {
+  @apply flex items-center justify-between gap-4 px-6 py-3 border-b;
+}
+
+.toolbarLeft {
+  @apply flex items-center gap-1;
+}
+
+.toolbarRight {
+  @apply flex items-center gap-2;
+}
+
+.rtfBtn {
+  @apply p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.rtfDivider {
+  @apply w-[1px] h-5 bg-slate-200 mx-1;
+}
+
+.actionBtn {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.editorBody {
+  @apply flex-1 p-8 overflow-y-auto;
+}
+
+.contentEditor {
+  @apply w-full min-h-[480px] text-base outline-none leading-relaxed max-w-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-300;
+}
+
+.contentEditor p {
+  @apply mb-4;
+}
+
+.contentEditor ul,
+.contentEditor ol {
+  @apply mb-4 ml-6;
+}
+
+.contentEditor blockquote {
+  @apply border-l-4 border-slate-300 pl-4 italic text-slate-600 mb-4;
+}
+
+.contentEditor a {
+  @apply text-blue-600 underline;
+}
+
+.linkModalOverlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4;
+}
+
+.linkModal {
+  @apply w-full max-w-md rounded-2xl border p-6 shadow-xl;
+}
+
+.linkModalTitle {
+  @apply text-sm font-bold uppercase tracking-widest mb-4;
+}
+
+.linkModalField {
+  @apply w-full mb-3 px-3 py-2 rounded-lg border text-sm outline-none;
+}
+
+.linkModalActions {
+  @apply flex justify-end gap-2 mt-4;
+}
+
+.linkModalBtn {
+  @apply px-4 py-2 rounded-lg text-sm font-semibold;
+}

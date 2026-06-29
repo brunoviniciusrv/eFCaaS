@@ -58,7 +58,9 @@ export function mergeAiAnalysisUpdate(current: NewsItem, fresh: NewsItem): NewsI
           entities: fresh.aiEvaluation.entities.map((e) => ({ ...e })),
           dates: [...fresh.aiEvaluation.dates],
         }
-      : fresh.aiEvaluation,
+      : current.aiEvaluation,
+    iaStatus: fresh.iaStatus ?? current.iaStatus,
+    isAIProcessing: fresh.isAIProcessing ?? current.isAIProcessing,
   };
 }
 
@@ -99,19 +101,6 @@ export function getDesinfoScore(
   };
   const value = values[key];
   return value != null ? value : undefined;
-}
-
-/** @deprecated use getDesinfoScore */
-export function getMisinfoScore(
-  scores: NewsItem['aiScores'] | undefined,
-  key: 'inveracidade' | 'distorcao' | 'foraDeContexto'
-): number | undefined {
-  const map: Record<string, DesinfoScoreKey> = {
-    inveracidade: 'inveracidade',
-    distorcao: 'falsidade',
-    foraDeContexto: 'distorcaoMidia',
-  };
-  return getDesinfoScore(scores, map[key]);
 }
 
 export function hasAiMetrics(

@@ -8,6 +8,7 @@ import {
   hasModelEvaluationData,
   parseAttributeList,
 } from '../lib/aiAnalysis';
+import { MarkdownLite } from './MarkdownLite';
 import styles from './AiModelEvaluationPanel.module.css';
 
 interface AiModelEvaluationPanelProps {
@@ -198,10 +199,10 @@ export function AiModelEvaluationPanel({ evaluation, isLoading }: AiModelEvaluat
                 </h2>
               </div>
               <div className={styles.modalBody}>
-                <p className={styles.modalText}>
+                <MarkdownLite className={styles.modalProse}>
                   {evaluation.explanation?.trim()
                     || 'A explicação detalhada não foi retornada pela API nesta análise.'}
-                </p>
+                </MarkdownLite>
               </div>
               <div className={styles.modalFooter}>
                 <button

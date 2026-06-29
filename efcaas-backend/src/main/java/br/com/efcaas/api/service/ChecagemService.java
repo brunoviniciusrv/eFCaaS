@@ -2,6 +2,7 @@ package br.com.efcaas.api.service;
 
 import br.com.efcaas.api.domain.*;
 import br.com.efcaas.api.repository.*;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.ChecagemMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +37,7 @@ public class ChecagemService {
     private final StorageService storageService;
     private final EvidenciaAccessTokenService accessTokenService;
     private final ObjectMapper objectMapper;
+    private final TenantScope tenantScope;
 
     @Transactional
     public ChecagemDto iniciar(Long checagemId, Long checadorId) {
@@ -64,16 +66,45 @@ public class ChecagemService {
         if (req.perguntas() != null) {
             inv.setPerguntas(toJson(req.perguntas()));
         }
+        if (req.respostasPerguntas() != null) {
+            inv.setRespostasPerguntas(toJson(req.respostasPerguntas()));
+        }
         if (req.fontes() != null) {
             inv.setFontes(toJson(req.fontes()));
         }
-        if (req.contatoAutor() != null) {
-            inv.setContatoRealizado(req.contatoAutor().hadContact());
-            inv.setRespostaAutor(req.contatoAutor().response());
-            inv.setJustificativaSemContato(req.contatoAutor().justificacao());
+        inv.setAutorDesinformacaoInverificavel(req.autorDesinformacaoInverificavel());
+        if (req.autorDesinformacaoInverificavel()) {
+            inv.setAutorDesinformacao(null);
+            inv.setContatoRealizado(null);
+            inv.setRespostaAutor(null);
+            inv.setJustificativaSemContato(null);
+        } else {
+            inv.setAutorDesinformacao(req.autorDesinformacao());
+            if (req.contatoAutor() != null) {
+                inv.setContatoRealizado(req.contatoAutor().hadContact());
+                inv.setRespostaAutor(req.contatoAutor().response());
+                inv.setJustificativaSemContato(req.contatoAutor().justificacao());
+            }
         }
 
         investigacaoRepo.save(inv);
+
+        if (req.fontes() != null) {
+            for (String fonte : req.fontes()) {
+                if (fonte == null) continue;
+                String url = fonte.trim();
+                if (!isMediaUrl(url)) continue;
+                boolean exists = evidenciaRepo.findByChecagemId(ch.getId()).stream()
+                        .anyMatch(e -> url.equals(e.getLinkArquivo()));
+                if (exists) continue;
+                Evidencia ev = new Evidencia();
+                ev.setChecagem(ch);
+                ev.setTipo("link");
+                ev.setLinkArquivo(url);
+                ev.setDescricao("Fonte de apoio (mídia)");
+                evidenciaRepo.save(ev);
+            }
+        }
 
         List<String> camposAlterados = new ArrayList<>();
         if (req.resumo() != null) camposAlterados.add("resumo_metodologia");
@@ -109,7 +140,9 @@ public class ChecagemService {
     @Transactional
     public ChecagemDto finalizarParecer(Long checagemId, FinalizarParecerRequest req, Long usuarioId) {
         Checagem ch = buscarChecagem(checagemId);
+        Long tenantId = tenantScope.requireTenantId();
         Etiqueta etiqueta = etiquetaRepo.findById(req.etiquetaId())
+                .filter(e -> tenantId.equals(e.getTenantId()))
                 .orElseThrow(() -> new NoSuchElementException("Etiqueta não encontrada: " + req.etiquetaId()));
 
         Parecer parecer = parecerRepo.findByChecagemId(checagemId).orElse(new Parecer());
@@ -233,7 +266,7 @@ public class ChecagemService {
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private Checagem buscarChecagem(Long id) {
-        return checagemRepo.findById(id)
+        return checagemRepo.findByIdAndTenantId(id, tenantScope.requireTenantId())
                 .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada: " + id));
     }
 
@@ -257,6 +290,12 @@ public class ChecagemService {
         if (contentType.startsWith("image/")) return "image";
         if (contentType.startsWith("video/")) return "video";
         return "document";
+    }
+
+    private static boolean isMediaUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String lower = url.toLowerCase();
+        return lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm|mov|avi|mp3|wav|ogg|m4a)(\\?.*)?$");
     }
 
     private record ByteRange(long start, long end) {}

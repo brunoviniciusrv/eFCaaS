@@ -18,8 +18,6 @@ import {
   NewsItem, 
   Evidence, 
   ReportStructure, 
-  FactLabel, 
-  View,
   AuditLog,
   LabelConfig,
   ReportStructureConfig,
@@ -32,16 +30,21 @@ import {
   ArticleStatus,
   SpecializedNetworkCheck
 } from './types';
-import { generateDraftReport, reviewReport } from './services/geminiService';
-import { apiService, normalizeReportStructure } from './services/apiService';
+import { apiService, normalizeReportStructure, buildEstruturaRelatorioBody } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
 import { mergeConteudoDetail } from './lib/aiAnalysis';
-import { clearToken } from './services/apiClient';
+import { normalizeResourceUrl } from './lib/apiBaseUrl';
+import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
+import { addPendingIaConteudo, getPendingIaConteudoIds, isIaFinished, removePendingIaConteudo } from './lib/iaPolling';
+
+import { normalizeReportForEditor } from './lib/parecerHtml';
+
+const CACHED_USER_KEY = 'efcaas_cached_user';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
 function getParecerTexto(newsItem: NewsItem): string {
-  return newsItem.report?.trim() ?? '';
+  return normalizeReportForEditor(newsItem.report);
 }
 
 function parecerToEditorHtml(text: string): string {
@@ -100,10 +103,15 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { CuratorDashboard } from './components/CuratorDashboard';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginView } from './components/LoginView';
+import { LandingPage } from './components/LandingPage';
+import { AgencyRegistrationPage } from './components/AgencyRegistrationPage';
+import { ActivationPage } from './components/ActivationPage';
+import { PlatformAdminDashboard } from './components/PlatformAdminDashboard';
 import { EditorView } from './components/EditorView';
 import { EditorialArchive } from './components/EditorialArchive';
+import { PlatformShell } from './platform/PlatformShell';
 
-function RootRedirect({ checkPermission }: { checkPermission: (permId: string) => boolean }) {
+function TenantRootRedirect({ checkPermission }: { checkPermission: (permId: string) => boolean }) {
   if (checkPermission('view_dashboard')) return <Navigate to="/dashboard" replace />;
   if (checkPermission('view_curator')) return <Navigate to="/curator" replace />;
   if (checkPermission('view_archive')) return <Navigate to="/editorial-archive" replace />;
@@ -113,10 +121,20 @@ function RootRedirect({ checkPermission }: { checkPermission: (permId: string) =
 
 function AppContent() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const hasStoredToken = Boolean(getToken());
+  const [isAuthenticated, setIsAuthenticated] = useState(hasStoredToken);
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState(hasStoredToken);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [user, setUser] = useState<UserProfile>(PLACEHOLDER_USER);
+  const [user, setUser] = useState<UserProfile>(() => {
+    if (!hasStoredToken) return PLACEHOLDER_USER;
+    try {
+      const cached = localStorage.getItem(CACHED_USER_KEY);
+      return cached ? JSON.parse(cached) : PLACEHOLDER_USER;
+    } catch {
+      return PLACEHOLDER_USER;
+    }
+  });
   const [news, setNews] = useState<NewsItem[]>([]);
   const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -153,25 +171,11 @@ function AppContent() {
     setPermissionProfiles(prev => prev.filter(p => p.id !== id));
     addAuditLog('delete_profile', `Perfil ID: ${id}`, `Perfil de acesso removido`);
   };
-  const [specializedNetworkChecks, setSpecializedNetworkChecks] = useState<SpecializedNetworkCheck[]>(() => {
-    const saved = localStorage.getItem('platform_specialized_checks');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('platform_specialized_checks', JSON.stringify(specializedNetworkChecks));
-  }, [specializedNetworkChecks]);
+  const [specializedNetworkChecks, setSpecializedNetworkChecks] = useState<SpecializedNetworkCheck[]>([]);
 
   const [articles, setArticles] = useState<EditorialArticle[]>([]);
 
-  const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('platform_editor_assignments');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('platform_editor_assignments', JSON.stringify(editorAssignments));
-  }, [editorAssignments]);
+  const [editorAssignments, setEditorAssignments] = useState<Record<string, string>>({});
 
   const handleSaveArticle = async (article: EditorialArticle): Promise<EditorialArticle> => {
     const saved = await apiService.salvarRelatorioPublicacao(article.newsId, {
@@ -260,7 +264,7 @@ function AppContent() {
       }
     };
     loadData();
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Atualiza conteúdos recebidos da API externa (polling). */
   const RECEIVED_NEWS_POLL_INTERVAL_MS = 30_000;
@@ -302,57 +306,191 @@ function AppContent() {
   }, [isAuthenticated, user.profileId, permissionProfiles]);
 
   const [reportConfig, setReportConfig] = useState<ReportStructureConfig>(INITIAL_REPORT_CONFIG);
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
-    const saved = localStorage.getItem('platform_theme_config');
-    const savedAgency = localStorage.getItem('platform_agency_config');
-    let theme = saved ? normalizeThemeConfig(JSON.parse(saved)) : INITIAL_THEME_CONFIG;
-    if (savedAgency) {
-      try {
-        const agency = JSON.parse(savedAgency) as AgencyConfig;
-        const preset = findThemePresetById(agency.templateId);
-        if (preset) theme = applyThemePreset(theme, preset);
-      } catch {
-        // mantém tema salvo
-      }
-    }
-    return theme;
-  });
-  const [agencyConfig, setAgencyConfig] = useState<AgencyConfig>(() => {
-    const saved = localStorage.getItem('platform_agency_config');
-    return saved ? JSON.parse(saved) : INITIAL_AGENCY_CONFIG;
-  });
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
+  const [agencyConfig, setAgencyConfig] = useState<AgencyConfig>(INITIAL_AGENCY_CONFIG);
   const configSyncReady = useRef(false);
 
+  const isPlatformUser = isAuthenticated && user.profileId === 'p-platform';
+
+  const loadTenantBranding = async (): Promise<AgencyConfig> => {
+    const { agency, theme } = await apiService.obterConfiguracaoAgencia();
+    const templateId = resolveThemeTemplateId(agency.templateId);
+    const resolvedAgency = templateId !== agency.templateId ? { ...agency, templateId } : agency;
+    setAgencyConfig(resolvedAgency);
+    let resolvedTheme = INITIAL_THEME_CONFIG;
+    if (theme) {
+      let normalized = normalizeThemeConfig(theme);
+      const preset = findThemePresetById(templateId);
+      if (preset) normalized = applyThemePreset(normalized, preset);
+      resolvedTheme = normalized;
+      setThemeConfig(normalized);
+    }
+    localStorage.setItem(tenantStorageKey('agency_config') ?? 'tenant_agency_config', JSON.stringify(resolvedAgency));
+    localStorage.setItem(tenantStorageKey('theme_config') ?? 'tenant_theme_config', JSON.stringify(resolvedTheme));
+    configSyncReady.current = true;
+
+    return resolvedAgency;
+  };
+
+  const applyAuthenticatedUser = (loggedUser: UserProfile) => {
+    setUser(loggedUser);
+    localStorage.setItem(CACHED_USER_KEY, JSON.stringify(loggedUser));
+    const platformUser = loggedUser.profileId === 'p-platform';
+    setPermissionProfiles(
+      platformUser
+        ? INITIAL_PERMISSION_PROFILES.filter((p) => p.id === 'p-platform')
+        : INITIAL_PERMISSION_PROFILES.filter((p) => p.id !== 'p-platform'),
+    );
+    setIsAuthenticated(true);
+  };
+
   useEffect(() => {
-    apiService.obterConfiguracaoAgencia()
-      .then(({ agency, theme }) => {
-        const templateId = resolveThemeTemplateId(agency.templateId);
-        setAgencyConfig(templateId !== agency.templateId ? { ...agency, templateId } : agency);
-        if (theme) {
-          let normalized = normalizeThemeConfig(theme);
-          const preset = findThemePresetById(templateId);
-          if (preset) normalized = applyThemePreset(normalized, preset);
-          setThemeConfig(normalized);
+    const token = getToken();
+    if (!token) {
+      setIsAuthBootstrapping(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const loggedUser = await apiService.obterUsuarioAtual();
+        if (cancelled) return;
+
+        applyAuthenticatedUser(loggedUser);
+
+        if (loggedUser.profileId !== 'p-platform') {
+          try {
+            const agency = await loadTenantBranding();
+            if (!agency.isOnboardingCompleted) {
+              setShowOnboarding(true);
+            }
+          } catch (err) {
+            console.warn('Não foi possível restaurar configuração da agência:', err);
+          }
         }
+      } catch {
+        if (!cancelled) {
+          clearToken();
+          clearTenantSlug();
+          localStorage.removeItem(CACHED_USER_KEY);
+          setIsAuthenticated(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAuthBootstrapping(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isAuthenticated || isAuthBootstrapping) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      const pendingIds = getPendingIaConteudoIds();
+      if (pendingIds.length === 0) return;
+      for (const id of pendingIds) {
+        if (cancelled) return;
+        try {
+          const fresh = await apiService.obterConteudo(id);
+          if (cancelled) return;
+          setNews((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, ...fresh } : n)),
+          );
+          if (isIaFinished(fresh.iaStatus)) {
+            removePendingIaConteudo(id);
+            if (fresh.iaStatus === 'concluida') {
+              addNotification({
+                title: 'Análise de IA concluída',
+                message: `A análise de "${fresh.title}" foi finalizada.`,
+                type: 'success',
+                category: 'system',
+                targetUserId: user.id,
+              });
+            }
+          }
+        } catch {
+          // continua polling
+        }
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, isAuthBootstrapping, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isAuthenticated || isAuthBootstrapping) return;
+    apiService.listarNotificacoes()
+      .then((items) => {
+        items.filter((n) => !n.lida).forEach((n) => {
+          addNotification({
+            title: n.titulo,
+            message: n.mensagem ?? '',
+            type: 'info',
+            category: 'system',
+            targetUserId: user.id,
+          });
+        });
       })
-      .catch((err) => {
-        console.warn('Não foi possível carregar configuração da agência da API:', err);
-      })
-      .finally(() => {
-        configSyncReady.current = true;
-      });
-  }, []);
+      .catch(() => {});
+  }, [isAuthenticated, isAuthBootstrapping]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    localStorage.setItem('platform_theme_config', JSON.stringify(themeConfig));
-  }, [themeConfig]);
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('theme_config');
+    if (key) localStorage.setItem(key, JSON.stringify(themeConfig));
+  }, [themeConfig, isAuthenticated, isPlatformUser]);
 
   useEffect(() => {
-    localStorage.setItem('platform_agency_config', JSON.stringify(agencyConfig));
-  }, [agencyConfig]);
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('agency_config');
+    if (key) localStorage.setItem(key, JSON.stringify(agencyConfig));
+  }, [agencyConfig, isAuthenticated, isPlatformUser]);
 
   useEffect(() => {
-    if (!configSyncReady.current) return;
+    if (!isAuthenticated || isPlatformUser) return;
+    const checksKey = tenantStorageKey('specialized_checks');
+    const assignmentsKey = tenantStorageKey('editor_assignments');
+    if (checksKey) {
+      const saved = localStorage.getItem(checksKey);
+      setSpecializedNetworkChecks(saved ? JSON.parse(saved) : []);
+    } else {
+      setSpecializedNetworkChecks([]);
+    }
+    if (assignmentsKey) {
+      const saved = localStorage.getItem(assignmentsKey);
+      setEditorAssignments(saved ? JSON.parse(saved) : {});
+    } else {
+      setEditorAssignments({});
+    }
+  }, [isAuthenticated, isPlatformUser, user.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('specialized_checks');
+    if (key) localStorage.setItem(key, JSON.stringify(specializedNetworkChecks));
+  }, [specializedNetworkChecks, isAuthenticated, isPlatformUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isPlatformUser) return;
+    const key = tenantStorageKey('editor_assignments');
+    if (key) localStorage.setItem(key, JSON.stringify(editorAssignments));
+  }, [editorAssignments, isAuthenticated, isPlatformUser]);
+
+  useEffect(() => {
+    if (!configSyncReady.current || isPlatformUser) return;
 
     const podePersistir =
       !agencyConfig.isOnboardingCompleted ||
@@ -366,7 +504,7 @@ function AppContent() {
     }, 800);
 
     return () => window.clearTimeout(timer);
-  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted]);
+  }, [agencyConfig, themeConfig, isAuthenticated, agencyConfig.isOnboardingCompleted, isPlatformUser]);
 
   // Monitor received news for new items and notify
   useEffect(() => {
@@ -430,8 +568,6 @@ function AppContent() {
   };
   
   // AI States
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const selectedNews = news.find(n => n.id === selectedNewsId);
@@ -481,6 +617,34 @@ function AppContent() {
     navigate(`/analysis/${id}`);
   };
 
+  const handleViewCompletedCheck = (id: string) => {
+    setSelectedNewsId(id);
+    navigate(`/analysis/${id}`);
+  };
+
+  const handleSaveParecer = async (): Promise<boolean> => {
+    if (!selectedNews?.checagemId) return false;
+    setIsSaving(true);
+    try {
+      const rs = selectedNews.reportStructure;
+      if (rs) {
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, buildEstruturaRelatorioBody(rs));
+      }
+      if (selectedNews.report) {
+        await apiService.salvarParecer(selectedNews.checagemId, {
+          textoParecer: selectedNews.report,
+        });
+      }
+      return true;
+    } catch (err) {
+      console.error('Erro ao salvar parecer:', err);
+      alert(`Erro ao salvar: ${err instanceof Error ? err.message : err}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleAssign = async (newsId: string, checkerId: string, briefing: string) => {
     await apiService.atribuirConteudo(newsId, {
       checadorId: Number(checkerId),
@@ -527,6 +691,8 @@ function AppContent() {
   const handleApprove = async (newsId: string, comments: string) => {
     try {
       await apiService.aprovarConteudo(newsId, comments);
+      const relatorios = await apiService.listarRelatoriosPublicacao().catch(() => [] as EditorialArticle[]);
+      setArticles(relatorios);
       setNews(prev => prev.map(n => n.id === newsId ? {
         ...n,
         status: 'completed',
@@ -678,7 +844,7 @@ function AppContent() {
     const newMedia = {
       id: apiAnexo.id,
       type,
-      url: apiAnexo.urlAcesso ?? '',
+      url: normalizeResourceUrl(apiAnexo.urlAcesso),
       title: apiAnexo.nomeArquivo ?? file.name,
     };
     setNews(prev => prev.map(n => n.id === selectedNewsId ? {
@@ -699,49 +865,16 @@ function AppContent() {
     } : n));
   };
 
-  const handleGenerateDraft = async () => {
-    if (!selectedNews || !selectedNews.reportStructure) return;
-    setIsGeneratingDraft(true);
-    try {
-      const draft = await generateDraftReport(selectedNews, selectedNews.reportStructure);
-      handleUpdateReport(draft);
-    } catch (error) {
-      console.error("Error generating draft:", error);
-    } finally {
-      setIsGeneratingDraft(false);
-    }
-  };
-
-  const handleReviewReport = async () => {
-    if (!selectedNews?.report) return;
-    setIsReviewing(true);
-    try {
-      const review = await reviewReport(selectedNews.report);
-      handleUpdateReport(`${selectedNews.report}\n\n---\n### Sugestões da IA:\n${review}`);
-    } catch (error) {
-      console.error("Error reviewing report:", error);
-    } finally {
-      setIsReviewing(false);
-    }
-  };
-
   const handleSaveInvestigation = async (): Promise<boolean> => {
     if (!selectedNews) return false;
     setIsSaving(true);
     try {
       if (selectedNews.checagemId) {
         const rs = selectedNews.reportStructure;
-        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
-          resumo: rs?.summary ?? '',
-          perguntas: (rs?.questions ?? []).filter(Boolean),
-          fontes: (rs?.sources ?? []).filter(Boolean),
-          inverificavel: rs?.isInverifiable ?? false,
-          contatoAutor: {
-            hadContact: rs?.contactWithAuthor?.hadContact ?? null,
-            justificacao: rs?.contactWithAuthor?.justification ?? null,
-            response: rs?.contactWithAuthor?.response ?? null,
-          },
-        });
+        await apiService.salvarEstruturaRelatorio(
+          selectedNews.checagemId,
+          buildEstruturaRelatorioBody(normalizeReportStructure(rs))
+        );
       }
       return true;
     } catch (err) {
@@ -766,17 +899,7 @@ function AppContent() {
       if (selectedNews.checagemId) {
         const rs = selectedNews.reportStructure;
 
-        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
-          resumo: rs.summary ?? '',
-          perguntas: (rs.questions ?? []).filter(Boolean),
-          fontes: (rs.sources ?? []).filter(Boolean),
-          inverificavel: rs.isInverifiable ?? false,
-          contatoAutor: {
-            hadContact: rs.contactWithAuthor?.hadContact ?? null,
-            justificacao: rs.contactWithAuthor?.justification ?? null,
-            response: rs.contactWithAuthor?.response ?? null,
-          },
-        });
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, buildEstruturaRelatorioBody(rs));
 
         if (selectedNews.report) {
           await apiService.salvarParecer(selectedNews.checagemId, {
@@ -1107,7 +1230,19 @@ function AppContent() {
     if (assigned) {
       void (async () => {
         try {
-          if (articles.some((a) => a.newsId === newsId)) return;
+          const existing = articles.find((a) => a.newsId === newsId);
+          if (existing) {
+            const saved = await apiService.salvarRelatorioPublicacao(newsId, {
+              titulo: existing.title,
+              corpoTexto: existing.content,
+              resumo: existing.excerpt,
+              statusPublicacao: existing.status,
+              template: existing.template,
+              comentarios: existing.comments,
+            });
+            setArticles((prev) => prev.map((a) => (a.newsId === newsId ? saved : a)));
+            return;
+          }
           const fresh = await apiService.obterConteudo(newsId);
           const itemWithParecer = {
             ...newsItem,
@@ -1282,42 +1417,99 @@ function AppContent() {
 
   const handleLogout = () => {
     clearToken();
+    clearTenantSlug();
     setIsAuthenticated(false);
     setUser(PLACEHOLDER_USER);
     setNews([]);
     setUsers([]);
+    setShowOnboarding(false);
     navigate('/');
   };
-  (window as any).handleAppLogout = handleLogout;
 
   const handleLogin = async (email: string, password: string) => {
     const { user: loggedUser } = await apiService.login(email, password);
-    setUser(loggedUser);
-    // Garante que perfis de permissão usem sempre a configuração mais recente,
-    // ignorando qualquer versão antiga que possa estar no localStorage.
-    setPermissionProfiles(INITIAL_PERMISSION_PROFILES);
-    setIsAuthenticated(true);
+    setNews([]);
+    setUsers([]);
+    setArticles([]);
+    applyAuthenticatedUser(loggedUser);
+
+    if (loggedUser.profileId === 'p-platform') {
+      navigate('/platform');
+      return;
+    }
+
+    try {
+      const agency = await loadTenantBranding();
+      if (!agency.isOnboardingCompleted) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.warn('Não foi possível carregar configuração da agência após login:', err);
+      setShowOnboarding(true);
+    }
+
+    navigate('/');
   };
 
-  if (showOnboarding) {
+  const handleActivated = async (loggedUser: UserProfile) => {
+    applyAuthenticatedUser(loggedUser);
+
+    try {
+      const agency = await loadTenantBranding();
+      if (!agency.isOnboardingCompleted) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.warn('Configuração da agência indisponível após ativação:', err);
+      setShowOnboarding(true);
+    }
+
+    navigate('/');
+  };
+
+  const showLoginRoutes = !isAuthenticated && !hasStoredToken;
+
+  if (isAuthenticated && isPlatformUser) {
+    return (
+      <PlatformShell user={user} onLogout={handleLogout}>
+        <Routes>
+          <Route
+            path="/platform"
+            element={
+              <PlatformAdminDashboard checkPermission={checkPermission} />
+            }
+          />
+          <Route path="*" element={<Navigate to="/platform" replace />} />
+        </Routes>
+      </PlatformShell>
+    );
+  }
+
+  if (isAuthenticated && showOnboarding && !agencyConfig.isOnboardingCompleted) {
     return (
       <OnboardingFlow
         onComplete={handleOnboardingComplete}
-        onClose={agencyConfig.isOnboardingCompleted ? () => setShowOnboarding(false) : undefined}
         initialAgency={agencyConfig}
         initialTheme={themeConfig}
       />
     );
   }
 
-  if (!isAuthenticated) {
+  if (showLoginRoutes) {
     return (
-      <LoginView 
-        onLogin={handleLogin} 
-        onOpenOnboarding={() => setShowOnboarding(true)}
-        themeConfig={themeConfig}
-        agencyConfig={agencyConfig}
-      />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/cadastro-agencia" element={<AgencyRegistrationPage />} />
+        <Route
+          path="/ativar"
+          element={<ActivationPage onActivated={handleActivated} />}
+        />
+        <Route
+          path="/login"
+          element={<LoginView onLogin={handleLogin} />}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     );
   }
 
@@ -1340,18 +1532,21 @@ function AppContent() {
         themeConfig={themeConfig}
         agencyConfig={agencyConfig}
         checkPermission={checkPermission}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 relative overflow-y-auto">
         <Routes>
-          <Route path="/" element={<RootRedirect checkPermission={checkPermission} />} />
+          <Route path="/" element={<TenantRootRedirect checkPermission={checkPermission} />} />
           <Route path="/dashboard" element={
             checkPermission('view_dashboard') ? (
               <Dashboard 
                 news={news}
+                articles={displayArticles}
                 user={user}
                 setSelectedNewsId={setSelectedNewsId}
                 handleStartAnalysis={handleStartAnalysis}
+                handleViewCompletedCheck={handleViewCompletedCheck}
                 handleMoveTask={handleMoveTask}
                 handleMoveRedacao={handleMoveRedacao}
                 onApprove={handleApprove}
@@ -1425,6 +1620,7 @@ function AppContent() {
                 specializedNetworkChecks={specializedNetworkChecks}
                 onMoveTask={handleCuratorMoveTask}
                 agencyConfig={agencyConfig}
+                permissionProfiles={permissionProfiles}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1436,10 +1632,9 @@ function AppContent() {
               isToolboxOpen={isToolboxOpen}
               setIsToolboxOpen={setIsToolboxOpen}
               handleSaveFinal={handleSaveFinal}
+              handleSaveParecer={handleSaveParecer}
               handleSaveInvestigation={handleSaveInvestigation}
               handleUpdateReportStructure={handleUpdateReportStructure}
-              handleGenerateDraft={handleGenerateDraft}
-              handleReviewReport={handleReviewReport}
               handleUpdateReport={handleUpdateReport}
               handleAddEvidence={handleAddEvidence}
               handleUploadEvidenceFile={handleUploadEvidenceFile}
@@ -1447,8 +1642,6 @@ function AppContent() {
               handleUploadMediaFile={handleUploadMediaFile}
               handleRemoveMedia={handleRemoveMedia}
               isSaving={isSaving}
-              isGeneratingDraft={isGeneratingDraft}
-              isReviewing={isReviewing}
               labels={labels}
               reportConfig={reportConfig}
               themeConfig={themeConfig}
@@ -1463,6 +1656,7 @@ function AppContent() {
                 user={user}
                 news={news}
                 labels={labels}
+                agencyConfig={agencyConfig}
                 articles={displayArticles}
                 onSaveArticle={handleSaveArticle}
                 checkPermission={checkPermission}
@@ -1478,6 +1672,7 @@ function AppContent() {
                 articles={displayArticles}
                 onDeleteArticle={handleDeleteArticle}
                 onUpdateStatus={handleUpdateArticleStatus}
+                checkPermission={checkPermission}
                 themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />

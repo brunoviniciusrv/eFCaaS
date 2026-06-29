@@ -39,4 +39,7 @@ public class Checagem {
 
     @Column(name = "data_conclusao")
     private LocalDateTime dataConclusao;
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

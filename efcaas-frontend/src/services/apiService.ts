@@ -1,4 +1,5 @@
-import { api, setToken } from './apiClient';
+import { api, setToken, setTenantSlug, clearTenantSlug } from './apiClient';
+import { normalizeResourceUrl } from '../lib/apiBaseUrl';
 import {
   UserProfile,
   NewsItem,
@@ -19,18 +20,27 @@ import { parseAttributeList, parseMisinformationFeatures, toConfidenceScore } fr
 export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
   summary: '',
   questions: [''],
+  questionAnswers: [''],
   sources: [''],
   isInverifiable: false,
+  disinfoAuthorName: '',
+  disinfoAuthorUnverifiable: false,
   contactWithAuthor: { hadContact: null },
 };
+
+export function syncQuestionAnswers(questions: string[], answers?: string[]): string[] {
+  return questions.map((_, index) => answers?.[index] ?? '');
+}
 
 export function normalizeReportStructure(
   rs?: Partial<ReportStructure> | null
 ): ReportStructure {
+  const questions = rs?.questions?.length ? rs.questions : [''];
   return {
     ...DEFAULT_REPORT_STRUCTURE,
     ...rs,
-    questions: rs?.questions?.length ? rs.questions : [''],
+    questions,
+    questionAnswers: syncQuestionAnswers(questions, rs?.questionAnswers),
     sources: rs?.sources?.length ? rs.sources : [''],
     contactWithAuthor: {
       ...DEFAULT_REPORT_STRUCTURE.contactWithAuthor,
@@ -46,6 +56,9 @@ export function normalizeReportStructure(
 export interface ApiLoginResponse {
   token: string;
   usuario: ApiUsuarioDto;
+  tenantId?: number | null;
+  tenantSlug?: string | null;
+  platformAdmin?: boolean;
 }
 
 export interface ApiUsuarioDto {
@@ -81,6 +94,10 @@ export interface ApiAnaliseIaDto {
   certezaAlegacao: number | null;
   faixaCertezaAlegacao: string | null;
   topicMatch: string[] | null;
+  statusIa?: string | null;
+  iniciadoEm?: string | null;
+  finalizadoEm?: string | null;
+  mensagemErro?: string | null;
   /** @deprecated legado — falsidade */
   scoreDistorcao?: number | null;
   /** @deprecated legado — distorção de mídia */
@@ -89,6 +106,7 @@ export interface ApiAnaliseIaDto {
 
 export interface ApiConteudoDto {
   id: string;
+  numeroReferencia?: number | null;
   titulo: string;
   alegacao: string;
   link: string;
@@ -175,8 +193,11 @@ export interface ApiInvestigacaoDto {
   id: string;
   resumoMetodologia: string;
   perguntas: string[];
+  respostasPerguntas?: string[];
   fontes: string[];
   inverificavel: boolean;
+  autorDesinformacao?: string | null;
+  autorDesinformacaoInverificavel?: boolean;
   contatoRealizado: boolean | null;
   respostaAutor: string | null;
   justificativaSemContato: string | null;
@@ -297,12 +318,42 @@ export interface AtribuirChecagemBody {
 export interface EstruturaRelatorioBody {
   resumo: string;
   perguntas: string[];
+  respostasPerguntas: string[];
   fontes: string[];
   inverificavel: boolean;
+  autorDesinformacao: string | null;
+  autorDesinformacaoInverificavel: boolean;
   contatoAutor: {
     hadContact: boolean | null;
     justificacao: string | null;
     response: string | null;
+  };
+}
+
+export function buildEstruturaRelatorioBody(rs: ReportStructure): EstruturaRelatorioBody {
+  const questions = rs.questions ?? [];
+  const answers = syncQuestionAnswers(questions, rs.questionAnswers);
+  const pairs = questions
+    .map((q, index) => ({ q, a: answers[index] ?? '' }))
+    .filter((pair) => pair.q.trim());
+
+  return {
+    resumo: rs.summary ?? '',
+    perguntas: pairs.map((pair) => pair.q),
+    respostasPerguntas: pairs.map((pair) => pair.a),
+    fontes: (rs.sources ?? []).filter(Boolean),
+    inverificavel: rs.isInverifiable ?? false,
+    autorDesinformacao: rs.disinfoAuthorUnverifiable
+      ? null
+      : (rs.disinfoAuthorName?.trim() || null),
+    autorDesinformacaoInverificavel: rs.disinfoAuthorUnverifiable ?? false,
+    contatoAutor: rs.disinfoAuthorUnverifiable
+      ? { hadContact: null, justificacao: null, response: null }
+      : {
+          hadContact: rs.contactWithAuthor?.hadContact ?? null,
+          justificacao: rs.contactWithAuthor?.justification ?? null,
+          response: rs.contactWithAuthor?.response ?? null,
+        },
   };
 }
 export interface SalvarParecerBody {
@@ -324,6 +375,77 @@ export interface AdicionarEvidenciaBody {
   descricao?: string;
 }
 
+export interface YoutubeResultadoDto {
+  titulo: string;
+  url: string;
+  conteudo?: string | null;
+  descricao?: string | null;
+  channelTitle?: string | null;
+  channelId?: string | null;
+  publishedAt?: string | null;
+  viewCount?: number | null;
+  commentCount?: number | null;
+  duration?: string | null;
+  thumbnailDefault?: string | null;
+  thumbnailHigh?: string | null;
+  tags?: string[] | null;
+}
+
+export type AgencyPlan = 'FREE' | 'PAID';
+
+export type SolicitacaoStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface DocumentoSolicitacaoDto {
+  id: string;
+  nomeArquivo: string;
+  tipoMime?: string | null;
+  tamanhoBytes?: number | null;
+  urlAcesso?: string | null;
+}
+
+export interface SolicitacaoCadastroDto {
+  id: string;
+  nomeAgencia: string;
+  cnpj?: string | null;
+  nomeResponsavel: string;
+  emailContato: string;
+  telefone?: string | null;
+  pais: string;
+  estado?: string | null;
+  cidade?: string | null;
+  planoSolicitado: AgencyPlan;
+  informacoesExtras?: string | null;
+  status: SolicitacaoStatus;
+  motivoReprovacao?: string | null;
+  tenantSlug?: string | null;
+  criadoEm: string;
+  atualizadoEm?: string | null;
+  documentos?: DocumentoSolicitacaoDto[];
+}
+
+export interface TenantSummaryDto {
+  id: string;
+  slug: string;
+  nome: string;
+  plano: AgencyPlan;
+  status: string;
+  compartilhaDadosEcossistema: boolean;
+  criadoEm: string;
+}
+
+export interface PlatformTenantUsuarioDto {
+  id: string;
+  nome: string;
+  email: string;
+  status: string;
+  perfil: string;
+}
+
+export interface AtivacaoResponse {
+  token: string;
+  usuario: ApiUsuarioDto;
+}
+
 // ─────────────────────────────────────────────
 // Mapeadores: Backend DTO → Tipo do frontend
 // ─────────────────────────────────────────────
@@ -333,6 +455,7 @@ const ROLE_MAP: Record<string, UserProfile['role']> = {
   Curador: 'curator',
   Checador: 'checker',
   Editor: 'editor',
+  'Platform Admin': 'admin',
 };
 
 const PROFILE_ID_MAP: Record<string, string> = {
@@ -340,6 +463,7 @@ const PROFILE_ID_MAP: Record<string, string> = {
   Curador: 'p-curator',
   Checador: 'p-checker',
   Editor: 'p-editor',
+  'Platform Admin': 'p-platform',
 };
 
 const PROFILE_ID_TO_TIPO_NOME: Record<string, string> = {
@@ -427,9 +551,7 @@ function mapUsuario(dto: ApiUsuarioDto): UserProfile {
     email: dto.email,
     role: ROLE_MAP[tipoNome] ?? 'checker',
     profileId: PROFILE_ID_MAP[tipoNome] ?? 'p-checker',
-    avatarUrl:
-      dto.avatarUrl ||
-      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(dto.nome)}`,
+    avatarUrl: dto.avatarUrl ?? '',
     bio: dto.bio ?? undefined,
     status: dto.status === 'active' ? 'active' : 'suspended',
   };
@@ -440,8 +562,11 @@ function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string):
   return normalizeReportStructure({
     summary: inv?.resumoMetodologia ?? '',
     questions: inv?.perguntas?.length ? inv.perguntas : [''],
+    questionAnswers: inv?.respostasPerguntas,
     sources: inv?.fontes?.length ? inv.fontes : [''],
     isInverifiable: inv?.inverificavel ?? false,
+    disinfoAuthorName: inv?.autorDesinformacao ?? '',
+    disinfoAuthorUnverifiable: inv?.autorDesinformacaoInverificavel ?? false,
     contactWithAuthor: {
       hadContact: inv?.contatoRealizado ?? null,
       response: inv?.respostaAutor ?? undefined,
@@ -472,7 +597,7 @@ function mapAnexos(anexos: ApiAnexoConteudoDto[] | undefined): NewsItem['media']
     return {
       id: anexo.id,
       type,
-      url: anexo.urlAcesso ?? '',
+      url: normalizeResourceUrl(anexo.urlAcesso),
       title: anexo.nomeArquivo ?? undefined,
     };
   });
@@ -486,8 +611,34 @@ function deriveWarningLevel(score: number | null): string {
   return 'baixo';
 }
 
-function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation'> {
-  if (!ia || ia.simulado) return {};
+function hasPersistedAnaliseIaData(ia: ApiAnaliseIaDto): boolean {
+  return [
+    ia.scoreInveracidade,
+    ia.scoreFalsidade,
+    ia.scoreDistorcaoMidia,
+    ia.scoreDistorcao,
+    ia.scoreForaContexto,
+    ia.scoreRiscoIlicitude,
+  ].some((v) => v != null)
+    || Boolean(ia.textoAnalise?.trim())
+    || Boolean(ia.classificacaoOdio?.trim())
+    || Boolean(ia.classificacaoAntidemo?.trim());
+}
+
+function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation' | 'isAIProcessing' | 'iaStatus'> {
+  if (!ia) return {};
+
+  const iaStatus = (ia.statusIa as NewsItem['iaStatus']) ?? undefined;
+  const isAIProcessing = ia.statusIa === 'processando';
+
+  if (
+    ia.simulado
+    && ia.statusIa !== 'processando'
+    && ia.statusIa !== 'concluida'
+    && !hasPersistedAnaliseIaData(ia)
+  ) {
+    return { isAIProcessing, iaStatus };
+  }
 
   const inveracidade = toScore(ia.scoreInveracidade);
   const falsidade = toScore(ia.scoreFalsidade ?? ia.scoreDistorcao);
@@ -546,6 +697,8 @@ function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | '
   return {
     ...(hasScores ? { aiScores } : {}),
     ...(aiEvaluation ? { aiEvaluation } : {}),
+    isAIProcessing,
+    iaStatus,
   };
 }
 
@@ -575,6 +728,7 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
   }));
   return {
     id: dto.id,
+    referenceNumber: dto.numeroReferencia ?? undefined,
     title: dto.titulo ?? '',
     alegacao: dto.alegacao ?? undefined,
     descricao: dto.descricao ?? undefined,
@@ -683,10 +837,112 @@ function mapAgencyConfigToApi(agency: AgencyConfig): ApiAgencyConfigDto {
 
 export const apiService = {
   // Auth
-  async login(email: string, senha: string): Promise<{ token: string; user: UserProfile }> {
-    const data = await api.post<ApiLoginResponse>('/auth/login', { email, senha });
+  async login(
+    email: string,
+    senha: string,
+    tenantSlug?: string,
+  ): Promise<{ token: string; user: UserProfile }> {
+    const data = await api.post<ApiLoginResponse>(
+      '/auth/login',
+      { email, senha, tenantSlug: tenantSlug || undefined },
+      { skipAuth: true, tenantSlug: tenantSlug || undefined },
+    );
     setToken(data.token);
+    clearTenantSlug();
+    if (data.tenantSlug) {
+      setTenantSlug(data.tenantSlug);
+    }
     return { token: data.token, user: mapUsuario(data.usuario) };
+  },
+
+  async obterUsuarioAtual(): Promise<UserProfile> {
+    const dto = await api.get<ApiUsuarioDto>('/me');
+    return mapUsuario(dto);
+  },
+
+  async ativarConta(
+    tenantSlug: string,
+    token: string,
+    senha: string,
+  ): Promise<{ token: string; user: UserProfile }> {
+    const data = await api.post<ApiLoginResponse>(
+      '/public/ativacao',
+      { tenant: tenantSlug, token, senha },
+      { skipAuth: true },
+    );
+    setToken(data.token);
+    setTenantSlug(tenantSlug);
+    return { token: data.token, user: mapUsuario(data.usuario) };
+  },
+
+  async enviarSolicitacaoCadastro(
+    payload: {
+      nomeAgencia: string;
+      cnpj?: string;
+      nomeResponsavel: string;
+      emailContato: string;
+      senha: string;
+      telefone?: string;
+      pais?: string;
+      estado?: string;
+      cidade?: string;
+      planoSolicitado: AgencyPlan;
+      informacoesExtras?: string;
+    },
+    documentos: File[],
+  ): Promise<SolicitacaoCadastroDto> {
+    const formData = new FormData();
+    formData.append('nomeAgencia', payload.nomeAgencia);
+    if (payload.cnpj) formData.append('cnpj', payload.cnpj);
+    formData.append('nomeResponsavel', payload.nomeResponsavel);
+    formData.append('emailContato', payload.emailContato);
+    formData.append('senha', payload.senha);
+    if (payload.telefone) formData.append('telefone', payload.telefone);
+    formData.append('pais', payload.pais ?? 'Brasil');
+    if (payload.estado) formData.append('estado', payload.estado);
+    if (payload.cidade) formData.append('cidade', payload.cidade);
+    formData.append('planoSolicitado', payload.planoSolicitado);
+    if (payload.informacoesExtras) {
+      formData.append('informacoesExtras', payload.informacoesExtras);
+    }
+    documentos.forEach((file) => formData.append('documentos', file));
+    return api.upload<SolicitacaoCadastroDto>(
+      '/public/solicitacoes-cadastro',
+      formData,
+      { skipAuth: true },
+    );
+  },
+
+  async verificarTenantDisponivel(slug: string): Promise<{ disponivel: boolean }> {
+    return api.get<{ disponivel: boolean }>(
+      `/public/tenants/${encodeURIComponent(slug)}/exists`,
+      { skipAuth: true },
+    );
+  },
+
+  async listarSolicitacoesCadastro(status?: SolicitacaoStatus): Promise<SolicitacaoCadastroDto[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api.get<SolicitacaoCadastroDto[]>(`/platform/solicitacoes${qs}`);
+  },
+
+  async obterSolicitacaoCadastro(id: string): Promise<SolicitacaoCadastroDto> {
+    return api.get<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}`);
+  },
+
+  async aprovarSolicitacaoCadastro(id: string): Promise<SolicitacaoCadastroDto> {
+    return api.post<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}/aprovar`, {});
+  },
+
+  async reprovarSolicitacaoCadastro(id: string, motivo?: string): Promise<SolicitacaoCadastroDto> {
+    return api.post<SolicitacaoCadastroDto>(`/platform/solicitacoes/${id}/reprovar`, { motivo });
+  },
+
+  async listarTenantsPlatform(): Promise<TenantSummaryDto[]> {
+    return api.get<TenantSummaryDto[]>('/platform/tenants');
+  },
+
+  async listarUsuariosTenantPlatform(tenantId: string): Promise<PlatformTenantUsuarioDto[]> {
+    return api.get<PlatformTenantUsuarioDto[]>(`/platform/tenants/${tenantId}/usuarios`);
   },
 
   async atualizarPerfil(data: {
@@ -714,8 +970,12 @@ export const apiService = {
     await api.patch<void>('/me/senha', { senhaAtual, novaSenha });
   },
 
-  async obterConfiguracaoAgencia(): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
-    const dto = await api.get<ApiConfiguracaoAgenciaDto>('/configuracao/agencia');
+  async obterConfiguracaoAgencia(tenantSlug?: string): Promise<{ agency: AgencyConfig; theme: ThemeConfig }> {
+    const qs = tenantSlug ? `?tenant=${encodeURIComponent(tenantSlug)}` : '';
+    const dto = await api.get<ApiConfiguracaoAgenciaDto>(`/configuracao/agencia${qs}`, {
+      skipAuth: Boolean(tenantSlug),
+      tenantSlug,
+    });
     const theme = dto.theme && Object.keys(dto.theme).length > 0 ? dto.theme : undefined;
     return {
       agency: mapAgencyConfigFromApi(dto.agency),
@@ -878,6 +1138,10 @@ export const apiService = {
     return api.post<void>(`/conteudos/${conteudoId}/reabrir`, { justificativa });
   },
 
+  async habilitarEdicaoConcluida(conteudoId: string): Promise<void> {
+    return api.post<void>(`/conteudos/${conteudoId}/habilitar-edicao`, {});
+  },
+
   // Checagens
   async iniciarChecagem(checagemId: string): Promise<ApiChecagemDto> {
     return api.post<ApiChecagemDto>(`/checagens/${checagemId}/iniciar`);
@@ -968,9 +1232,38 @@ export const apiService = {
     return api.get<ApiAuditoriaDto[]>(`/checagens/${checagemId}/auditoria`);
   },
 
-  /** Dispara análise de IA (Guaia IA Hub) para o conteúdo e retorna o item atualizado. */
+  /** Dispara análise de IA (assíncrona) e retorna status atual. */
   async analisarConteudo(id: string): Promise<NewsItem> {
     const dto = await api.post<ApiConteudoDto>(`/conteudos/${id}/ia/analisar`, {});
     return mapConteudo(dto);
+  },
+
+  async listarNotificacoes(): Promise<Array<{
+    id: string;
+    titulo: string;
+    mensagem: string | null;
+    categoria: string | null;
+    link: string | null;
+    lida: boolean;
+    criadoEm: string | null;
+  }>> {
+    return api.get('/notificacoes');
+  },
+
+  async marcarNotificacaoLida(id: string): Promise<void> {
+    return api.patch<void>(`/notificacoes/${id}/lida`, {});
+  },
+
+  async buscarYoutube(params: {
+    query: string;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<YoutubeResultadoDto[]> {
+    const search = new URLSearchParams({ query: params.query });
+    if (params.limit != null) search.set('limit', String(params.limit));
+    if (params.startDate) search.set('startDate', params.startDate);
+    if (params.endDate) search.set('endDate', params.endDate);
+    return api.get<YoutubeResultadoDto[]>(`/youtube/buscar?${search.toString()}`);
   },
 };

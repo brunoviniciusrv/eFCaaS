@@ -27,7 +27,7 @@ public class RelatorioPublicacaoMapper {
                 rel.getCorpoTexto(),
                 rel.getStatusPublicacao(),
                 rel.getTemplate(),
-                str(rel.getEditor().getId()),
+                rel.getEditor() != null ? str(rel.getEditor().getId()) : null,
                 rel.getDataCriacao() != null ? rel.getDataCriacao().toString() : null,
                 rel.getDataAtualizacao() != null ? rel.getDataAtualizacao().toString() : null,
                 parseComments(rel.getComentariosJson())

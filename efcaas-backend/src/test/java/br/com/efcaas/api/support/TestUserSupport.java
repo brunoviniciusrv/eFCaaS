@@ -1,6 +1,7 @@
 package br.com.efcaas.api.support;
 
 import br.com.efcaas.api.domain.Permissao;
+import br.com.efcaas.api.domain.Tenant;
 import br.com.efcaas.api.domain.TipoUsuario;
 import br.com.efcaas.api.domain.Usuario;
 import jakarta.persistence.EntityManager;
@@ -44,13 +45,34 @@ public class TestUserSupport {
         tipo.setPermissoes(Set.of(manageReceived, manageTriage, viewCurator));
         entityManager.persist(tipo);
 
+        Tenant tenant = seedDevTenant();
+
         Usuario usuario = new Usuario();
         usuario.setNome("Curador Teste");
         usuario.setEmail(CURADOR_EMAIL);
         usuario.setSenha(DEFAULT_TEST_PASSWORD_HASH);
         usuario.setStatus("A");
         usuario.setTipoUsuario(tipo);
+        usuario.setTenant(tenant);
         entityManager.persist(usuario);
+    }
+
+    @Transactional
+    public Tenant seedDevTenant() {
+        return entityManager.createQuery(
+                        "SELECT t FROM Tenant t WHERE t.slug = :slug", Tenant.class)
+                .setParameter("slug", "dev")
+                .getResultStream()
+                .findFirst()
+                .orElseGet(() -> {
+                    Tenant tenant = new Tenant();
+                    tenant.setSlug("dev");
+                    tenant.setNome("Agência eFCaaS (Dev)");
+                    tenant.setPlano("FREE");
+                    tenant.setStatus("ACTIVE");
+                    entityManager.persist(tenant);
+                    return tenant;
+                });
     }
 
     private Permissao persistPermissao(String nome, String tipo) {

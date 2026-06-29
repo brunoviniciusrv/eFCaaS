@@ -38,5 +38,9 @@ public record AnaliseIaDto(
         String misinformationFeatures,
         BigDecimal certezaAlegacao,
         String faixaCertezaAlegacao,
-        List<String> topicMatch
+        List<String> topicMatch,
+        String statusIa,
+        String iniciadoEm,
+        String finalizadoEm,
+        String mensagemErro
 ) {}

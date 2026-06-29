@@ -1,0 +1,57 @@
+@reference "../index.css";
+
+.sidebar {
+  @apply w-64 shrink-0 flex flex-col border-r h-full;
+}
+
+.header {
+  @apply flex items-center gap-3 p-5 border-b;
+}
+
+.logo {
+  @apply h-10 w-10 object-contain;
+}
+
+.brandName {
+  @apply text-sm font-bold text-white leading-tight;
+}
+
+.brandSub {
+  @apply text-[10px] uppercase tracking-wider text-slate-400;
+}
+
+.nav {
+  @apply flex-1 p-3 space-y-1;
+}
+
+.navLink {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors;
+}
+
+.navLinkActive {
+  @apply font-semibold;
+}
+
+.footer {
+  @apply p-4 border-t space-y-3;
+}
+
+.userRow {
+  @apply flex items-start gap-2;
+}
+
+.userInfo {
+  @apply min-w-0 flex-1;
+}
+
+.userName {
+  @apply text-xs font-semibold text-white truncate;
+}
+
+.userEmail {
+  @apply text-[10px] text-slate-400 truncate;
+}
+
+.logoutBtn {
+  @apply w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors;
+}

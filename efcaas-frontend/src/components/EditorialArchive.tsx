@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -18,6 +19,13 @@ import {
   Trash2
 } from 'lucide-react';
 import { EditorialArticle, ArticleStatus, UserProfile, NewsItem, ThemeConfig } from '../types';
+import { iconStyle } from '../lib/iconTheme';
+import {
+  exportArticleAsHtml,
+  exportArticleAsJson,
+  exportArticleAsPdf,
+  exportArticleAsTxt,
+} from '../lib/articleExport';
 import styles from './EditorialArchive.module.css';
 
 interface EditorialArchiveProps {
@@ -26,14 +34,82 @@ interface EditorialArchiveProps {
   user: UserProfile;
   onDeleteArticle: (id: string) => Promise<void>;
   onUpdateStatus: (id: string, status: ArticleStatus) => Promise<void>;
+  checkPermission: (id: string) => boolean;
   themeConfig: ThemeConfig;
 }
 
-export function EditorialArchive({ articles, news, user, onDeleteArticle, themeConfig }: EditorialArchiveProps) {
+export function EditorialArchive({ articles, news, user, onDeleteArticle, checkPermission, themeConfig }: EditorialArchiveProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'all'>('all');
   const [openExportMenuId, setOpenExportMenuId] = useState<string | null>(null);
+  const [exportMenuPos, setExportMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const exportButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const closeExportMenu = useCallback(() => {
+    setOpenExportMenuId(null);
+    setExportMenuPos(null);
+  }, []);
+
+  const openExportMenu = (articleId: string) => {
+    if (openExportMenuId === articleId) {
+      closeExportMenu();
+      return;
+    }
+    const button = exportButtonRefs.current[articleId];
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 176;
+    setExportMenuPos({
+      top: rect.bottom + 8,
+      left: Math.max(8, rect.right - menuWidth),
+    });
+    setOpenExportMenuId(articleId);
+  };
+
+  useEffect(() => {
+    if (!openExportMenuId) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const button = exportButtonRefs.current[openExportMenuId];
+      const menu = document.getElementById('editorial-export-menu');
+      if (button?.contains(target) || menu?.contains(target)) return;
+      closeExportMenu();
+    };
+
+    const handleReposition = () => {
+      const button = exportButtonRefs.current[openExportMenuId];
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 176;
+      setExportMenuPos({
+        top: rect.bottom + 8,
+        left: Math.max(8, rect.right - menuWidth),
+      });
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [openExportMenuId, closeExportMenu]);
+
+  const handleExport = (article: EditorialArticle, format: 'json' | 'html' | 'txt' | 'pdf') => {
+    if (format === 'json') exportArticleAsJson(article);
+    else if (format === 'html') exportArticleAsHtml(article);
+    else if (format === 'pdf') exportArticleAsPdf(article);
+    else exportArticleAsTxt(article);
+    closeExportMenu();
+  };
+
+  const exportMenuArticle = openExportMenuId
+    ? articles.find((article) => article.id === openExportMenuId)
+    : null;
 
   const filteredArticles = articles.filter(art => {
     const matchesSearch = art.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -49,12 +125,16 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
     return news.find(n => n.id === newsId)?.title || "Notícia não encontrada";
   };
 
+  const getReferenceNumber = (newsId: string) => {
+    return news.find(n => n.id === newsId)?.referenceNumber ?? newsId;
+  };
+
   const getStatusIcon = (status: ArticleStatus) => {
     const normalized = status === 'published' ? 'approved' : status;
     switch (normalized) {
-      case 'approved': return <CheckCircle2 className="w-4 h-4 text-blue-500" />;
-      case 'review': return <AlertTriangle className="w-4 h-4 text-orange-500" />;
-      default: return <Clock className="w-4 h-4 text-slate-400" />;
+      case 'approved': return <CheckCircle2 className="w-4 h-4" style={iconStyle(themeConfig, 'accent')} />;
+      case 'review': return <AlertTriangle className="w-4 h-4" style={iconStyle(themeConfig, 'active')} />;
+      default: return <Clock className="w-4 h-4" style={iconStyle(themeConfig, 'muted')} />;
     }
   };
 
@@ -75,35 +155,6 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
       case 'review': return styles.statusBadgeReview;
       default: return styles.statusBadgeDefault;
     }
-  };
-
-  const handleExport = (article: EditorialArticle, format: 'json' | 'html' | 'txt') => {
-    let content = "";
-    let mimeType = "";
-    let extension = "";
-
-    if (format === 'json') {
-      content = JSON.stringify(article, null, 2);
-      mimeType = "application/json";
-      extension = "json";
-    } else if (format === 'html') {
-      content = `<!DOCTYPE html><html><head><title>${article.title}</title><meta charset="UTF-8"></head><body><h1>${article.title}</h1><div>${article.content}</div></body></html>`;
-      mimeType = "text/html";
-      extension = "html";
-    } else {
-      content = `${article.title}\n\n${article.content.replace(/<[^>]*>/g, '')}`;
-      mimeType = "text/plain";
-      extension = "txt";
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${article.title.substring(0, 30).replace(/\s+/g, '_')}.${extension}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const catDotClass = (color: string) => {
@@ -223,8 +274,17 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
                       </td>
                       <td className={styles.tdOrigin}>
                         <div className={styles.originContent}>
-                          <span className={styles.originTitle}>{getNewsTitle(article.newsId)}</span>
-                          <span className={styles.originRef} style={{ color: themeConfig.general.accent }}>Ref: #{article.newsId.split('-')[1]}</span>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/analysis/${article.newsId}?mode=view`)}
+                            className={styles.originTitle}
+                            style={{ color: themeConfig.general.accent, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            {getNewsTitle(article.newsId)}
+                          </button>
+                          <span className={styles.originRef} style={{ color: themeConfig.general.mutedText }}>
+                            Nº {getReferenceNumber(article.newsId)}
+                          </span>
                         </div>
                       </td>
                       <td className={styles.tdStatus}>
@@ -237,46 +297,29 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
                       </td>
                       <td className={styles.tdActions}>
                         <div className={styles.actions}>
-                          <button 
-                            onClick={() => navigate(`/editor/${article.newsId}`)}
-                            className={styles.editBtn}
-                            title="Editar"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                          
-                          <div className={styles.exportWrap}>
+                          {checkPermission('view_editor') && (
                             <button 
-                              onClick={() => setOpenExportMenuId(openExportMenuId === article.id ? null : article.id)}
+                              onClick={() => navigate(`/editor/${article.newsId}`)}
+                              className={styles.editBtn}
+                              title="Editar"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {checkPermission('export_article') && (
+                          <div className={styles.exportWrap}>
+                            <button
+                              type="button"
+                              ref={(node) => { exportButtonRefs.current[article.id] = node; }}
+                              onClick={() => openExportMenu(article.id)}
                               className={openExportMenuId === article.id ? styles.exportBtnOpen : styles.exportBtnClosed}
+                              title="Exportar matéria"
                             >
                               <Download className="w-4 h-4" />
                             </button>
-                            
-                            <AnimatePresence>
-                              {openExportMenuId === article.id && (
-                                <motion.div 
-                                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                  className={styles.exportDropdown}
-                                >
-                                  <div className={styles.exportDropdownHeader}>
-                                    <span className={styles.exportDropdownTitle}>Exportar como</span>
-                                  </div>
-                                  <button onClick={() => { handleExport(article, 'html'); setOpenExportMenuId(null); }} className={styles.exportItem}>
-                                    HTML <span>.html</span>
-                                  </button>
-                                  <button onClick={() => { handleExport(article, 'json'); setOpenExportMenuId(null); }} className={styles.exportItem}>
-                                    JSON <span>.json</span>
-                                  </button>
-                                  <button onClick={() => { handleExport(article, 'txt'); setOpenExportMenuId(null); }} className={styles.exportItem}>
-                                    Texto <span>.txt</span>
-                                  </button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
                           </div>
+                          )}
 
                           <button 
                             onClick={async () => {
@@ -302,6 +345,38 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
             </table>
           </div>
         </div>
+
+        {createPortal(
+          <AnimatePresence>
+            {exportMenuArticle && exportMenuPos && (
+              <motion.div
+                id="editorial-export-menu"
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                className={styles.exportDropdownPortal}
+                style={{ top: exportMenuPos.top, left: exportMenuPos.left }}
+              >
+                <div className={styles.exportDropdownHeader}>
+                  <span className={styles.exportDropdownTitle}>Exportar como</span>
+                </div>
+                <button type="button" onClick={() => handleExport(exportMenuArticle, 'pdf')} className={styles.exportItem}>
+                  PDF <span>.pdf</span>
+                </button>
+                <button type="button" onClick={() => handleExport(exportMenuArticle, 'html')} className={styles.exportItem}>
+                  HTML <span>.html</span>
+                </button>
+                <button type="button" onClick={() => handleExport(exportMenuArticle, 'json')} className={styles.exportItem}>
+                  JSON <span>.json</span>
+                </button>
+                <button type="button" onClick={() => handleExport(exportMenuArticle, 'txt')} className={styles.exportItem}>
+                  Texto <span>.txt</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )}
 
         {/* Footer Actions */}
         <div className={styles.footer}>

@@ -1,10 +1,14 @@
 package br.com.efcaas.api.service;
 
+import br.com.efcaas.api.config.IngestProperties;
 import br.com.efcaas.api.domain.ConteudoRecebido;
 import br.com.efcaas.api.domain.ConteudoRecebidoMidia;
 import br.com.efcaas.api.domain.ConteudoSuspeito;
 import br.com.efcaas.api.repository.ConteudoRecebidoRepository;
 import br.com.efcaas.api.repository.ConteudoSuspeitoRepository;
+import br.com.efcaas.api.repository.TenantRepository;
+import br.com.efcaas.api.tenant.TenantContext;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.ConteudoRecebidoDto;
 import br.com.efcaas.api.web.dto.ConteudoSuspeitoDto;
 import br.com.efcaas.api.web.dto.IngestConteudoRecebidoMidiaRequest;
@@ -33,12 +37,17 @@ public class ConteudoRecebidoService {
     private final ConteudoSuspeitoRepository conteudoRepo;
     private final ConteudoRecebidoMapper mapper;
     private final ConteudoSuspeitoService conteudoSuspeitoService;
+    private final TenantConteudoSeqService tenantConteudoSeqService;
     private final AuditoriaService auditoria;
+    private final TenantScope tenantScope;
+    private final TenantRepository tenantRepository;
+    private final IngestProperties ingestProperties;
 
     @Transactional(readOnly = true)
     public List<ConteudoRecebidoDto> listar(String status) {
         String filtro = status != null && !status.isBlank() ? status : "received";
-        return repository.findByStatusOrderByRecebidoEmDesc(filtro).stream()
+        return repository.findByTenantIdAndStatusOrderByRecebidoEmDesc(
+                        tenantScope.requireTenantId(), filtro).stream()
                 .map(mapper::toDto)
                 .toList();
     }
@@ -59,7 +68,9 @@ public class ConteudoRecebidoService {
         String tipoFonte = normalizarTipoFonte(normalized.tipoFonte());
 
         if (normalized.idMensagemExterna() != null && !normalized.idMensagemExterna().isBlank()) {
-            var existente = repository.findByTipoFonteAndIdMensagemExterna(tipoFonte, normalized.idMensagemExterna());
+            Long tenantId = resolveTenantIdForIngest();
+            var existente = repository.findByTipoFonteAndIdMensagemExternaAndTenantId(
+                    tipoFonte, normalized.idMensagemExterna(), tenantId);
             if (existente.isPresent()) {
                 return new IngestRegistrationResult(mapper.toDto(existente.get()), false);
             }
@@ -71,7 +82,9 @@ public class ConteudoRecebidoService {
             return new IngestRegistrationResult(mapper.toDto(entity), true);
         } catch (DataIntegrityViolationException ex) {
             if (normalized.idMensagemExterna() != null && !normalized.idMensagemExterna().isBlank()) {
-                return repository.findByTipoFonteAndIdMensagemExterna(tipoFonte, normalized.idMensagemExterna())
+                Long tenantId = resolveTenantIdForIngest();
+                return repository.findByTipoFonteAndIdMensagemExternaAndTenantId(
+                                tipoFonte, normalized.idMensagemExterna(), tenantId)
                         .map(e -> new IngestRegistrationResult(mapper.toDto(e), false))
                         .orElseThrow(() -> ex);
             }
@@ -93,6 +106,8 @@ public class ConteudoRecebidoService {
         conteudo.setFonte(formatarFonteParaExibicao(recebido.getTipoFonte()));
         conteudo.setLink(recebido.getLinkOriginal() != null ? recebido.getLinkOriginal() : "");
         conteudo.setStatus("pending");
+        conteudo.setTenantId(recebido.getTenantId());
+        conteudo.setNumeroReferencia(tenantConteudoSeqService.proximoNumeroReferencia(recebido.getTenantId()));
         conteudoRepo.save(conteudo);
 
         recebido.setStatus("in_triage");
@@ -126,6 +141,7 @@ public class ConteudoRecebidoService {
         entity.setIdMensagemExterna(req.idMensagemExterna());
         entity.setNotasInternas(req.notasInternas());
         entity.setStatus("received");
+        entity.setTenantId(resolveTenantIdForIngest());
 
         if (req.midias() != null) {
             for (IngestConteudoRecebidoMidiaRequest m : req.midias()) {
@@ -152,8 +168,27 @@ public class ConteudoRecebidoService {
     }
 
     private ConteudoRecebido buscar(Long id) {
-        return repository.findById(id)
+        return repository.findByIdAndTenantId(id, tenantScope.requireTenantId())
                 .orElseThrow(() -> new NoSuchElementException("Conteúdo recebido não encontrado: " + id));
+    }
+
+    private Long resolveTenantIdForIngest() {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return tenantId;
+        }
+        String defaultSlug = ingestProperties.defaultTenantSlug();
+        if (defaultSlug == null || defaultSlug.isBlank()) {
+            defaultSlug = "dev";
+        }
+        final String tenantSlug = defaultSlug;
+        return tenantRepository.findBySlug(tenantSlug)
+                .map(t -> {
+                    TenantContext.set(t.getId(), t.getSlug());
+                    return t.getId();
+                })
+                .orElseThrow(() -> new IllegalStateException(
+                        "Contexto de tenant não definido para ingestão (tenant padrão: " + tenantSlug + ")"));
     }
 
     private String normalizarTipoFonte(String tipoFonte) {

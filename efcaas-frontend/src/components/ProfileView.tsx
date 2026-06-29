@@ -10,6 +10,7 @@ import {
   LogOut 
 } from 'lucide-react';
 import { UserProfile, ThemeConfig } from '../types';
+import { UserAvatar } from './UserAvatar';
 import styles from './ProfileView.module.css';
 
 interface ProfileViewProps {
@@ -84,7 +85,7 @@ export const ProfileView = ({
             <div className={styles.profileRow}>
               <div className={styles.avatarWrap}>
                 <div className={styles.avatarGroup}>
-                  <img src={profileForm.avatarUrl} alt="Avatar" className={styles.avatarImg} style={{ borderColor: themeConfig.general.border }} />
+                  <UserAvatar src={profileForm.avatarUrl} name={profileForm.name} className={styles.avatarImg} />
                   <label className={styles.avatarOverlay}>
                     <Camera size={24} />
                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />

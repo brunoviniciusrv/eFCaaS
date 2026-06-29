@@ -26,7 +26,7 @@ import {
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
 import { ResponsiveTabs } from './ResponsiveTabs';
-import { NewsItem, UserProfile, ThemeConfig, PermissionProfile, AuditLog, LabelConfig } from '../types';
+import { NewsItem, UserProfile, ThemeConfig, PermissionProfile, AuditLog, LabelConfig, EditorialArticle } from '../types';
 import { cn } from '../lib/utils';
 import { getDesinfoScore } from '../lib/aiAnalysis';
 import { isNewsAssignedTo } from '../lib/newsAssignment';
@@ -46,9 +46,11 @@ import styles from './Dashboard.module.css';
 
 interface DashboardProps {
   news: NewsItem[];
+  articles?: EditorialArticle[];
   user: UserProfile;
   setSelectedNewsId: (id: string | null) => void;
   handleStartAnalysis: (id: string) => void;
+  handleViewCompletedCheck: (id: string) => void;
   handleMoveTask: (id: string, targetStatus: 'pending' | 'in_progress') => void;
   handleMoveRedacao?: (id: string, assigned: boolean) => void;
   onApprove?: (newsId: string, comments: string) => Promise<void>;
@@ -66,9 +68,11 @@ interface DashboardProps {
 
 export const Dashboard = ({ 
   news, 
+  articles = [],
   user, 
   setSelectedNewsId, 
   handleStartAnalysis,
+  handleViewCompletedCheck,
   handleMoveTask,
   handleMoveRedacao,
   onApprove,
@@ -167,10 +171,26 @@ export const Dashboard = ({
     else if (source.droppableId === 'myRedacao' && destination.droppableId === 'redacaoQueue') { if (handleMoveRedacao) handleMoveRedacao(draggableId, false); }
   };
 
-  const redacaoQueue = news.filter(n => n.status === 'completed' && !n.assignedToEditor);
-  const myRedacao = news.filter(n => n.status === 'completed' && n.assignedToEditor === user.id);
+  const redacaoQueue = articles.filter(
+    (a) => a.status === 'draft' && (!a.authorId || !a.authorId.trim())
+  );
+  const myRedacao = articles.filter(
+    (a) => a.authorId === user.id && a.status === 'draft'
+  );
 
-  const TaskCard = ({ item, onClickHandler, isDragging, titleClass = styles.taskTitle }: { item: NewsItem; onClickHandler: () => void; isDragging: boolean; titleClass?: string }) => (
+  const newsForArticle = (article: EditorialArticle): NewsItem => {
+    const item = news.find((n) => n.id === article.newsId);
+    if (item) return item;
+    return {
+      id: article.newsId,
+      title: article.title,
+      status: 'completed',
+      date: article.updatedAt,
+      receivedAt: article.updatedAt,
+    } as NewsItem;
+  };
+
+  const TaskCard = ({ item, onClickHandler, isDragging, titleClass = styles.taskTitle, actionLabel = 'Investigar' }: { item: NewsItem; onClickHandler: () => void; isDragging: boolean; titleClass?: string; actionLabel?: string }) => (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.95 }}
@@ -206,7 +226,7 @@ export const Dashboard = ({
             )}
           </div>
           <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
-            Investigar <ArrowRight size={12} />
+            {actionLabel} <ArrowRight size={12} />
           </button>
         </div>
       </div>
@@ -290,7 +310,7 @@ export const Dashboard = ({
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      onClick={() => handleStartAnalysis(item.id)}
+                      onClick={() => handleViewCompletedCheck(item.id)}
                       className={cn(styles.taskCard, styles.taskCardIdle)}
                       style={{ borderColor: themeConfig.general.border }}
                     >
@@ -312,7 +332,7 @@ export const Dashboard = ({
                             <div className={styles.sourceTag}>{item.source}</div>
                           </div>
                           <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
-                             Analisar <ArrowRight size={12} />
+                             Visualizar <ArrowRight size={12} />
                           </button>
                         </div>
                       </div>
@@ -651,11 +671,11 @@ export const Dashboard = ({
                       >
                         <div className={styles.taskGrid}>
                           <AnimatePresence mode="popLayout">
-                            {myRedacao.map((item, index) => (
-                              <Draggable key={item.id} draggableId={item.id} index={index}>
+                            {myRedacao.map((article, index) => (
+                              <Draggable key={article.newsId} draggableId={article.newsId} index={index}>
                                 {(provided, snapshot) => (
                                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="outline-none">
-                                    <TaskCard item={item} onClickHandler={() => navigate(`/editor/${item.id}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} />
+                                    <TaskCard item={newsForArticle(article)} onClickHandler={() => navigate(`/editor/${article.newsId}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} actionLabel="Redigir" />
                                   </div>
                                 )}
                               </Draggable>
@@ -689,8 +709,10 @@ export const Dashboard = ({
                       >
                         <div className="grid grid-cols-1 gap-3">
                           <AnimatePresence mode="popLayout">
-                            {redacaoQueue.map((item, index) => (
-                              <Draggable key={item.id} draggableId={item.id} index={index}>
+                            {redacaoQueue.map((article, index) => {
+                              const item = newsForArticle(article);
+                              return (
+                              <Draggable key={article.newsId} draggableId={article.newsId} index={index}>
                                 {(provided, snapshot) => (
                                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="outline-none">
                                     <motion.div
@@ -715,7 +737,7 @@ export const Dashboard = ({
                                   </div>
                                 )}
                               </Draggable>
-                            ))}
+                            );})}
                           </AnimatePresence>
                           {provided.placeholder}
                         </div>

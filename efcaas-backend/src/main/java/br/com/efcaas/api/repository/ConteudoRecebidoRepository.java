@@ -10,7 +10,12 @@ public interface ConteudoRecebidoRepository extends JpaRepository<ConteudoRecebi
 
     List<ConteudoRecebido> findByStatusOrderByRecebidoEmDesc(String status);
 
-    Optional<ConteudoRecebido> findByTipoFonteAndIdMensagemExterna(String tipoFonte, String idMensagemExterna);
+    List<ConteudoRecebido> findByTenantIdAndStatusOrderByRecebidoEmDesc(Long tenantId, String status);
+
+    Optional<ConteudoRecebido> findByIdAndTenantId(Long id, Long tenantId);
+
+    Optional<ConteudoRecebido> findByTipoFonteAndIdMensagemExternaAndTenantId(
+            String tipoFonte, String idMensagemExterna, Long tenantId);
 
     Optional<ConteudoRecebido> findByConteudoTriagem_Id(Long conteudoTriagemId);
 }

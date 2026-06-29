@@ -28,7 +28,28 @@ export const SYSTEM_PERMISSIONS: SystemPermission[] = [
   { id: 'view_archive', name: 'Acervo Editorial', description: 'Acesso ao arquivo de matérias publicadas e exportação', category: 'navigation' },
   { id: 'publish_article', name: 'Publicar Matérias', description: 'Capacidade de oficializar a publicação de uma checagem no CMS', category: 'actions' },
   { id: 'export_article', name: 'Exportar Conteúdo', description: 'Exportar matérias em formatos HTML, JSON ou TXT', category: 'actions' },
+  { id: 'view_platform', name: 'Painel Platform', description: 'Acesso ao painel de aprovação de cadastros de agências', category: 'navigation' },
+  { id: 'platform_view_requests', name: 'Ver Solicitações', description: 'Listar solicitações de cadastro de agências', category: 'actions' },
+  { id: 'platform_approve_agency', name: 'Aprovar Agências', description: 'Aprovar cadastro e provisionar tenant', category: 'actions' },
+  { id: 'platform_reject_agency', name: 'Reprovar Agências', description: 'Reprovar solicitação de cadastro', category: 'actions' },
+  { id: 'platform_list_tenants', name: 'Listar Tenants', description: 'Visualizar tenants ativos na plataforma', category: 'actions' },
 ];
+
+/** Permissões exclusivas do Control Plane — nunca atribuídas a perfis de agência. */
+export const PLATFORM_ONLY_PERMISSION_IDS = [
+  'view_platform',
+  'platform_view_requests',
+  'platform_approve_agency',
+  'platform_reject_agency',
+  'platform_list_tenants',
+] as const;
+
+/** Permissões disponíveis dentro de instâncias de agência (sem control plane). */
+export const TENANT_SYSTEM_PERMISSIONS = SYSTEM_PERMISSIONS.filter(
+  (p) => !(PLATFORM_ONLY_PERMISSION_IDS as readonly string[]).includes(p.id),
+);
+
+export const TENANT_PERMISSION_IDS = TENANT_SYSTEM_PERMISSIONS.map((p) => p.id);
 
 export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
   {
@@ -36,7 +57,7 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     name: 'Administrador',
     description: 'Acesso total a todas as funcionalidades e configurações do sistema.',
     isDefault: true,
-    permissions: SYSTEM_PERMISSIONS.map(p => p.id)
+    permissions: [...TENANT_PERMISSION_IDS],
   },
   {
     id: 'p-curator',
@@ -58,7 +79,20 @@ export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
     description: 'Revisa o conteúdo final, aprova publicações e pode cadastrar notícias urgentes.',
     isDefault: true,
     permissions: ['view_dashboard', 'create_news', 'review_and_approve', 'view_editor', 'view_archive', 'publish_article', 'export_article']
-  }
+  },
+  {
+    id: 'p-platform',
+    name: 'Gestor da Plataforma',
+    description: 'Administrador da plataforma eFCaaS com acesso cross-tenant.',
+    isDefault: true,
+    permissions: [
+      'view_platform',
+      'platform_view_requests',
+      'platform_approve_agency',
+      'platform_reject_agency',
+      'platform_list_tenants',
+    ],
+  },
 ];
 
 // Usuário vazio usado como estado inicial antes do login.
@@ -164,5 +198,11 @@ export const INITIAL_THEME_CONFIG: ThemeConfig = {
     mutedBackground: '#f1f5f9',
     mutedText: '#334155',
     hoverBackground: '#e2e8f0',
-  }
+  },
+  icons: {
+    default: '#64748b',
+    active: '#2563eb',
+    muted: '#94a3b8',
+    accent: '#2563eb',
+  },
 };

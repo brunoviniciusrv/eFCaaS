@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { UserProfile, ThemeConfig } from '../types';
 import styles from './CheckerAssign.module.css';
 import { cn } from '../lib/utils';
+import { UserAvatar } from './UserAvatar';
 
 interface CheckerNameAutocompleteProps {
   checkers: UserProfile[];
@@ -144,7 +145,7 @@ export const CheckerNameAutocomplete = ({
                 }}
                 onMouseEnter={() => setActiveIndex(index)}
               >
-                <img src={checker.avatarUrl} alt="" className={styles.suggestionAvatar} />
+                <UserAvatar src={checker.avatarUrl} name={checker.name} className={styles.suggestionAvatar} />
                 <div>
                   <div className={styles.suggestionName} style={{ color: themeConfig.dashboard.text }}>
                     {checker.name}

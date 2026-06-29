@@ -2,6 +2,7 @@ package br.com.efcaas.api.web;
 
 import br.com.efcaas.api.domain.Etiqueta;
 import br.com.efcaas.api.repository.EtiquetaRepository;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.CriarEtiquetaRequest;
 import br.com.efcaas.api.web.dto.EtiquetaDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +26,13 @@ import java.util.List;
 public class EtiquetaController {
 
     private final EtiquetaRepository etiquetaRepository;
+    private final TenantScope tenantScope;
 
     @GetMapping
-    @Operation(summary = "Listar todas as etiquetas")
+    @Operation(summary = "Listar etiquetas da agência")
     public ResponseEntity<List<EtiquetaDto>> listar() {
-        List<EtiquetaDto> lista = etiquetaRepository.findAll().stream()
+        Long tenantId = tenantScope.requireTenantId();
+        List<EtiquetaDto> lista = etiquetaRepository.findByTenantId(tenantId).stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(lista);
@@ -39,10 +42,12 @@ public class EtiquetaController {
     @PreAuthorize("hasAuthority('admin_settings')")
     @Operation(summary = "Criar nova etiqueta")
     public ResponseEntity<EtiquetaDto> criar(@Valid @RequestBody CriarEtiquetaRequest request) {
+        Long tenantId = tenantScope.requireTenantId();
         Etiqueta etiqueta = new Etiqueta();
         etiqueta.setNome(request.nome());
         etiqueta.setDescricao(request.descricao());
         etiqueta.setCor(request.cor());
+        etiqueta.setTenantId(tenantId);
         etiqueta = etiquetaRepository.save(etiqueta);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -54,7 +59,8 @@ public class EtiquetaController {
     @PreAuthorize("hasAuthority('admin_settings')")
     @Operation(summary = "Remover etiqueta")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        if (!etiquetaRepository.existsById(id)) {
+        Long tenantId = tenantScope.requireTenantId();
+        if (!etiquetaRepository.existsByIdAndTenantId(id, tenantId)) {
             return ResponseEntity.notFound().build();
         }
         etiquetaRepository.deleteById(id);

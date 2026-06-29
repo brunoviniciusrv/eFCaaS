@@ -5,6 +5,7 @@ import br.com.efcaas.api.domain.AnexoConteudo;
 import br.com.efcaas.api.domain.ConteudoSuspeito;
 import br.com.efcaas.api.repository.AnexoConteudoRepository;
 import br.com.efcaas.api.repository.ConteudoSuspeitoRepository;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.AnexoConteudoDto;
 import io.minio.GetObjectResponse;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AnexoConteudoService {
     private final AnexoConteudoAccessTokenService accessTokenService;
     private final AuditoriaService auditoria;
     private final ApiProperties apiProperties;
+    private final TenantScope tenantScope;
 
     @Transactional(readOnly = true)
     public List<AnexoConteudoDto> listar(Long conteudoId) {
@@ -117,7 +119,7 @@ public class AnexoConteudoService {
     }
 
     private ConteudoSuspeito buscarConteudo(Long conteudoId) {
-        return conteudoRepo.findById(conteudoId)
+        return conteudoRepo.findByIdAndTenantId(conteudoId, tenantScope.requireTenantId())
                 .orElseThrow(() -> new NoSuchElementException("ConteudoSuspeito não encontrado: " + conteudoId));
     }
 
@@ -134,7 +136,7 @@ public class AnexoConteudoService {
     }
 
     private String buildDownloadUrl(Long conteudoId, Long anexoId) {
-        String base = apiProperties.publicUrl().replaceAll("/$", "");
+        String base = apiProperties.normalizedPublicUrl();
         String token = accessTokenService.gerarToken(conteudoId, anexoId);
         return base + "/conteudos/" + conteudoId + "/anexos/" + anexoId + "/download?token=" + token;
     }

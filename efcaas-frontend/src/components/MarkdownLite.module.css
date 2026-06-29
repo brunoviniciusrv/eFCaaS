@@ -1,0 +1,32 @@
+.prose {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.prose p {
+  margin: 0 0 0.875rem;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose ul {
+  margin: 0 0 0.875rem;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose li:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  font-weight: 700;
+  color: #334155;
+}

@@ -10,7 +10,7 @@ Interface web da plataforma **eFCaaS** — Checagem de Fatos como Serviço.
 | Build | Vite 6 |
 | Estilo | Tailwind CSS 4 |
 | Roteamento | React Router 7 |
-| IA (rascunhos/revisão) | Google Gemini API |
+| IA (Trend Analyzer) | Google Gemini API (opcional) |
 | Gráficos | Recharts |
 
 ---
@@ -30,8 +30,8 @@ cp .env.example .env.local
 
 | Variável | Descrição | Exemplo |
 |----------|-----------|---------|
-| `VITE_API_URL` | URL base da API REST | `http://localhost:8081/api/v1` (Docker) ou `http://localhost:8080/api/v1` (local) |
-| `GEMINI_API_KEY` | Chave da API Gemini | Obtenha em https://aistudio.google.com/app/apikey |
+| `VITE_API_URL` | URL base da API REST | `http://localhost:8081/api/v1` (Docker) ou `http://localhost:8080/api/v1` (API local) |
+| `GEMINI_API_KEY` | Chave da API Gemini (Trend Analyzer) | https://aistudio.google.com/app/apikey |
 
 ---
 
@@ -47,9 +47,10 @@ A aplicação ficará disponível em http://localhost:3000.
 Outros scripts:
 
 ```bash
-npm run build    # build de produção
-npm run preview  # preview do build
-npm run lint     # verificação TypeScript
+npm run build           # build de produção
+npm run preview         # preview do build
+npm run lint            # verificação TypeScript
+npm run audit:dead-code # verifica símbolos removidos que não voltaram ao código
 ```
 
 ---
@@ -71,10 +72,11 @@ efcaas-frontend/
 ├── src/
 │   ├── components/     # Telas e componentes (Dashboard, AnalysisView, LoginView, …)
 │   ├── services/       # apiClient, apiService, geminiService
-│   ├── lib/            # Utilitários
+│   ├── lib/            # Utilitários (PDF parecer, IA, tema, …)
 │   ├── App.tsx         # Rotas e estado global
 │   ├── types.ts        # Tipos TypeScript
 │   └── constants.ts    # Dados iniciais e configurações
+├── scripts/            # Ferramentas de desenvolvimento (audit:dead-code)
 ├── index.html
 ├── vite.config.ts
 └── package.json

@@ -141,11 +141,22 @@ public class ConteudoSuspeitoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/habilitar-edicao")
+    @PreAuthorize("hasAnyAuthority('perform_analysis', 'assign_tasks')")
+    @Operation(summary = "Habilitar edição de checagem concluída (sai do modo visualização)")
+    public ResponseEntity<Void> habilitarEdicao(
+            @PathVariable Long id,
+            Authentication auth) {
+        Long userId = Long.parseLong(auth.getName());
+        service.habilitarEdicaoConcluida(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/ia/analisar")
     @PreAuthorize("hasAnyAuthority('perform_analysis', 'assign_tasks')")
-    @Operation(summary = "Disparar análise de IA para o conteúdo (Guaia IA Hub)")
+    @Operation(summary = "Disparar análise de IA para o conteúdo (assíncrono)")
     public ResponseEntity<ConteudoSuspeitoDto> analisarComIa(@PathVariable Long id) {
-        return ResponseEntity.ok(service.analisarConteudo(id));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.iniciarAnaliseIa(id));
     }
 
     @DeleteMapping("/{id}")

@@ -1,0 +1,72 @@
+@reference "../index.css";
+
+.page {
+  @apply min-h-screen flex items-center justify-center p-6 bg-slate-50 font-sans;
+}
+
+.card {
+  @apply w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 space-y-6;
+}
+
+.backLink {
+  @apply inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800;
+}
+
+.header {
+  @apply text-center space-y-3;
+}
+
+.iconWrap {
+  @apply w-14 h-14 rounded-2xl mx-auto flex items-center justify-center;
+  background: #2563eb;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+}
+
+.title {
+  @apply text-2xl font-black tracking-tight text-slate-900;
+}
+
+.subtitle {
+  @apply text-sm text-slate-500 leading-relaxed;
+}
+
+.form {
+  @apply space-y-4;
+}
+
+.field {
+  @apply block space-y-2;
+}
+
+.label {
+  @apply text-xs font-bold uppercase tracking-widest text-slate-400 ml-1;
+}
+
+.inputWrap {
+  @apply relative;
+}
+
+.inputIcon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400;
+}
+
+.input {
+  @apply w-full pl-10 pr-3 py-3.5 rounded-2xl border border-slate-100 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200;
+}
+
+.error {
+  @apply text-xs font-bold text-red-500 text-center;
+}
+
+.submitBtn {
+  @apply w-full py-4 rounded-2xl text-sm font-black text-white transition-all;
+  background: #2563eb;
+}
+
+.submitBtn:hover {
+  background: #1d4ed8;
+}
+
+.submitBtn:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}

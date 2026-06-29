@@ -7,15 +7,13 @@ import styles from './AiEngineModulesPanel.module.css';
 interface AiEngineModulesPanelProps {
   config: AgencyConfig;
   onChange: (key: AiModuleKey, enabled: boolean) => void;
-  compact?: boolean;
 }
 
 export const AiEngineModulesPanel: React.FC<AiEngineModulesPanelProps> = ({
   config,
   onChange,
-  compact = false,
 }) => (
-  <div className={compact ? styles.listCompact : styles.listDefault}>
+  <div className={styles.listDefault}>
     {AI_ENGINE_MODULES.map((feat) => {
       const isEnabled = config[feat.id] !== false;
       const Icon = feat.icon;
@@ -32,11 +30,6 @@ export const AiEngineModulesPanel: React.FC<AiEngineModulesPanelProps> = ({
             </div>
             <div className={styles.textWrap}>
               <span className={styles.moduleLabel}>{feat.label}</span>
-              {!compact && (
-                <span className={styles.moduleDesc}>
-                  {feat.desc}
-                </span>
-              )}
             </div>
           </div>
           <div className={cn(styles.toggle, isEnabled ? styles.toggleEnabled : styles.toggleDisabled)}>

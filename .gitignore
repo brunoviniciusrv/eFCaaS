@@ -7,10 +7,24 @@ node_modules/
 # Debug sessions
 debug-*.log
 
+# Artefatos locais / ferramentas
+figma-capture-results.json
+tmp-*
+.cursor/
+Prototipo/
+
+# Playwright (se instalado na raiz)
+playwright-report/
+test-results/
+blob-report/
+
+# Scripts locais de teste manual
+scripts/smoke-test.ps1
+
 # IDE / OS
 .idea/
 .vscode/
-*.imds
+*.iml
 .DS_Store
 Thumbs.db
 
@@ -19,5 +33,6 @@ Thumbs.db
 **/dist/
 
 # Env secrets
-.env
-.env.local
+.env*
+!.env.example
+!.env.railway.example

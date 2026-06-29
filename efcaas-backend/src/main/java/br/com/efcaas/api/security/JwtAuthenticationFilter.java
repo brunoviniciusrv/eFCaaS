@@ -1,5 +1,6 @@
 package br.com.efcaas.api.security;
 
+import br.com.efcaas.api.tenant.TenantContext;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,29 +29,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        try {
+            String token = extractToken(request);
 
-        String token = extractToken(request);
+            if (token != null && jwtUtil.isValid(token)) {
+                Claims claims = jwtUtil.parseToken(token);
 
-        if (token != null && jwtUtil.isValid(token)) {
-            Claims claims = jwtUtil.parseToken(token);
+                @SuppressWarnings("unchecked")
+                List<String> permissoes = (List<String>) claims.get("permissoes");
 
-            @SuppressWarnings("unchecked")
-            List<String> permissoes = (List<String>) claims.get("permissoes");
+                List<SimpleGrantedAuthority> authorities = permissoes == null
+                        ? List.of()
+                        : permissoes.stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .collect(Collectors.toList());
 
-            List<SimpleGrantedAuthority> authorities = permissoes == null
-                    ? List.of()
-                    : permissoes.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        claims.getSubject(), null, authorities);
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    claims.getSubject(), null, authorities);
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                Long tenantId = jwtUtil.getTenantId(token);
+                String tenantSlug = jwtUtil.getTenantSlug(token);
+                if (tenantId != null || tenantSlug != null) {
+                    TenantContext.set(tenantId, tenantSlug);
+                }
+            }
+
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
         }
-
-        filterChain.doFilter(request, response);
     }
 
     private String extractToken(HttpServletRequest request) {

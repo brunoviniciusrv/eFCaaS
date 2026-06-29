@@ -57,4 +57,7 @@ public class ConteudoRecebido {
 
     @OneToMany(mappedBy = "conteudoRecebido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ConteudoRecebidoMidia> midias = new ArrayList<>();
+
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

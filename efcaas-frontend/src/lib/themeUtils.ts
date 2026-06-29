@@ -13,6 +13,7 @@ export function normalizeThemeConfig(theme: ThemeConfig): ThemeConfig {
     buttons: { ...INITIAL_THEME_CONFIG.buttons, ...theme.buttons },
     status: { ...INITIAL_THEME_CONFIG.status, ...theme.status },
     general: { ...INITIAL_THEME_CONFIG.general, ...theme.general },
+    icons: { ...INITIAL_THEME_CONFIG.icons, ...theme.icons },
   };
 }
 
@@ -25,5 +26,9 @@ export function themeCssVariables(theme: ThemeConfig): CSSProperties {
     '--efc-border': theme.general.border,
     '--efc-accent': theme.general.accent,
     '--efc-text': theme.dashboard.text,
+    '--icon-default': theme.icons?.default ?? theme.general.accent,
+    '--icon-active': theme.icons?.active ?? theme.general.accent,
+    '--icon-muted': theme.icons?.muted ?? theme.general.mutedText,
+    '--icon-accent': theme.icons?.accent ?? theme.general.accent,
   } as React.CSSProperties;
 }

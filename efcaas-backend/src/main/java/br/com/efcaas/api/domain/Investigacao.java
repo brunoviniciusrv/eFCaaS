@@ -26,6 +26,9 @@ public class Investigacao {
     @Column(columnDefinition = "TEXT")
     private String perguntas; // JSON array de strings
 
+    @Column(name = "respostas_perguntas", columnDefinition = "TEXT")
+    private String respostasPerguntas; // JSON array de strings (paralelo a perguntas)
+
     @Column(columnDefinition = "TEXT")
     private String fontes; // JSON array de strings
 
@@ -40,6 +43,12 @@ public class Investigacao {
 
     @Column(name = "justificativa_sem_contato", columnDefinition = "TEXT")
     private String justificativaSemContato;
+
+    @Column(name = "autor_desinformacao", columnDefinition = "TEXT")
+    private String autorDesinformacao;
+
+    @Column(name = "autor_desinformacao_inverificavel", nullable = false)
+    private boolean autorDesinformacaoInverificavel = false;
 
     @Column(name = "criado_em", nullable = false, updatable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();

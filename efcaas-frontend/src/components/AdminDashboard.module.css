@@ -13,7 +13,7 @@
   @apply flex items-center gap-4;
 }
 .headerIcon {
-  @apply w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg -rotate-2;
+  @apply w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg -rotate-2;
 }
 .headerTitle {
   @apply text-2xl font-black tracking-tight;
@@ -112,9 +112,6 @@
 }
 .actionsDiv {
   @apply flex justify-end gap-2;
-}
-.actionBtnShield {
-  @apply p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors;
 }
 .toggleBtnBase {
   @apply p-2 rounded-lg transition-colors;

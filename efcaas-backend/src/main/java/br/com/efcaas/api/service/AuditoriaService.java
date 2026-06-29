@@ -4,6 +4,8 @@ import br.com.efcaas.api.domain.Auditoria;
 import br.com.efcaas.api.domain.Usuario;
 import br.com.efcaas.api.repository.AuditoriaRepository;
 import br.com.efcaas.api.repository.UsuarioRepository;
+import br.com.efcaas.api.tenant.TenantContext;
+import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.AuditoriaDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ public class AuditoriaService {
 
     private final AuditoriaRepository auditoriaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final TenantScope tenantScope;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -29,7 +32,13 @@ public class AuditoriaService {
             Usuario usuario = usuarioId != null
                     ? usuarioRepository.findById(usuarioId).orElse(null)
                     : null;
-            auditoriaRepository.save(new Auditoria(usuario, acao, alvo, detalhes));
+            Auditoria registro = new Auditoria(usuario, acao, alvo, detalhes);
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId == null && usuario != null && usuario.getTenant() != null) {
+                tenantId = usuario.getTenant().getId();
+            }
+            registro.setTenantId(tenantId);
+            auditoriaRepository.save(registro);
         } catch (Exception e) {
             log.error("Falha ao registrar auditoria: acao={}, alvo={}", acao, alvo, e);
         }

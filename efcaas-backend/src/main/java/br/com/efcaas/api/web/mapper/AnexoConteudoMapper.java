@@ -27,7 +27,7 @@ public class AnexoConteudoMapper {
     }
 
     private String buildDownloadUrl(Long conteudoId, Long anexoId) {
-        String base = apiProperties.publicUrl().replaceAll("/$", "");
+        String base = apiProperties.normalizedPublicUrl();
         String token = accessTokenService.gerarToken(conteudoId, anexoId);
         return base + "/conteudos/" + conteudoId + "/anexos/" + anexoId + "/download?token=" + token;
     }

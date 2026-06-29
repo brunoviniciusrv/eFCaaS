@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { X, UserPlus } from 'lucide-react';
 import { NewsItem, ThemeConfig, UserProfile } from '../types';
 import { CheckerNameAutocomplete } from './CheckerNameAutocomplete';
+import { UserAvatar } from './UserAvatar';
 import { resolveCheckerFromQuery } from '../lib/newsAssignment';
 import styles from './CheckerAssign.module.css';
 
@@ -168,7 +169,7 @@ export const NewsAssignmentModal = ({
                       style={{ borderColor: themeConfig.general.border, backgroundColor: `${themeConfig.dashboard.background}20` }}
                     >
                       <div className={styles.assigneeLeft}>
-                        <img src={user.avatarUrl} alt="" className={styles.assigneeAvatar} />
+                        <UserAvatar src={user.avatarUrl} name={user.name} className={styles.assigneeAvatar} />
                         <span className={styles.assigneeName} style={{ color: themeConfig.dashboard.text }}>
                           {user.name}
                         </span>
