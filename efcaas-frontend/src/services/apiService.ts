@@ -550,13 +550,32 @@ function deriveWarningLevel(score: number | null): string {
   return 'baixo';
 }
 
+function hasPersistedAnaliseIaData(ia: ApiAnaliseIaDto): boolean {
+  return [
+    ia.scoreInveracidade,
+    ia.scoreFalsidade,
+    ia.scoreDistorcaoMidia,
+    ia.scoreDistorcao,
+    ia.scoreForaContexto,
+    ia.scoreRiscoIlicitude,
+  ].some((v) => v != null)
+    || Boolean(ia.textoAnalise?.trim())
+    || Boolean(ia.classificacaoOdio?.trim())
+    || Boolean(ia.classificacaoAntidemo?.trim());
+}
+
 function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation' | 'isAIProcessing' | 'iaStatus'> {
   if (!ia) return {};
 
   const iaStatus = (ia.statusIa as NewsItem['iaStatus']) ?? undefined;
   const isAIProcessing = ia.statusIa === 'processando';
 
-  if (ia.simulado && ia.statusIa !== 'processando' && ia.statusIa !== 'concluida') {
+  if (
+    ia.simulado
+    && ia.statusIa !== 'processando'
+    && ia.statusIa !== 'concluida'
+    && !hasPersistedAnaliseIaData(ia)
+  ) {
     return { isAIProcessing, iaStatus };
   }
 

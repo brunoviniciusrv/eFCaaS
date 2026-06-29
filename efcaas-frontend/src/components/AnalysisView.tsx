@@ -305,6 +305,16 @@ export const AnalysisView = ({
     }
   }, [selectedNews.isAIProcessing, selectedNews.iaStatus]);
 
+  useEffect(() => {
+    const processing = selectedNews.iaStatus === 'processando' || selectedNews.isAIProcessing;
+    if (!processing || !refreshConteudoDetail) return;
+    addPendingIaConteudo(selectedNews.id);
+    const interval = setInterval(() => {
+      void refreshConteudoDetail();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedNews.id, selectedNews.iaStatus, selectedNews.isAIProcessing, refreshConteudoDetail]);
+
   const handleEnableCompletedEdit = async () => {
     if (!selectedNews?.id || isEnablingEdit) return;
     setIsEnablingEdit(true);
@@ -1134,8 +1144,10 @@ export const AnalysisView = ({
                           });
                         };
 
+                        let latestIaStatus: NewsItem['iaStatus'] | undefined;
                         apiService.analisarConteudo(selectedNews.id)
                           .then((fresh) => {
+                            latestIaStatus = fresh.iaStatus;
                             addPendingIaConteudo(selectedNews.id);
                             applyAiUpdate(fresh);
                             setAiToast({ type: 'success', message: 'Análise de IA iniciada. Você será notificado ao concluir.' });
@@ -1143,6 +1155,7 @@ export const AnalysisView = ({
                           })
                           .then((fresh) => {
                             if (!fresh) return;
+                            latestIaStatus = fresh.iaStatus ?? latestIaStatus;
                             applyAiUpdate(fresh);
                           })
                           .catch((err) => {
@@ -1151,7 +1164,7 @@ export const AnalysisView = ({
                             setAiToast({ type: 'error', message: msg });
                           })
                           .finally(() => {
-                            if (selectedNews.iaStatus !== 'processando') {
+                            if (latestIaStatus !== 'processando') {
                               setIsAnalyzingAI(false);
                             }
                           });

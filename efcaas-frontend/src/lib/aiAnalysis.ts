@@ -58,7 +58,9 @@ export function mergeAiAnalysisUpdate(current: NewsItem, fresh: NewsItem): NewsI
           entities: fresh.aiEvaluation.entities.map((e) => ({ ...e })),
           dates: [...fresh.aiEvaluation.dates],
         }
-      : fresh.aiEvaluation,
+      : current.aiEvaluation,
+    iaStatus: fresh.iaStatus ?? current.iaStatus,
+    isAIProcessing: fresh.isAIProcessing ?? current.isAIProcessing,
   };
 }
 

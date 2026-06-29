@@ -391,11 +391,11 @@ function AppContent() {
 
   useEffect(() => {
     if (!isAuthenticated || isAuthBootstrapping) return;
-    const pendingIds = getPendingIaConteudoIds();
-    if (pendingIds.length === 0) return;
 
     let cancelled = false;
     const poll = async () => {
+      const pendingIds = getPendingIaConteudoIds();
+      if (pendingIds.length === 0) return;
       for (const id of pendingIds) {
         if (cancelled) return;
         try {
