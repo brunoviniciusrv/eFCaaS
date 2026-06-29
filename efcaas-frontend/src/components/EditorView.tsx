@@ -20,7 +20,8 @@ import {
   X, 
   Layout,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye,
 } from 'lucide-react';
 import { 
   NewsItem, 
@@ -30,10 +31,13 @@ import {
   ArticleTemplateType,
   EditorialComment,
   LabelConfig,
-  ThemeConfig
+  ThemeConfig,
+  AgencyConfig,
 } from '../types';
 import { apiService } from '../services/apiService';
 import { normalizeResourceUrl } from '../lib/apiBaseUrl';
+import { buildParecerReportData, canDownloadParecerPdf } from '../lib/parecerReportModel';
+import { ParecerPdfPreviewModal } from './ParecerPdfPreviewModal';
 import styles from './EditorView.module.css';
 
 function parecerToEditorHtml(text: string): string {
@@ -43,17 +47,6 @@ function parecerToEditorHtml(text: string): string {
     .split(/\n{2,}/)
     .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
     .join('');
-}
-
-function htmlToPlainText(value: string): string {
-  if (!value.trim()) return '';
-  if (!value.includes('<')) return value.trim();
-  return value
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 }
 
 function formatCommentTimestamp(iso: string): string {
@@ -70,13 +63,14 @@ interface EditorViewProps {
   user: UserProfile;
   news: NewsItem[];
   labels: LabelConfig[];
+  agencyConfig: AgencyConfig;
   onSaveArticle: (article: EditorialArticle) => Promise<void>;
   articles: EditorialArticle[];
   checkPermission: (permId: string) => boolean;
   themeConfig: ThemeConfig;
 }
 
-export function EditorView({ user, news, labels, onSaveArticle, articles, themeConfig }: EditorViewProps) {
+export function EditorView({ user, news, labels, agencyConfig, onSaveArticle, articles, themeConfig }: EditorViewProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showHistory, setShowHistory] = useState(false);
@@ -86,6 +80,8 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const [linkText, setLinkText] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   
   const newsItem = news.find(n => n.id === id);
   const [loadedArticle, setLoadedArticle] = useState<EditorialArticle | null>(null);
@@ -298,14 +294,11 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
 
   if (!activeNews) return null;
 
-  const parecerText = activeNews.report?.trim()
-    ? htmlToPlainText(
-        activeNews.report.trim().startsWith('<')
-          ? activeNews.report
-          : parecerToEditorHtml(activeNews.report),
-      )
-    : '';
   const evidenceSources = activeNews.evidence ?? [];
+  const canPreviewParecerPdf = activeNews ? canDownloadParecerPdf(activeNews) : false;
+  const parecerReportData = activeNews
+    ? buildParecerReportData(activeNews, labels, agencyConfig, user)
+    : null;
 
   return (
     <div className={styles.page} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
@@ -336,10 +329,26 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
           </div>
 
           <div className={styles.sidebarSection}>
-            <label className={styles.sidebarLabel}>Resumo da Evidência</label>
-            <div className={styles.summaryText} style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.border, color: themeConfig.dashboard.text }}>
-              {parecerText || 'Nenhum parecer registrado na checagem.'}
-            </div>
+            <label className={styles.sidebarLabel}>Parecer da Checagem</label>
+            {canPreviewParecerPdf ? (
+              <button
+                type="button"
+                onClick={() => setShowPdfPreview(true)}
+                className={styles.parecerPreviewBtn}
+                style={{
+                  backgroundColor: themeConfig.general.inputBackground,
+                  borderColor: themeConfig.general.border,
+                  color: themeConfig.general.accent,
+                }}
+              >
+                <Eye className="w-4 h-4" />
+                Visualizar PDF do parecer
+              </button>
+            ) : (
+              <p className={styles.parecerUnavailable} style={{ color: themeConfig.general.mutedText }}>
+                Parecer indisponível para visualização.
+              </p>
+            )}
           </div>
 
           <div className={styles.sidebarSection}>
@@ -726,6 +735,19 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
           </motion.div>
         )}
       </AnimatePresence>
+
+      {parecerReportData && (
+        <ParecerPdfPreviewModal
+          open={showPdfPreview}
+          onClose={() => setShowPdfPreview(false)}
+          data={parecerReportData}
+          themeConfig={themeConfig}
+          canDownload={canPreviewParecerPdf}
+          isDownloading={isPdfDownloading}
+          onDownloadStart={() => setIsPdfDownloading(true)}
+          onDownloadEnd={() => setIsPdfDownloading(false)}
+        />
+      )}
     </div>
   );
 }

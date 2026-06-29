@@ -103,19 +103,6 @@ export function getDesinfoScore(
   return value != null ? value : undefined;
 }
 
-/** @deprecated use getDesinfoScore */
-export function getMisinfoScore(
-  scores: NewsItem['aiScores'] | undefined,
-  key: 'inveracidade' | 'distorcao' | 'foraDeContexto'
-): number | undefined {
-  const map: Record<string, DesinfoScoreKey> = {
-    inveracidade: 'inveracidade',
-    distorcao: 'falsidade',
-    foraDeContexto: 'distorcaoMidia',
-  };
-  return getDesinfoScore(scores, map[key]);
-}
-
 export function hasAiMetrics(
   scores?: NewsItem['aiScores'],
   evaluation?: NewsItem['aiEvaluation']

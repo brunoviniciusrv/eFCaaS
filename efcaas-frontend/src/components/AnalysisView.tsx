@@ -38,14 +38,17 @@ import {
   ShieldOff,
   AlertTriangle,
   MessageSquareText,
-  LockOpen
+  LockOpen,
+  Download,
+  Eye
 } from 'lucide-react';
+import { MarkdownLite } from './MarkdownLite';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { StatusBadge } from './StatusBadge';
 import { ResponsiveTabs } from './ResponsiveTabs';
-import { NewsItem, Evidence, ReportStructure, FactLabel, View, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
+import { NewsItem, Evidence, ReportStructure, LabelConfig, ReportStructureConfig, ThemeConfig, UserProfile, AgencyConfig } from '../types';
 import { isAiModuleEnabled } from '../config/aiModules';
 import { formatAiScore, getDesinfoScore, hasAiEvaluation, hasAiMetrics, mergeAiAnalysisUpdate } from '../lib/aiAnalysis';
 import { AiModelEvaluationPanel } from './AiModelEvaluationPanel';
@@ -56,9 +59,14 @@ import {
   getRectificationReasonFromAuditoria,
 } from '../lib/newsAssignment';
 import { TOOLS } from '../constants';
-import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
+import { apiService, ApiAuditoriaDto, normalizeReportStructure, syncQuestionAnswers } from '../services/apiService';
 import { MediaThumbnailGrid } from './MediaThumbnailGrid';
 import { addPendingIaConteudo } from '../lib/iaPolling';
+import { normalizeReportForEditor } from '../lib/parecerHtml';
+import { buildParecerReportData, canDownloadParecerPdf } from '../lib/parecerReportModel';
+import { exportParecerReportPdf } from '../lib/parecerPdfExport';
+import { ParecerRichEditor } from './ParecerRichEditor';
+import { ParecerPdfPreviewModal } from './ParecerPdfPreviewModal';
 import styles from './AnalysisView.module.css';
 
 // ─── Auditoria helpers ──────────────────────────────────────────────────────
@@ -170,8 +178,6 @@ interface AnalysisViewProps {
   handleSaveParecer: () => Promise<boolean>;
   handleSaveInvestigation: () => Promise<boolean>;
   handleUpdateReportStructure: (updates: Partial<ReportStructure>) => void;
-  handleGenerateDraft: () => void;
-  handleReviewReport: () => void;
   handleUpdateReport: (text: string) => void;
   handleAddEvidence: (evidence: Omit<Evidence, 'id' | 'timestamp'>) => void;
   handleUploadEvidenceFile: (file: File) => Promise<void>;
@@ -179,8 +185,6 @@ interface AnalysisViewProps {
   handleUploadMediaFile: (file: File) => Promise<void>;
   handleRemoveMedia: (anexoId: string) => Promise<void>;
   isSaving: boolean;
-  isGeneratingDraft: boolean;
-  isReviewing: boolean;
   labels: LabelConfig[];
   reportConfig: ReportStructureConfig;
   themeConfig: ThemeConfig;
@@ -201,8 +205,6 @@ export const AnalysisView = ({
   handleSaveParecer,
   handleSaveInvestigation,
   handleUpdateReportStructure,
-  handleGenerateDraft,
-  handleReviewReport,
   handleUpdateReport,
   handleAddEvidence,
   handleUploadEvidenceFile,
@@ -210,8 +212,6 @@ export const AnalysisView = ({
   handleUploadMediaFile,
   handleRemoveMedia,
   isSaving,
-  isGeneratingDraft,
-  isReviewing,
   labels,
   reportConfig,
   themeConfig,
@@ -227,6 +227,8 @@ export const AnalysisView = ({
   const [isAnalyzingAI, setIsAnalyzingAI] = React.useState(false);
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiToast, setAiToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPdfPreview, setShowPdfPreview] = React.useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = React.useState(false);
 
   const dismissToast = React.useCallback(() => setAiToast(null), []);
   React.useEffect(() => {
@@ -490,6 +492,20 @@ export const AnalysisView = ({
   };
 
   const reportStructure = normalizeReportStructure(selectedNews.reportStructure);
+  const canDownloadPdf = canDownloadParecerPdf(selectedNews);
+  const parecerReportData = buildParecerReportData(selectedNews, labels, agencyConfig, currentUser);
+
+  const handleDownloadParecerPdf = async () => {
+    if (!canDownloadPdf) return;
+    setIsPdfDownloading(true);
+    try {
+      await exportParecerReportPdf(parecerReportData);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao gerar PDF do parecer.');
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  };
 
   const aiScores = selectedNews.aiScores;
   const aiEvaluation = selectedNews.aiEvaluation;
@@ -576,7 +592,7 @@ export const AnalysisView = ({
             </nav>
           </div>
           <div className={styles.headerActions}>
-            {isCompletedCheck && canEditRole && !editUnlocked && (activeTab === 'investigation' || activeTab === 'result') && (
+            {isCompletedCheck && canEditRole && !editUnlocked && (
               <button
                 onClick={handleEnableCompletedEdit}
                 disabled={isEnablingEdit}
@@ -634,6 +650,37 @@ export const AnalysisView = ({
               >
                 <Save size={18} />
                 {isSaving ? 'Salvando...' : 'Salvar Parecer'}
+              </button>
+            )}
+            {activeTab === 'result' && canDownloadPdf && (
+              <button
+                type="button"
+                onClick={handleDownloadParecerPdf}
+                disabled={isPdfDownloading}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.buttons.secondary,
+                  color: themeConfig.buttons.secondaryText,
+                  border: `1px solid ${themeConfig.general.border}`,
+                }}
+              >
+                <Download size={18} />
+                {isPdfDownloading ? 'Gerando PDF…' : 'Baixar PDF'}
+              </button>
+            )}
+            {activeTab === 'result' && (
+              <button
+                type="button"
+                onClick={() => setShowPdfPreview(true)}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.general.inputBackground,
+                  color: themeConfig.dashboard.text,
+                  border: `1px solid ${themeConfig.general.border}`,
+                }}
+              >
+                <Eye size={18} />
+                Visualizar PDF
               </button>
             )}
             {selectedNews.status === 'completed' && (
@@ -1331,9 +1378,9 @@ export const AnalysisView = ({
                                 ))}
                               </ul>
                               ) : selectedNews.aiEvaluation.explanation ? (
-                                <p className={styles.semanticListItem} style={{ color: themeConfig.dashboard.text }}>
+                                <MarkdownLite>
                                   {selectedNews.aiEvaluation.explanation}
-                                </p>
+                                </MarkdownLite>
                               ) : (
                                 <p className={styles.metricsEmptyMsg}>—</p>
                               )}
@@ -1414,9 +1461,10 @@ export const AnalysisView = ({
                         <label className={styles.sectionLabel}>Perguntas Balizadoras</label>
                         <div className={styles.questionsList}>
                            {reportStructure.questions.map((q, idx) => (
-                             <div key={idx} className={styles.questionItem}>
+                             <div key={idx} className={styles.questionBlock}>
                                 <input 
                                   value={q}
+                                  disabled={!effectiveCanEdit}
                                   onChange={(e) => {
                                     const newQuestions = [...reportStructure.questions];
                                     newQuestions[idx] = e.target.value;
@@ -1425,23 +1473,57 @@ export const AnalysisView = ({
                                   placeholder="Ex: Qual a origem do vídeo?"
                                   className={styles.questionInput}
                                 />
-                                {idx > 0 && (
+                                <textarea
+                                  value={reportStructure.questionAnswers?.[idx] ?? ''}
+                                  disabled={!effectiveCanEdit}
+                                  onChange={(e) => {
+                                    const answers = syncQuestionAnswers(
+                                      reportStructure.questions,
+                                      reportStructure.questionAnswers
+                                    );
+                                    answers[idx] = e.target.value;
+                                    handleUpdateReportStructure({ questionAnswers: answers });
+                                  }}
+                                  placeholder="Resposta à pergunta (incluída no PDF junto com a pergunta)"
+                                  rows={3}
+                                  className={styles.questionAnswerInput}
+                                />
+                                {idx > 0 && effectiveCanEdit && (
                                   <button onClick={() => {
                                     const newQuestions = [...reportStructure.questions];
                                     newQuestions.splice(idx, 1);
-                                    handleUpdateReportStructure({ questions: newQuestions });
+                                    const newAnswers = syncQuestionAnswers(
+                                      reportStructure.questions,
+                                      reportStructure.questionAnswers
+                                    );
+                                    newAnswers.splice(idx, 1);
+                                    handleUpdateReportStructure({
+                                      questions: newQuestions,
+                                      questionAnswers: newAnswers,
+                                    });
                                   }} className={styles.removeQuestionButton}>
                                     <Trash2 size={20} />
                                   </button>
                                 )}
                              </div>
                            ))}
+                           {effectiveCanEdit && (
                            <button 
-                             onClick={() => handleUpdateReportStructure({ questions: [...reportStructure.questions, ''] })}
+                             onClick={() => {
+                               const answers = syncQuestionAnswers(
+                                 reportStructure.questions,
+                                 reportStructure.questionAnswers
+                               );
+                               handleUpdateReportStructure({
+                                 questions: [...reportStructure.questions, ''],
+                                 questionAnswers: [...answers, ''],
+                               });
+                             }}
                              className={styles.addQuestionButton}
                            >
                              <Plus size={14} /> Adicionar Pergunta
                            </button>
+                           )}
                         </div>
                      </div>
 
@@ -1449,6 +1531,7 @@ export const AnalysisView = ({
                         <label className={styles.sectionLabel}>Resumo da Metodologia de Checagem</label>
                         <textarea 
                           value={reportStructure.summary || ''}
+                          disabled={!effectiveCanEdit}
                           onChange={(e) => handleUpdateReportStructure({ summary: e.target.value })}
                           placeholder="Como este conteúdo foi verificado?"
                           rows={3}
@@ -1676,8 +1759,62 @@ export const AnalysisView = ({
                       )}
                     </div>
                     
-                    {/* Contact Step */}
+                    {/* Autor da desinformação */}
                     <div className={styles.contactSection} style={{ borderColor: themeConfig.general.border }}>
+                      <div className={styles.contactLeft}>
+                        <h4 className={styles.contactTitle}>Quem é o autor da desinformação</h4>
+                        <p className={styles.contactSubtitle}>
+                          Identifique quem produziu ou disseminou o conteúdo investigado.
+                        </p>
+                      </div>
+                      <div className={styles.contactRight}>
+                        <input
+                          type="text"
+                          value={reportStructure.disinfoAuthorName || ''}
+                          disabled={!effectiveCanEdit || reportStructure.disinfoAuthorUnverifiable}
+                          onChange={(e) => handleUpdateReportStructure({ disinfoAuthorName: e.target.value })}
+                          placeholder="Nome do autor da desinformação"
+                          className={styles.disinfoAuthorInput}
+                          style={{
+                            backgroundColor: themeConfig.general.inputBackground,
+                            borderColor: themeConfig.general.border,
+                            color: themeConfig.dashboard.text,
+                          }}
+                        />
+                        <label className={styles.disinfoAuthorToggle}>
+                          <input
+                            type="checkbox"
+                            checked={reportStructure.disinfoAuthorUnverifiable ?? false}
+                            disabled={!effectiveCanEdit}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              handleUpdateReportStructure({
+                                disinfoAuthorUnverifiable: checked,
+                                disinfoAuthorName: checked ? '' : reportStructure.disinfoAuthorName,
+                                contactWithAuthor: checked
+                                  ? { hadContact: null }
+                                  : reportStructure.contactWithAuthor,
+                              });
+                            }}
+                          />
+                          <span style={{ color: themeConfig.dashboard.text }}>Autor inverificável</span>
+                        </label>
+                        {reportStructure.disinfoAuthorUnverifiable && (
+                          <p className={styles.disinfoAuthorHint} style={{ color: themeConfig.general.mutedText }}>
+                            Com autor inverificável, não é possível informar o nome nem registrar tentativa de contato.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact Step */}
+                    <div
+                      className={styles.contactSection}
+                      style={{
+                        borderColor: themeConfig.general.border,
+                        opacity: reportStructure.disinfoAuthorUnverifiable ? 0.5 : 1,
+                      }}
+                    >
                       <div className={styles.contactLeft}>
                         <h4 className={styles.contactTitle}>Tentativa de contato com o autor da alegação</h4>
                         <p className={styles.contactSubtitle}>Fundamental para o contraditório e clareza editorial.</p>
@@ -1690,7 +1827,7 @@ export const AnalysisView = ({
                           ].map((opt) => (
                             <button 
                               key={opt.label}
-                              disabled={!effectiveCanEdit}
+                              disabled={!effectiveCanEdit || reportStructure.disinfoAuthorUnverifiable}
                               onClick={() => handleUpdateReportStructure({ 
                                 contactWithAuthor: { ...reportStructure.contactWithAuthor, hadContact: opt.value } 
                               })}
@@ -1706,11 +1843,22 @@ export const AnalysisView = ({
                             </button>
                           ))}
                         </div>
-                        {reportStructure.contactWithAuthor.hadContact === true && (
+                        {reportStructure.contactWithAuthor.hadContact === true && !reportStructure.disinfoAuthorUnverifiable && (
                           <textarea 
                             value={reportStructure.contactWithAuthor.response || ''}
+                            disabled={!effectiveCanEdit}
                             onChange={(e) => handleUpdateReportStructure({ contactWithAuthor: { ...reportStructure.contactWithAuthor, response: e.target.value } })}
                             placeholder="Quais foram as alegações do autor ou assessoria?"
+                            rows={3}
+                            className={styles.contactResponseTextarea}
+                          />
+                        )}
+                        {reportStructure.contactWithAuthor.hadContact === false && !reportStructure.disinfoAuthorUnverifiable && (
+                          <textarea
+                            value={reportStructure.contactWithAuthor.justification || ''}
+                            disabled={!effectiveCanEdit}
+                            onChange={(e) => handleUpdateReportStructure({ contactWithAuthor: { ...reportStructure.contactWithAuthor, justification: e.target.value } })}
+                            placeholder="Por que o contato não foi realizado?"
                             rows={3}
                             className={styles.contactResponseTextarea}
                           />
@@ -1772,7 +1920,7 @@ export const AnalysisView = ({
                   </div>
                 </section>
 
-                {/* Dual Column Editor */}
+                {/* Editor de parecer */}
                 <section 
                   className={styles.reportCard}
                   style={{ borderColor: themeConfig.general.border }}
@@ -1784,63 +1932,22 @@ export const AnalysisView = ({
                       </div>
                       <div>
                         <h3 className={styles.reportCardTitle} style={{ color: themeConfig.dashboard.text }}>Redação do Parecer Editorial</h3>
-                        <p className={styles.reportCardSubtitle}>Editor & Preview em Tempo Real</p>
+                        <p className={styles.reportCardSubtitle}>Editor de texto e exportação em PDF</p>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className={styles.reportEditorGrid}>
-                    {/* Editor Column */}
-                    <div className={styles.reportEditorColumn} style={{ borderColor: themeConfig.general.border }}>
-                       <div className={styles.reportEditorColumnHeader}>
-                          <label className={styles.reportEditorLabel}>Editor de Parecer</label>
-                          <div className={styles.reportEditorActions}>
-                            <button className={styles.reportEditorActionButton}><History size={16} /></button>
-                            <button className={styles.reportEditorActionButton}><Info size={16} /></button>
-                          </div>
-                       </div>
-                       <textarea 
-                        value={selectedNews.report}
-                        onChange={(e) => handleUpdateReport(e.target.value)}
-                        placeholder="Inicie a redação do parecer final..."
-                        readOnly={!effectiveCanEdit}
-                        className={styles.reportEditorTextarea}
-                        style={{ color: themeConfig.general.inputText }}
-                      />
-                    </div>
 
-                    {/* Preview Column */}
-                    <div className={styles.reportPreviewColumn}>
-                       <label className={styles.reportPreviewLabel}>Visualização de Publicação</label>
-                       <div className={styles.reportPreviewContent}>
-                          {reportStructure.label && (
-                            <div 
-                              className={styles.reportPreviewLabelBadge}
-                              style={{ 
-                                backgroundColor: labels.find(l => l.name === reportStructure.label)?.color + '20',
-                                color: labels.find(l => l.name === reportStructure.label)?.color,
-                                border: `1px solid ${labels.find(l => l.name === reportStructure.label)?.color}40`
-                              }}
-                            >
-                              {reportStructure.label}
-                            </div>
-                          )}
-                          <h1 className={styles.reportPreviewTitle}>{selectedNews.title}</h1>
-                          <div className="markdown-body prose prose-slate prose-lg max-w-none">
-                            <Markdown>{selectedNews.report || '_O rascunho aparecerá aqui conforme você escreve no editor ao lado._'}</Markdown>
-                          </div>
-                          
-                          <div className={styles.reportPreviewFooter}>
-                             <h4 className={styles.reportPreviewFooterTitle}>Metodologia e Transparência</h4>
-                             <p className={styles.reportPreviewFooterText}>{reportStructure.summary || 'A metodologia será exibida após o preenchimento na aba de investigação.'}</p>
-                             <div className={styles.reportPreviewStats}>
-                                <div className={styles.reportPreviewStat}>Perguntas: {reportStructure.questions.length}</div>
-                                <div className={styles.reportPreviewStat}>Fontes: {reportStructure.sources.length}</div>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
+                  <ParecerRichEditor
+                    syncKey={selectedNews.id}
+                    value={normalizeReportForEditor(selectedNews.report)}
+                    onChange={handleUpdateReport}
+                    readOnly={!effectiveCanEdit}
+                    themeConfig={themeConfig}
+                    onPreview={() => setShowPdfPreview(true)}
+                    onDownload={handleDownloadParecerPdf}
+                    canDownload={canDownloadPdf}
+                    isDownloading={isPdfDownloading}
+                  />
                 </section>
               </motion.div>
             )}
@@ -2027,6 +2134,17 @@ export const AnalysisView = ({
           </>
         )}
       </AnimatePresence>
+
+      <ParecerPdfPreviewModal
+        open={showPdfPreview}
+        onClose={() => setShowPdfPreview(false)}
+        data={parecerReportData}
+        themeConfig={themeConfig}
+        canDownload={canDownloadPdf}
+        isDownloading={isPdfDownloading}
+        onDownloadStart={() => setIsPdfDownloading(true)}
+        onDownloadEnd={() => setIsPdfDownloading(false)}
+      />
     </div>
   );
 };

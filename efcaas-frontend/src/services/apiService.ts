@@ -20,18 +20,27 @@ import { parseAttributeList, parseMisinformationFeatures, toConfidenceScore } fr
 export const DEFAULT_REPORT_STRUCTURE: ReportStructure = {
   summary: '',
   questions: [''],
+  questionAnswers: [''],
   sources: [''],
   isInverifiable: false,
+  disinfoAuthorName: '',
+  disinfoAuthorUnverifiable: false,
   contactWithAuthor: { hadContact: null },
 };
+
+export function syncQuestionAnswers(questions: string[], answers?: string[]): string[] {
+  return questions.map((_, index) => answers?.[index] ?? '');
+}
 
 export function normalizeReportStructure(
   rs?: Partial<ReportStructure> | null
 ): ReportStructure {
+  const questions = rs?.questions?.length ? rs.questions : [''];
   return {
     ...DEFAULT_REPORT_STRUCTURE,
     ...rs,
-    questions: rs?.questions?.length ? rs.questions : [''],
+    questions,
+    questionAnswers: syncQuestionAnswers(questions, rs?.questionAnswers),
     sources: rs?.sources?.length ? rs.sources : [''],
     contactWithAuthor: {
       ...DEFAULT_REPORT_STRUCTURE.contactWithAuthor,
@@ -184,8 +193,11 @@ export interface ApiInvestigacaoDto {
   id: string;
   resumoMetodologia: string;
   perguntas: string[];
+  respostasPerguntas?: string[];
   fontes: string[];
   inverificavel: boolean;
+  autorDesinformacao?: string | null;
+  autorDesinformacaoInverificavel?: boolean;
   contatoRealizado: boolean | null;
   respostaAutor: string | null;
   justificativaSemContato: string | null;
@@ -306,12 +318,42 @@ export interface AtribuirChecagemBody {
 export interface EstruturaRelatorioBody {
   resumo: string;
   perguntas: string[];
+  respostasPerguntas: string[];
   fontes: string[];
   inverificavel: boolean;
+  autorDesinformacao: string | null;
+  autorDesinformacaoInverificavel: boolean;
   contatoAutor: {
     hadContact: boolean | null;
     justificacao: string | null;
     response: string | null;
+  };
+}
+
+export function buildEstruturaRelatorioBody(rs: ReportStructure): EstruturaRelatorioBody {
+  const questions = rs.questions ?? [];
+  const answers = syncQuestionAnswers(questions, rs.questionAnswers);
+  const pairs = questions
+    .map((q, index) => ({ q, a: answers[index] ?? '' }))
+    .filter((pair) => pair.q.trim());
+
+  return {
+    resumo: rs.summary ?? '',
+    perguntas: pairs.map((pair) => pair.q),
+    respostasPerguntas: pairs.map((pair) => pair.a),
+    fontes: (rs.sources ?? []).filter(Boolean),
+    inverificavel: rs.isInverifiable ?? false,
+    autorDesinformacao: rs.disinfoAuthorUnverifiable
+      ? null
+      : (rs.disinfoAuthorName?.trim() || null),
+    autorDesinformacaoInverificavel: rs.disinfoAuthorUnverifiable ?? false,
+    contatoAutor: rs.disinfoAuthorUnverifiable
+      ? { hadContact: null, justificacao: null, response: null }
+      : {
+          hadContact: rs.contactWithAuthor?.hadContact ?? null,
+          justificacao: rs.contactWithAuthor?.justification ?? null,
+          response: rs.contactWithAuthor?.response ?? null,
+        },
   };
 }
 export interface SalvarParecerBody {
@@ -504,8 +546,11 @@ function mapInvestigacao(inv: ApiInvestigacaoDto | null, etiquetaNome?: string):
   return normalizeReportStructure({
     summary: inv?.resumoMetodologia ?? '',
     questions: inv?.perguntas?.length ? inv.perguntas : [''],
+    questionAnswers: inv?.respostasPerguntas,
     sources: inv?.fontes?.length ? inv.fontes : [''],
     isInverifiable: inv?.inverificavel ?? false,
+    disinfoAuthorName: inv?.autorDesinformacao ?? '',
+    disinfoAuthorUnverifiable: inv?.autorDesinformacaoInverificavel ?? false,
     contactWithAuthor: {
       hadContact: inv?.contatoRealizado ?? null,
       response: inv?.respostaAutor ?? undefined,

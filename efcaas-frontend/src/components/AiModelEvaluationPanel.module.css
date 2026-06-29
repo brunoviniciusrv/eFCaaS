@@ -178,12 +178,9 @@
   flex: 1;
 }
 
-.modalText {
-  margin: 0;
+.modalProse {
   font-size: 0.875rem;
   color: #6b7280;
-  line-height: 1.7;
-  white-space: pre-wrap;
 }
 
 .modalFooter {

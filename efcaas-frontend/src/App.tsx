@@ -18,8 +18,6 @@ import {
   NewsItem, 
   Evidence, 
   ReportStructure, 
-  FactLabel, 
-  View,
   AuditLog,
   LabelConfig,
   ReportStructureConfig,
@@ -32,20 +30,21 @@ import {
   ArticleStatus,
   SpecializedNetworkCheck
 } from './types';
-import { generateDraftReport, reviewReport } from './services/geminiService';
-import { apiService, normalizeReportStructure } from './services/apiService';
+import { apiService, normalizeReportStructure, buildEstruturaRelatorioBody } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
 import { mergeConteudoDetail } from './lib/aiAnalysis';
 import { normalizeResourceUrl } from './lib/apiBaseUrl';
 import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
 import { addPendingIaConteudo, getPendingIaConteudoIds, isIaFinished, removePendingIaConteudo } from './lib/iaPolling';
 
+import { normalizeReportForEditor } from './lib/parecerHtml';
+
 const CACHED_USER_KEY = 'efcaas_cached_user';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
 function getParecerTexto(newsItem: NewsItem): string {
-  return newsItem.report?.trim() ?? '';
+  return normalizeReportForEditor(newsItem.report);
 }
 
 function parecerToEditorHtml(text: string): string {
@@ -568,8 +567,6 @@ function AppContent() {
   };
   
   // AI States
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const selectedNews = news.find(n => n.id === selectedNewsId);
@@ -630,17 +627,7 @@ function AppContent() {
     try {
       const rs = selectedNews.reportStructure;
       if (rs) {
-        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
-          resumo: rs.summary ?? '',
-          perguntas: (rs.questions ?? []).filter(Boolean),
-          fontes: (rs.sources ?? []).filter(Boolean),
-          inverificavel: rs.isInverifiable ?? false,
-          contatoAutor: {
-            hadContact: rs.contactWithAuthor?.hadContact ?? null,
-            justificacao: rs.contactWithAuthor?.justification ?? null,
-            response: rs.contactWithAuthor?.response ?? null,
-          },
-        });
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, buildEstruturaRelatorioBody(rs));
       }
       if (selectedNews.report) {
         await apiService.salvarParecer(selectedNews.checagemId, {
@@ -877,49 +864,16 @@ function AppContent() {
     } : n));
   };
 
-  const handleGenerateDraft = async () => {
-    if (!selectedNews || !selectedNews.reportStructure) return;
-    setIsGeneratingDraft(true);
-    try {
-      const draft = await generateDraftReport(selectedNews, selectedNews.reportStructure);
-      handleUpdateReport(draft);
-    } catch (error) {
-      console.error("Error generating draft:", error);
-    } finally {
-      setIsGeneratingDraft(false);
-    }
-  };
-
-  const handleReviewReport = async () => {
-    if (!selectedNews?.report) return;
-    setIsReviewing(true);
-    try {
-      const review = await reviewReport(selectedNews.report);
-      handleUpdateReport(`${selectedNews.report}\n\n---\n### Sugestões da IA:\n${review}`);
-    } catch (error) {
-      console.error("Error reviewing report:", error);
-    } finally {
-      setIsReviewing(false);
-    }
-  };
-
   const handleSaveInvestigation = async (): Promise<boolean> => {
     if (!selectedNews) return false;
     setIsSaving(true);
     try {
       if (selectedNews.checagemId) {
         const rs = selectedNews.reportStructure;
-        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
-          resumo: rs?.summary ?? '',
-          perguntas: (rs?.questions ?? []).filter(Boolean),
-          fontes: (rs?.sources ?? []).filter(Boolean),
-          inverificavel: rs?.isInverifiable ?? false,
-          contatoAutor: {
-            hadContact: rs?.contactWithAuthor?.hadContact ?? null,
-            justificacao: rs?.contactWithAuthor?.justification ?? null,
-            response: rs?.contactWithAuthor?.response ?? null,
-          },
-        });
+        await apiService.salvarEstruturaRelatorio(
+          selectedNews.checagemId,
+          buildEstruturaRelatorioBody(normalizeReportStructure(rs))
+        );
       }
       return true;
     } catch (err) {
@@ -944,17 +898,7 @@ function AppContent() {
       if (selectedNews.checagemId) {
         const rs = selectedNews.reportStructure;
 
-        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
-          resumo: rs.summary ?? '',
-          perguntas: (rs.questions ?? []).filter(Boolean),
-          fontes: (rs.sources ?? []).filter(Boolean),
-          inverificavel: rs.isInverifiable ?? false,
-          contatoAutor: {
-            hadContact: rs.contactWithAuthor?.hadContact ?? null,
-            justificacao: rs.contactWithAuthor?.justification ?? null,
-            response: rs.contactWithAuthor?.response ?? null,
-          },
-        });
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, buildEstruturaRelatorioBody(rs));
 
         if (selectedNews.report) {
           await apiService.salvarParecer(selectedNews.checagemId, {
@@ -1688,8 +1632,6 @@ function AppContent() {
               handleSaveParecer={handleSaveParecer}
               handleSaveInvestigation={handleSaveInvestigation}
               handleUpdateReportStructure={handleUpdateReportStructure}
-              handleGenerateDraft={handleGenerateDraft}
-              handleReviewReport={handleReviewReport}
               handleUpdateReport={handleUpdateReport}
               handleAddEvidence={handleAddEvidence}
               handleUploadEvidenceFile={handleUploadEvidenceFile}
@@ -1697,8 +1639,6 @@ function AppContent() {
               handleUploadMediaFile={handleUploadMediaFile}
               handleRemoveMedia={handleRemoveMedia}
               isSaving={isSaving}
-              isGeneratingDraft={isGeneratingDraft}
-              isReviewing={isReviewing}
               labels={labels}
               reportConfig={reportConfig}
               themeConfig={themeConfig}
@@ -1713,6 +1653,7 @@ function AppContent() {
                 user={user}
                 news={news}
                 labels={labels}
+                agencyConfig={agencyConfig}
                 articles={displayArticles}
                 onSaveArticle={handleSaveArticle}
                 checkPermission={checkPermission}

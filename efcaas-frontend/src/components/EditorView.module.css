@@ -51,8 +51,12 @@
   /* NOTE: group-hover:opacity-100 → needs parent:hover descendant rule */
 }
 
-.summaryText {
-  @apply mt-2 text-xs rounded-lg leading-relaxed p-3 border;
+.parecerPreviewBtn {
+  @apply mt-2 w-full flex items-center justify-center gap-2 text-xs font-semibold rounded-lg border p-3 transition-all hover:opacity-90;
+}
+
+.parecerUnavailable {
+  @apply mt-2 text-xs italic;
 }
 
 .sourcesWrap {

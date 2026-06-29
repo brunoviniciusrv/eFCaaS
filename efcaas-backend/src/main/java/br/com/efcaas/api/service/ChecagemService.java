@@ -66,13 +66,25 @@ public class ChecagemService {
         if (req.perguntas() != null) {
             inv.setPerguntas(toJson(req.perguntas()));
         }
+        if (req.respostasPerguntas() != null) {
+            inv.setRespostasPerguntas(toJson(req.respostasPerguntas()));
+        }
         if (req.fontes() != null) {
             inv.setFontes(toJson(req.fontes()));
         }
-        if (req.contatoAutor() != null) {
-            inv.setContatoRealizado(req.contatoAutor().hadContact());
-            inv.setRespostaAutor(req.contatoAutor().response());
-            inv.setJustificativaSemContato(req.contatoAutor().justificacao());
+        inv.setAutorDesinformacaoInverificavel(req.autorDesinformacaoInverificavel());
+        if (req.autorDesinformacaoInverificavel()) {
+            inv.setAutorDesinformacao(null);
+            inv.setContatoRealizado(null);
+            inv.setRespostaAutor(null);
+            inv.setJustificativaSemContato(null);
+        } else {
+            inv.setAutorDesinformacao(req.autorDesinformacao());
+            if (req.contatoAutor() != null) {
+                inv.setContatoRealizado(req.contatoAutor().hadContact());
+                inv.setRespostaAutor(req.contatoAutor().response());
+                inv.setJustificativaSemContato(req.contatoAutor().justificacao());
+            }
         }
 
         investigacaoRepo.save(inv);

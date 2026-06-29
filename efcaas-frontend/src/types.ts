@@ -1,5 +1,3 @@
-export type View = 'dashboard' | 'analysis' | 'profile' | 'admin' | 'curator';
-
 export interface LabelConfig {
   id: string;
   name: string;
@@ -161,8 +159,6 @@ export interface ReceivedNewsItem {
   internalNotes?: string;
 }
 
-export type FactLabel = 'Falso' | 'Verdadeiro' | 'Distorcido' | 'Falta Contexto' | 'Exagerado' | 'Subestimado';
-
 export type ArticleStatus = 'draft' | 'in_editing' | 'review' | 'approved' | 'published';
 
 export type ArticleTemplateType = 'short' | 'breaking' | 'complete' | 'quick_check';
@@ -215,8 +211,11 @@ export interface AssignmentHistory {
 export interface ReportStructure {
   summary: string;
   questions: string[];
+  questionAnswers?: string[];
   sources: string[];
   isInverifiable: boolean;
+  disinfoAuthorName?: string;
+  disinfoAuthorUnverifiable?: boolean;
   contactWithAuthor: {
     hadContact: boolean | null;
     justification?: string;

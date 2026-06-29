@@ -86,8 +86,11 @@ public class ChecagemMapper {
                 str(inv.getId()),
                 inv.getResumoMetodologia(),
                 parseStringList(inv.getPerguntas()),
+                parseStringList(inv.getRespostasPerguntas()),
                 parseStringList(inv.getFontes()),
                 inv.isInverificavel(),
+                inv.getAutorDesinformacao(),
+                inv.isAutorDesinformacaoInverificavel(),
                 inv.getContatoRealizado(),
                 inv.getRespostaAutor(),
                 inv.getJustificativaSemContato()
