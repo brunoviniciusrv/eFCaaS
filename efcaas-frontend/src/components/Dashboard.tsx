@@ -159,7 +159,7 @@ export const Dashboard = ({
   const redacaoQueue = news.filter(n => n.status === 'completed' && !n.assignedToEditor);
   const myRedacao = news.filter(n => n.status === 'completed' && n.assignedToEditor === user.id);
 
-  const TaskCard = ({ item, onClickHandler, isDragging, titleClass = styles.taskTitle }: { item: NewsItem; onClickHandler: () => void; isDragging: boolean; titleClass?: string }) => (
+  const TaskCard = ({ item, onClickHandler, isDragging, titleClass = styles.taskTitle, actionLabel = 'Investigar' }: { item: NewsItem; onClickHandler: () => void; isDragging: boolean; titleClass?: string; actionLabel?: string }) => (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.95 }}
@@ -195,7 +195,7 @@ export const Dashboard = ({
             )}
           </div>
           <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
-            Investigar <ArrowRight size={12} />
+            {actionLabel} <ArrowRight size={12} />
           </button>
         </div>
       </div>
@@ -469,7 +469,7 @@ export const Dashboard = ({
                               <Draggable key={item.id} draggableId={item.id} index={index}>
                                 {(provided, snapshot) => (
                                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="outline-none">
-                                    <TaskCard item={item} onClickHandler={() => navigate(`/editor/${item.id}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} />
+                                    <TaskCard item={item} onClickHandler={() => navigate(`/editor/${item.id}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} actionLabel="Redigir" />
                                   </div>
                                 )}
                               </Draggable>

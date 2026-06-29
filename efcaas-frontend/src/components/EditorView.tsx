@@ -100,6 +100,34 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitKeyRef = useRef('');
 
+  const syncEditorContent = () => {
+    if (editorRef.current) {
+      setContent(editorRef.current.innerHTML);
+    }
+  };
+
+  const runEditorCommand = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    syncEditorContent();
+  };
+
+  const handleToolbarMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
+  };
+
+  const handleInsertLink = () => {
+    const url = window.prompt('URL do link:');
+    if (!url?.trim()) return;
+    runEditorCommand('createLink', url.trim());
+  };
+
+  const handleInsertImage = () => {
+    const url = window.prompt('URL da imagem:');
+    if (!url?.trim()) return;
+    runEditorCommand('insertImage', url.trim());
+  };
+
   const setEditorContent = (value: string | ((prev: string) => string)) => {
     setContent((prev) => {
       const next = typeof value === 'function' ? value(prev) : value;
@@ -421,17 +449,29 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
               />
 
               <div className={styles.rtfToolbar}>
-                <button className={styles.rtfBtn} title="Negrito"><Bold className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Itálico"><Italic className="w-4 h-4" /></button>
+                <button type="button" className={styles.rtfBtn} title="Negrito" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('bold')}>
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Itálico" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('italic')}>
+                  <Italic className="w-4 h-4" />
+                </button>
                 <div className={styles.rtfDivider} />
-                <button className={styles.rtfBtn} title="Título H2"><Layout className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Citação"><Quote className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Lista"><List className="w-4 h-4" /></button>
+                <button type="button" className={styles.rtfBtn} title="Título H2" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('formatBlock', 'h2')}>
+                  <Layout className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Citação" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
+                  <Quote className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Lista" onMouseDown={handleToolbarMouseDown} onClick={() => runEditorCommand('insertUnorderedList')}>
+                  <List className="w-4 h-4" />
+                </button>
                 <div className={styles.rtfDivider} />
-                <button className={styles.rtfBtn} title="Link"><LinkIcon className="w-4 h-4" /></button>
-                <button className={styles.rtfBtn} title="Imagem"><ImageIcon className="w-4 h-4" /></button>
-                <div className="flex-1" />
-                <button className={styles.rtfCustomBlocks}>Blocos customizados</button>
+                <button type="button" className={styles.rtfBtn} title="Link" onMouseDown={handleToolbarMouseDown} onClick={handleInsertLink}>
+                  <LinkIcon className="w-4 h-4" />
+                </button>
+                <button type="button" className={styles.rtfBtn} title="Imagem" onMouseDown={handleToolbarMouseDown} onClick={handleInsertImage}>
+                  <ImageIcon className="w-4 h-4" />
+                </button>
               </div>
 
               <div 
