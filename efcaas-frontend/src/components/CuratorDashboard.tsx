@@ -65,6 +65,7 @@ import {
 } from '../types';
 import { isAiModuleEnabled } from '../config/aiModules';
 import { getAssignableUsers } from '../lib/assignableUsers';
+import { iconBoxStyle } from '../lib/iconTheme';
 import { isNewsAssignedTo, resolveCheckerFromQuery } from '../lib/newsAssignment';
 import { StatusBadge } from './StatusBadge';
 import { NotificationBell } from './NotificationBell';
@@ -551,7 +552,7 @@ export const CuratorDashboard = ({
     <div className={styles.wrapper} style={{ color: themeConfig.dashboard.text }}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-           <div className={styles.headerIcon}>
+           <div className={styles.headerIcon} style={iconBoxStyle(themeConfig)}>
              <Activity size={24} />
            </div>
            <div>

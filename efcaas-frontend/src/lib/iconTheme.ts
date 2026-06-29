@@ -21,3 +21,11 @@ export function iconColor(themeConfig: ThemeConfig, variant: IconVariant = 'defa
 export function iconStyle(themeConfig: ThemeConfig, variant: IconVariant = 'default'): CSSProperties {
   return { color: iconColor(themeConfig, variant) };
 }
+
+/** Caixa de ícone de cabeçalho de página (fundo accent + ícone branco). */
+export function iconBoxStyle(themeConfig: ThemeConfig): CSSProperties {
+  return {
+    backgroundColor: iconColor(themeConfig, 'accent'),
+    color: '#ffffff',
+  };
+}

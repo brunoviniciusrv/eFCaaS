@@ -57,6 +57,7 @@ import {
   Cell
 } from 'recharts';
 import { cn } from '../lib/utils';
+import { iconBoxStyle } from '../lib/iconTheme';
 import { ResponsiveTabs } from './ResponsiveTabs';
 import { LabelConfig, ReportStructureConfig, ThemeConfig, AgencyConfig, PermissionProfile } from '../types';
 import { AiEngineModulesPanel } from './AiEngineModulesPanel';
@@ -299,7 +300,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.headerIcon}>
+          <div className={styles.headerIcon} style={iconBoxStyle(themeConfig)}>
              <Shield size={24} />
           </div>
           <div>
