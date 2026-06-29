@@ -1548,6 +1548,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
 
+                {/* Icon colors */}
+                <div className={styles.themeCard}>
+                  <h3 className={styles.themeCardTitle}>Cores de Ícones</h3>
+                  <div className={styles.themeCardGrid4}>
+                    {(['default', 'active', 'muted', 'accent'] as const).map((key) => (
+                      <div key={key} className={styles.colorField}>
+                        <label className={styles.colorFieldLabel}>
+                          {key === 'default' ? 'Padrão' : key === 'active' ? 'Ativo' : key === 'muted' ? 'Secundário' : 'Destaque'}
+                        </label>
+                        <div className={styles.colorInputRow}>
+                          <input
+                            type="color"
+                            value={themeConfig.icons?.[key] ?? '#64748b'}
+                            onChange={(e) => setThemeConfig((prev) => ({
+                              ...prev,
+                              icons: { ...prev.icons!, [key]: e.target.value },
+                            }))}
+                            className={styles.colorInput}
+                          />
+                          <span className={styles.colorValue}>{themeConfig.icons?.[key] ?? '#64748b'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Inputs Theme */}
                 <div className={styles.themeCard}>
                   <h3 className={styles.themeCardTitle}>Campos de Entrada (Inputs)</h3>

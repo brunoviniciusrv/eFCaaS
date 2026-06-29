@@ -33,6 +33,7 @@ import {
   ThemeConfig
 } from '../types';
 import { apiService } from '../services/apiService';
+import { normalizeResourceUrl } from '../lib/apiBaseUrl';
 import styles from './EditorView.module.css';
 
 function parecerToEditorHtml(text: string): string {
@@ -80,6 +81,10 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const navigate = useNavigate();
   const [showHistory, setShowHistory] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   const newsItem = news.find(n => n.id === id);
@@ -98,6 +103,7 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   const [newComment, setNewComment] = useState('');
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const editorInitKeyRef = useRef('');
 
   const syncEditorContent = () => {
@@ -117,15 +123,42 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
   };
 
   const handleInsertLink = () => {
-    const url = window.prompt('URL do link:');
-    if (!url?.trim()) return;
-    runEditorCommand('createLink', url.trim());
+    setLinkUrl('');
+    setLinkText('');
+    setShowLinkModal(true);
+  };
+
+  const confirmInsertLink = () => {
+    const url = linkUrl.trim();
+    if (!url) return;
+    const text = linkText.trim();
+    if (text) {
+      runEditorCommand('insertHTML', `<a href="${url}" target="_blank" rel="noreferrer">${text}</a>`);
+    } else {
+      runEditorCommand('createLink', url);
+    }
+    setShowLinkModal(false);
+    setLinkUrl('');
+    setLinkText('');
   };
 
   const handleInsertImage = () => {
-    const url = window.prompt('URL da imagem:');
-    if (!url?.trim()) return;
-    runEditorCommand('insertImage', url.trim());
+    imageInputRef.current?.click();
+  };
+
+  const handleImageFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !activeNews?.id) return;
+    setIsUploadingImage(true);
+    try {
+      const apiAnexo = await apiService.uploadAnexoConteudo(activeNews.id, file);
+      runEditorCommand('insertImage', normalizeResourceUrl(apiAnexo.urlAcesso));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível enviar a imagem.');
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const setEditorContent = (value: string | ((prev: string) => string)) => {
@@ -469,9 +502,23 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
                 <button type="button" className={styles.rtfBtn} title="Link" onMouseDown={handleToolbarMouseDown} onClick={handleInsertLink}>
                   <LinkIcon className="w-4 h-4" />
                 </button>
-                <button type="button" className={styles.rtfBtn} title="Imagem" onMouseDown={handleToolbarMouseDown} onClick={handleInsertImage}>
+                <button
+                  type="button"
+                  className={styles.rtfBtn}
+                  title="Imagem"
+                  disabled={isUploadingImage}
+                  onMouseDown={handleToolbarMouseDown}
+                  onClick={handleInsertImage}
+                >
                   <ImageIcon className="w-4 h-4" />
                 </button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFileSelected}
+                />
               </div>
 
               <div 
@@ -564,6 +611,65 @@ export function EditorView({ user, news, labels, onSaveArticle, articles, themeC
                     Publicar comentário
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showLinkModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.modalOverlay}
+            style={{ backgroundColor: themeConfig.general.modalOverlay }}
+            onClick={() => setShowLinkModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className={styles.modalPanel}
+              style={{ backgroundColor: themeConfig.general.modalBackground, borderColor: themeConfig.general.border, color: themeConfig.general.modalText }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader} style={{ borderColor: themeConfig.general.border }}>
+                <h3 className={styles.modalTitle}>
+                  <LinkIcon className="w-4 h-4" />
+                  Inserir link
+                </h3>
+                <button type="button" onClick={() => setShowLinkModal(false)} className={styles.modalClose}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <label className={styles.sidebarLabel}>URL *</label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className={styles.commentTextarea}
+                  style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, minHeight: 'auto', marginBottom: '1rem' }}
+                />
+                <label className={styles.sidebarLabel}>Texto (opcional)</label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Texto do link"
+                  className={styles.commentTextarea}
+                  style={{ backgroundColor: themeConfig.general.inputBackground, borderColor: themeConfig.general.inputBorder, color: themeConfig.general.inputText, minHeight: 'auto' }}
+                />
+                <button
+                  type="button"
+                  onClick={confirmInsertLink}
+                  disabled={!linkUrl.trim()}
+                  className={styles.commentSubmit}
+                  style={{ backgroundColor: themeConfig.buttons.primary, color: themeConfig.buttons.primaryText, marginTop: '1rem' }}
+                >
+                  Inserir link
+                </button>
               </div>
             </motion.div>
           </motion.div>

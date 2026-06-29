@@ -85,6 +85,10 @@ export interface ApiAnaliseIaDto {
   certezaAlegacao: number | null;
   faixaCertezaAlegacao: string | null;
   topicMatch: string[] | null;
+  statusIa?: string | null;
+  iniciadoEm?: string | null;
+  finalizadoEm?: string | null;
+  mensagemErro?: string | null;
   /** @deprecated legado — falsidade */
   scoreDistorcao?: number | null;
   /** @deprecated legado — distorção de mídia */
@@ -93,6 +97,7 @@ export interface ApiAnaliseIaDto {
 
 export interface ApiConteudoDto {
   id: string;
+  numeroReferencia?: number | null;
   titulo: string;
   alegacao: string;
   link: string;
@@ -545,8 +550,15 @@ function deriveWarningLevel(score: number | null): string {
   return 'baixo';
 }
 
-function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation'> {
-  if (!ia || ia.simulado) return {};
+function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | 'aiEvaluation' | 'isAIProcessing' | 'iaStatus'> {
+  if (!ia) return {};
+
+  const iaStatus = (ia.statusIa as NewsItem['iaStatus']) ?? undefined;
+  const isAIProcessing = ia.statusIa === 'processando';
+
+  if (ia.simulado && ia.statusIa !== 'processando' && ia.statusIa !== 'concluida') {
+    return { isAIProcessing, iaStatus };
+  }
 
   const inveracidade = toScore(ia.scoreInveracidade);
   const falsidade = toScore(ia.scoreFalsidade ?? ia.scoreDistorcao);
@@ -605,6 +617,8 @@ function mapAnaliseIa(ia: ApiAnaliseIaDto | null): Pick<NewsItem, 'aiScores' | '
   return {
     ...(hasScores ? { aiScores } : {}),
     ...(aiEvaluation ? { aiEvaluation } : {}),
+    isAIProcessing,
+    iaStatus,
   };
 }
 
@@ -634,6 +648,7 @@ function mapConteudo(dto: ApiConteudoDto): NewsItem {
   }));
   return {
     id: dto.id,
+    referenceNumber: dto.numeroReferencia ?? undefined,
     title: dto.titulo ?? '',
     alegacao: dto.alegacao ?? undefined,
     descricao: dto.descricao ?? undefined,
@@ -1137,9 +1152,25 @@ export const apiService = {
     return api.get<ApiAuditoriaDto[]>(`/checagens/${checagemId}/auditoria`);
   },
 
-  /** Dispara análise de IA (Guaia IA Hub) para o conteúdo e retorna o item atualizado. */
+  /** Dispara análise de IA (assíncrona) e retorna status atual. */
   async analisarConteudo(id: string): Promise<NewsItem> {
     const dto = await api.post<ApiConteudoDto>(`/conteudos/${id}/ia/analisar`, {});
     return mapConteudo(dto);
+  },
+
+  async listarNotificacoes(): Promise<Array<{
+    id: string;
+    titulo: string;
+    mensagem: string | null;
+    categoria: string | null;
+    link: string | null;
+    lida: boolean;
+    criadoEm: string | null;
+  }>> {
+    return api.get('/notificacoes');
+  },
+
+  async marcarNotificacaoLida(id: string): Promise<void> {
+    return api.patch<void>(`/notificacoes/${id}/lida`, {});
   },
 };

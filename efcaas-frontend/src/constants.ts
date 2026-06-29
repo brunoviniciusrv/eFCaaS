@@ -198,5 +198,11 @@ export const INITIAL_THEME_CONFIG: ThemeConfig = {
     mutedBackground: '#f1f5f9',
     mutedText: '#334155',
     hoverBackground: '#e2e8f0',
-  }
+  },
+  icons: {
+    default: '#64748b',
+    active: '#2563eb',
+    muted: '#94a3b8',
+    accent: '#2563eb',
+  },
 };

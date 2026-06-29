@@ -90,6 +90,12 @@ export interface ThemeConfig {
     mutedText: string;
     hoverBackground: string;
   };
+  icons?: {
+    default: string;
+    active: string;
+    muted: string;
+    accent: string;
+  };
 }
 
 export interface SystemPermission {
@@ -275,6 +281,7 @@ export interface SpecializedNetworkCheck {
 
 export interface NewsItem {
   id: string;
+  referenceNumber?: number;
   title: string;
   content: string;   // legado / display (mapeado de alegacao)
   alegacao?: string;  // alegação principal (campo do banco)
@@ -295,6 +302,7 @@ export interface NewsItem {
   completedAt?: string; // ISO string
   isRectified?: boolean;
   isAIProcessing?: boolean;
+  iaStatus?: 'pendente' | 'processando' | 'concluida' | 'erro';
   sentToSpecializedNetwork?: boolean;
   specializedCheckId?: string;
   media?: {
