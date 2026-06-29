@@ -98,4 +98,16 @@ public class AnaliseIa {
 
     @Column(name = "simulado", nullable = false)
     private boolean simulado = true;
+
+    @Column(name = "status_ia", length = 30)
+    private String statusIa = "pendente";
+
+    @Column(name = "iniciado_em")
+    private java.time.LocalDateTime iniciadoEm;
+
+    @Column(name = "finalizado_em")
+    private java.time.LocalDateTime finalizadoEm;
+
+    @Column(name = "mensagem_erro", columnDefinition = "TEXT")
+    private String mensagemErro;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Briefcase as Toolbox, 
@@ -57,6 +57,8 @@ import {
 } from '../lib/newsAssignment';
 import { TOOLS } from '../constants';
 import { apiService, ApiAuditoriaDto, normalizeReportStructure } from '../services/apiService';
+import { MediaThumbnailGrid } from './MediaThumbnailGrid';
+import { addPendingIaConteudo } from '../lib/iaPolling';
 import styles from './AnalysisView.module.css';
 
 // ─── Auditoria helpers ──────────────────────────────────────────────────────
@@ -220,6 +222,8 @@ export const AnalysisView = ({
   refreshConteudoDetail,
 }: AnalysisViewProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const forceViewMode = searchParams.get('mode') === 'view';
   const [isAnalyzingAI, setIsAnalyzingAI] = React.useState(false);
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiToast, setAiToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -287,11 +291,19 @@ export const AnalysisView = ({
   const isCompletedCheck = selectedNews.status === 'completed';
   const [editUnlocked, setEditUnlocked] = useState(false);
   const [isEnablingEdit, setIsEnablingEdit] = useState(false);
-  const effectiveCanEdit = canEditRole && (!isCompletedCheck || editUnlocked);
+  const effectiveCanEdit = canEditRole && (!isCompletedCheck || editUnlocked) && !forceViewMode;
 
   useEffect(() => {
     setEditUnlocked(false);
   }, [selectedNews.id]);
+
+  useEffect(() => {
+    if (selectedNews.isAIProcessing || selectedNews.iaStatus === 'processando') {
+      setIsAnalyzingAI(true);
+    } else if (selectedNews.iaStatus === 'concluida' || selectedNews.iaStatus === 'erro') {
+      setIsAnalyzingAI(false);
+    }
+  }, [selectedNews.isAIProcessing, selectedNews.iaStatus]);
 
   const handleEnableCompletedEdit = async () => {
     if (!selectedNews?.id || isEnablingEdit) return;
@@ -647,7 +659,9 @@ export const AnalysisView = ({
                   <div className={styles.cardHeader} style={{ backgroundColor: `${themeConfig.dashboard.background}50`, borderColor: themeConfig.general.border }}>
                     <h3 className={styles.cardHeaderTitle} style={{ color: themeConfig.dashboard.text }}>Conteúdo sob Análise</h3>
                     <div className={styles.cardHeaderBadges}>
-                      <span className={styles.refBadge}>REF: {selectedNews.id}</span>
+                      <span className={styles.refBadge}>
+                        Nº {selectedNews.referenceNumber ?? selectedNews.id}
+                      </span>
                       {onDeleteNews && selectedNews.status !== 'completed' && (
                         <button
                           type="button"
@@ -801,81 +815,22 @@ export const AnalysisView = ({
                         </motion.div>
                       )}
 
-                      <div className={styles.mediaGrid}>
-                        {(selectedNews.media ?? []).map((m, i) => (
-                          <div
-                            key={m.id ?? i}
-                            className={styles.mediaItem}
-                            style={{ borderColor: themeConfig.general.border }}
-                          >
-                            {m.type === 'image' && (
-                              <MediaImagePreview
-                                url={m.url}
-                                title={m.title}
-                                imageClassName={styles.mediaImage}
-                                fallbackClassName={styles.documentWrapper}
-                              />
-                            )}
-                            {m.type === 'video' && (
-                              <div className={styles.mediaVideoWrapper}>
-                                <video src={m.url} controls className={styles.mediaVideo} />
-                                <div className={styles.videoLabel}>
-                                  Vídeo Anexo
-                                </div>
-                              </div>
-                            )}
-                            {m.type === 'audio' && (
-                              <div className={styles.audioWrapper}>
-                                <div
-                                  className={styles.audioIconWrapper}
-                                  style={{ backgroundColor: themeConfig.general.accent, color: '#fff' }}
-                                >
-                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                                </div>
-                                <div className={styles.audioPlayerWrapper}>
-                                  <div className={styles.audioTitleWrapper}>
-                                    <span className={styles.audioTitleText}>Áudio Original</span>
-                                  </div>
-                                  <audio src={m.url} controls className={styles.audioElement} />
-                                </div>
-                              </div>
-                            )}
-                            {m.type === 'document' && (
-                              <div className={styles.documentWrapper}>
-                                <div className={styles.documentIcon}>
-                                  <FileText size={18} className="text-slate-400" />
-                                </div>
-                                <div className={styles.documentInfo}>
-                                  <a
-                                    href={m.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={styles.documentLink}
-                                  >
-                                    {m.title ?? 'Documento'}
-                                  </a>
-                                  <p className={styles.documentUrl}>{m.url}</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {effectiveCanEdit && m.id && (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await handleRemoveMedia(m.id!);
-                                  } catch (err) {
-                                    alert(err instanceof Error ? err.message : 'Falha ao remover o anexo.');
-                                  }
-                                }}
-                                className={styles.removeMediaButton}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <MediaThumbnailGrid
+                        items={(selectedNews.media ?? []).map((m) => ({
+                          id: m.id,
+                          type: m.type,
+                          url: m.url,
+                          title: m.title,
+                        }))}
+                        themeConfig={themeConfig}
+                        canEdit={effectiveCanEdit}
+                        onRemove={(anexoId) => {
+                          handleRemoveMedia(anexoId).catch((err) => {
+                            alert(err instanceof Error ? err.message : 'Falha ao remover o anexo.');
+                          });
+                        }}
+                        className={styles.mediaGrid}
+                      />
 
                       {(selectedNews.media ?? []).length === 0 && !effectiveCanEdit && (
                         <div className={styles.noMediaEmptyState}>
@@ -1180,18 +1135,26 @@ export const AnalysisView = ({
                         };
 
                         apiService.analisarConteudo(selectedNews.id)
-                          .then(() => refreshConteudoDetail?.() ?? apiService.obterConteudo(selectedNews.id))
+                          .then((fresh) => {
+                            addPendingIaConteudo(selectedNews.id);
+                            applyAiUpdate(fresh);
+                            setAiToast({ type: 'success', message: 'Análise de IA iniciada. Você será notificado ao concluir.' });
+                            return refreshConteudoDetail?.() ?? apiService.obterConteudo(selectedNews.id);
+                          })
                           .then((fresh) => {
                             if (!fresh) return;
                             applyAiUpdate(fresh);
-                            setAiToast({ type: 'success', message: 'Análise de IA concluída com sucesso!' });
                           })
                           .catch((err) => {
                             const msg = err instanceof Error ? err.message : 'Erro ao analisar com IA.';
                             setAiError(msg);
                             setAiToast({ type: 'error', message: msg });
                           })
-                          .finally(() => setIsAnalyzingAI(false));
+                          .finally(() => {
+                            if (selectedNews.iaStatus !== 'processando') {
+                              setIsAnalyzingAI(false);
+                            }
+                          });
                       }}
                       disabled={isAnalyzingAI}
                       className={styles.analyzeAiButton}

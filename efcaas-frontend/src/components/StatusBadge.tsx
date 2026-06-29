@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { NewsStatus } from '../types';
 import { ThemeConfig } from '../types';
+import { iconStyle } from '../lib/iconTheme';
 import styles from './StatusBadge.module.css';
 
 interface StatusBadgeProps {
@@ -29,7 +30,7 @@ export const StatusBadge = ({ status, themeConfig }: StatusBadgeProps) => {
         borderColor: `${color}30`
       }}
     >
-      <Icon size={12} />
+      <Icon size={12} style={themeConfig ? iconStyle(themeConfig, 'default') : { color }} />
       {label}
     </span>
   );

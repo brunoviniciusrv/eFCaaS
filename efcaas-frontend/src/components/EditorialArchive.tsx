@@ -19,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { EditorialArticle, ArticleStatus, UserProfile, NewsItem, ThemeConfig } from '../types';
+import { iconStyle } from '../lib/iconTheme';
 import {
   exportArticleAsHtml,
   exportArticleAsJson,
@@ -33,10 +34,11 @@ interface EditorialArchiveProps {
   user: UserProfile;
   onDeleteArticle: (id: string) => Promise<void>;
   onUpdateStatus: (id: string, status: ArticleStatus) => Promise<void>;
+  checkPermission: (id: string) => boolean;
   themeConfig: ThemeConfig;
 }
 
-export function EditorialArchive({ articles, news, user, onDeleteArticle, themeConfig }: EditorialArchiveProps) {
+export function EditorialArchive({ articles, news, user, onDeleteArticle, checkPermission, themeConfig }: EditorialArchiveProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'all'>('all');
@@ -123,12 +125,16 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
     return news.find(n => n.id === newsId)?.title || "Notícia não encontrada";
   };
 
+  const getReferenceNumber = (newsId: string) => {
+    return news.find(n => n.id === newsId)?.referenceNumber ?? newsId;
+  };
+
   const getStatusIcon = (status: ArticleStatus) => {
     const normalized = status === 'published' ? 'approved' : status;
     switch (normalized) {
-      case 'approved': return <CheckCircle2 className="w-4 h-4 text-blue-500" />;
-      case 'review': return <AlertTriangle className="w-4 h-4 text-orange-500" />;
-      default: return <Clock className="w-4 h-4 text-slate-400" />;
+      case 'approved': return <CheckCircle2 className="w-4 h-4" style={iconStyle(themeConfig, 'accent')} />;
+      case 'review': return <AlertTriangle className="w-4 h-4" style={iconStyle(themeConfig, 'active')} />;
+      default: return <Clock className="w-4 h-4" style={iconStyle(themeConfig, 'muted')} />;
     }
   };
 
@@ -268,8 +274,17 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
                       </td>
                       <td className={styles.tdOrigin}>
                         <div className={styles.originContent}>
-                          <span className={styles.originTitle}>{getNewsTitle(article.newsId)}</span>
-                          <span className={styles.originRef} style={{ color: themeConfig.general.accent }}>Ref: #{article.newsId.split('-')[1]}</span>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/analysis/${article.newsId}?mode=view`)}
+                            className={styles.originTitle}
+                            style={{ color: themeConfig.general.accent, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            {getNewsTitle(article.newsId)}
+                          </button>
+                          <span className={styles.originRef} style={{ color: themeConfig.general.mutedText }}>
+                            Nº {getReferenceNumber(article.newsId)}
+                          </span>
                         </div>
                       </td>
                       <td className={styles.tdStatus}>
@@ -282,14 +297,17 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
                       </td>
                       <td className={styles.tdActions}>
                         <div className={styles.actions}>
-                          <button 
-                            onClick={() => navigate(`/editor/${article.newsId}`)}
-                            className={styles.editBtn}
-                            title="Editar"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
+                          {checkPermission('view_editor') && (
+                            <button 
+                              onClick={() => navigate(`/editor/${article.newsId}`)}
+                              className={styles.editBtn}
+                              title="Editar"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                          )}
                           
+                          {checkPermission('export_article') && (
                           <div className={styles.exportWrap}>
                             <button
                               type="button"
@@ -301,6 +319,7 @@ export function EditorialArchive({ articles, news, user, onDeleteArticle, themeC
                               <Download className="w-4 h-4" />
                             </button>
                           </div>
+                          )}
 
                           <button 
                             onClick={async () => {

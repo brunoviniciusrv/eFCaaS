@@ -154,9 +154,9 @@ public class ConteudoSuspeitoController {
 
     @PostMapping("/{id}/ia/analisar")
     @PreAuthorize("hasAnyAuthority('perform_analysis', 'assign_tasks')")
-    @Operation(summary = "Disparar análise de IA para o conteúdo (Guaia IA Hub)")
+    @Operation(summary = "Disparar análise de IA para o conteúdo (assíncrono)")
     public ResponseEntity<ConteudoSuspeitoDto> analisarComIa(@PathVariable Long id) {
-        return ResponseEntity.ok(service.analisarConteudo(id));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.iniciarAnaliseIa(id));
     }
 
     @DeleteMapping("/{id}")

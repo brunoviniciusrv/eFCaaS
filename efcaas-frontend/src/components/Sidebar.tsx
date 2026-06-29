@@ -13,6 +13,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { iconStyle } from '../lib/iconTheme';
 import { UserProfile, ThemeConfig, AgencyConfig } from '../types';
 import { UserAvatar } from './UserAvatar';
 import styles from './Sidebar.module.css';
@@ -150,7 +151,11 @@ export const Sidebar = ({
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={22} className={!isSidebarOpen && isActive ? styles.navIconActive : styles.navIcon} />
+                  <item.icon
+                    size={22}
+                    className={!isSidebarOpen && isActive ? styles.navIconActive : styles.navIcon}
+                    style={isActive ? undefined : iconStyle(themeConfig, 'muted')}
+                  />
                   <AnimatePresence>
                     {isSidebarOpen && (
                       <motion.span 

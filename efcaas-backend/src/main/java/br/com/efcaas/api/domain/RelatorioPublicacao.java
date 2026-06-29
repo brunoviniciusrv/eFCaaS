@@ -21,7 +21,7 @@ public class RelatorioPublicacao {
     private Parecer parecer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_editor", nullable = false)
+    @JoinColumn(name = "id_editor")
     private Usuario editor;
 
     @Column(length = 255)

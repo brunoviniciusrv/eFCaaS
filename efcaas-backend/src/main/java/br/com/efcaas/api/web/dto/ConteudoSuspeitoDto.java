@@ -4,6 +4,7 @@ import java.util.List;
 
 public record ConteudoSuspeitoDto(
         String id,
+        Integer numeroReferencia,
         String titulo,
         String alegacao,
         String link,

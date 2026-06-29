@@ -56,4 +56,7 @@ public class ConteudoSuspeito {
 
     @Column(name = "tenant_id")
     private Long tenantId;
+
+    @Column(name = "numero_referencia", nullable = false)
+    private Integer numeroReferencia;
 }

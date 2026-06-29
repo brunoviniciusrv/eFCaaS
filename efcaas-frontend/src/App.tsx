@@ -38,6 +38,9 @@ import { mergeChecagemIntoNews } from './lib/newsAssignment';
 import { mergeConteudoDetail } from './lib/aiAnalysis';
 import { normalizeResourceUrl } from './lib/apiBaseUrl';
 import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
+import { addPendingIaConteudo, getPendingIaConteudoIds, isIaFinished, removePendingIaConteudo } from './lib/iaPolling';
+
+const CACHED_USER_KEY = 'efcaas_cached_user';
 import { normalizeThemeConfig, themeCssVariables } from './lib/themeUtils';
 import { applyThemePreset, findThemePresetById, resolveThemeTemplateId } from './config/themePresets';
 
@@ -119,11 +122,20 @@ function TenantRootRedirect({ checkPermission }: { checkPermission: (permId: str
 
 function AppContent() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState(() => Boolean(getToken()));
+  const hasStoredToken = Boolean(getToken());
+  const [isAuthenticated, setIsAuthenticated] = useState(hasStoredToken);
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState(hasStoredToken);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [user, setUser] = useState<UserProfile>(PLACEHOLDER_USER);
+  const [user, setUser] = useState<UserProfile>(() => {
+    if (!hasStoredToken) return PLACEHOLDER_USER;
+    try {
+      const cached = localStorage.getItem(CACHED_USER_KEY);
+      return cached ? JSON.parse(cached) : PLACEHOLDER_USER;
+    } catch {
+      return PLACEHOLDER_USER;
+    }
+  });
   const [news, setNews] = useState<NewsItem[]>([]);
   const [receivedNews, setReceivedNews] = useState<ReceivedNewsItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -322,6 +334,7 @@ function AppContent() {
 
   const applyAuthenticatedUser = (loggedUser: UserProfile) => {
     setUser(loggedUser);
+    localStorage.setItem(CACHED_USER_KEY, JSON.stringify(loggedUser));
     const platformUser = loggedUser.profileId === 'p-platform';
     setPermissionProfiles(
       platformUser
@@ -361,6 +374,8 @@ function AppContent() {
         if (!cancelled) {
           clearToken();
           clearTenantSlug();
+          localStorage.removeItem(CACHED_USER_KEY);
+          setIsAuthenticated(false);
         }
       } finally {
         if (!cancelled) {
@@ -373,6 +388,64 @@ function AppContent() {
       cancelled = true;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isAuthenticated || isAuthBootstrapping) return;
+    const pendingIds = getPendingIaConteudoIds();
+    if (pendingIds.length === 0) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      for (const id of pendingIds) {
+        if (cancelled) return;
+        try {
+          const fresh = await apiService.obterConteudo(id);
+          if (cancelled) return;
+          setNews((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, ...fresh } : n)),
+          );
+          if (isIaFinished(fresh.iaStatus)) {
+            removePendingIaConteudo(id);
+            if (fresh.iaStatus === 'concluida') {
+              addNotification({
+                title: 'Análise de IA concluída',
+                message: `A análise de "${fresh.title}" foi finalizada.`,
+                type: 'success',
+                category: 'system',
+                targetUserId: user.id,
+              });
+            }
+          }
+        } catch {
+          // continua polling
+        }
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, isAuthBootstrapping, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isAuthenticated || isAuthBootstrapping) return;
+    apiService.listarNotificacoes()
+      .then((items) => {
+        items.filter((n) => !n.lida).forEach((n) => {
+          addNotification({
+            title: n.titulo,
+            message: n.mensagem ?? '',
+            type: 'info',
+            category: 'system',
+            targetUserId: user.id,
+          });
+        });
+      })
+      .catch(() => {});
+  }, [isAuthenticated, isAuthBootstrapping]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isAuthenticated || isPlatformUser) return;
@@ -630,6 +703,8 @@ function AppContent() {
   const handleApprove = async (newsId: string, comments: string) => {
     try {
       await apiService.aprovarConteudo(newsId, comments);
+      const relatorios = await apiService.listarRelatoriosPublicacao().catch(() => [] as EditorialArticle[]);
+      setArticles(relatorios);
       setNews(prev => prev.map(n => n.id === newsId ? {
         ...n,
         status: 'completed',
@@ -1210,7 +1285,19 @@ function AppContent() {
     if (assigned) {
       void (async () => {
         try {
-          if (articles.some((a) => a.newsId === newsId)) return;
+          const existing = articles.find((a) => a.newsId === newsId);
+          if (existing) {
+            const saved = await apiService.salvarRelatorioPublicacao(newsId, {
+              titulo: existing.title,
+              corpoTexto: existing.content,
+              resumo: existing.excerpt,
+              statusPublicacao: existing.status,
+              template: existing.template,
+              comentarios: existing.comments,
+            });
+            setArticles((prev) => prev.map((a) => (a.newsId === newsId ? saved : a)));
+            return;
+          }
           const fresh = await apiService.obterConteudo(newsId);
           const itemWithParecer = {
             ...newsItem,
@@ -1435,13 +1522,7 @@ function AppContent() {
     navigate('/');
   };
 
-  if (isAuthBootstrapping) {
-    return (
-      <div className="flex items-center justify-center min-h-screen opacity-60">
-        <p className="text-sm font-medium">Restaurando sessão...</p>
-      </div>
-    );
-  }
+  const showLoginRoutes = !isAuthenticated && !hasStoredToken;
 
   if (isAuthenticated && isPlatformUser) {
     return (
@@ -1469,7 +1550,7 @@ function AppContent() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (showLoginRoutes) {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -1516,6 +1597,7 @@ function AppContent() {
             checkPermission('view_dashboard') ? (
               <Dashboard 
                 news={news}
+                articles={displayArticles}
                 user={user}
                 setSelectedNewsId={setSelectedNewsId}
                 handleStartAnalysis={handleStartAnalysis}
@@ -1591,6 +1673,7 @@ function AppContent() {
                 specializedNetworkChecks={specializedNetworkChecks}
                 onMoveTask={handleCuratorMoveTask}
                 agencyConfig={agencyConfig}
+                permissionProfiles={permissionProfiles}
               />
             ) : <Navigate to="/dashboard" replace />
           } />
@@ -1645,6 +1728,7 @@ function AppContent() {
                 articles={displayArticles}
                 onDeleteArticle={handleDeleteArticle}
                 onUpdateStatus={handleUpdateArticleStatus}
+                checkPermission={checkPermission}
                 themeConfig={themeConfig}
               />
             ) : <Navigate to="/dashboard" replace />

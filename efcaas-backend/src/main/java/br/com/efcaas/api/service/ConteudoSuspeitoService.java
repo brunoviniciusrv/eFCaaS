@@ -4,6 +4,7 @@ import br.com.efcaas.api.domain.*;
 import br.com.efcaas.api.repository.*;
 import br.com.efcaas.api.repository.RevisaoRepository;
 import br.com.efcaas.api.stub.IaService;
+import br.com.efcaas.api.tenant.TenantContext;
 import br.com.efcaas.api.tenant.TenantScope;
 import br.com.efcaas.api.web.dto.*;
 import br.com.efcaas.api.web.mapper.AnaliseIaTopicMatchCodec;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -43,6 +45,9 @@ public class ConteudoSuspeitoService {
     private final ChecagemMapper checagemMapper;
     private final AuditoriaService auditoria;
     private final IaService iaService;
+    private final IaAnaliseAsyncService iaAnaliseAsyncService;
+    private final TenantConteudoSeqService tenantConteudoSeqService;
+    private final RelatorioPublicacaoService relatorioPublicacaoService;
     private final StorageService storageService;
     private final TenantScope tenantScope;
 
@@ -106,7 +111,9 @@ public class ConteudoSuspeitoService {
         c.setDescricao(req.descricao());
         c.setPrioridade(req.prioridade());
         c.setStatus("pending");
-        c.setTenantId(tenantScope.requireTenantId());
+        Long tenantId = tenantScope.requireTenantId();
+        c.setTenantId(tenantId);
+        c.setNumeroReferencia(tenantConteudoSeqService.proximoNumeroReferencia(tenantId));
         conteudoRepo.save(c);
 
         auditoria.registrar(curadorId, "conteudo_criado", "conteudo:" + c.getId(), req.titulo());
@@ -200,6 +207,7 @@ public class ConteudoSuspeitoService {
         ConteudoSuspeito conteudo = requireConteudo(conteudoId);
 
         Usuario checador = requireUsuario(checadorId);
+        requirePermissaoChecagem(checador);
 
         Usuario atribuidoPor = requireUsuario(atribuidoPorId);
 
@@ -266,6 +274,8 @@ public class ConteudoSuspeitoService {
         conteudo.setStatus("completed");
         conteudoRepo.save(conteudo);
 
+        relatorioPublicacaoService.criarRascunhoAutomatico(conteudoId);
+
         auditoria.registrar(revisorId, "revisao_aprovada", "checagem:" + checagem.getId(), justificativa);
     }
 
@@ -293,17 +303,28 @@ public class ConteudoSuspeitoService {
     }
 
     @Transactional
-    public ConteudoSuspeitoDto analisarConteudo(Long id) {
+    public ConteudoSuspeitoDto iniciarAnaliseIa(Long id) {
         ConteudoSuspeito conteudo = requireConteudo(id);
-
         AnaliseIa analise = obterOuCriarAnaliseIa(conteudo);
-        AnaliseIaDto iaDto = iaService.analisarConteudo(conteudo);
-
+        if ("processando".equals(analise.getStatusIa())) {
+            return obterDetalhe(id);
+        }
         analise.setConteudo(conteudo);
-        aplicarAnaliseIa(analise, iaDto);
+        analise.setStatusIa("processando");
+        analise.setIniciadoEm(LocalDateTime.now());
+        analise.setMensagemErro(null);
         analiseIaRepo.save(analise);
 
+        Long tenantId = TenantContext.getTenantId();
+        String tenantSlug = TenantContext.getTenantSlug();
+        iaAnaliseAsyncService.executarAnalise(id, tenantId, tenantSlug);
         return obterDetalhe(id);
+    }
+
+    /** @deprecated use {@link #iniciarAnaliseIa(Long)} */
+    @Transactional
+    public ConteudoSuspeitoDto analisarConteudo(Long id) {
+        return iniciarAnaliseIa(id);
     }
 
     private AnaliseIa buscarAnaliseIa(Long conteudoId) {
@@ -451,6 +472,17 @@ public class ConteudoSuspeitoService {
 
         historicoRepo.deleteAll(historicoRepo.findByChecagem_Id(checagemId));
         checagemRepo.delete(checagem);
+    }
+
+    private void requirePermissaoChecagem(Usuario usuario) {
+        if (usuario.getTipoUsuario() == null || usuario.getTipoUsuario().getPermissoes() == null) {
+            throw new IllegalArgumentException("Usuário não possui permissão para fluxo de checagem.");
+        }
+        boolean allowed = usuario.getTipoUsuario().getPermissoes().stream()
+                .anyMatch(p -> "perform_analysis".equals(p.getNome()) || "view_analysis".equals(p.getNome()));
+        if (!allowed) {
+            throw new IllegalArgumentException("Usuário não possui permissão para fluxo de checagem.");
+        }
     }
 
     private ConteudoSuspeito requireConteudo(Long id) {
