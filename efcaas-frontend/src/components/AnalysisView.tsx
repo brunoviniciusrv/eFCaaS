@@ -37,7 +37,8 @@ import {
   Ban,
   ShieldOff,
   AlertTriangle,
-  MessageSquareText
+  MessageSquareText,
+  LockOpen
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -111,6 +112,7 @@ const AUDITORIA_ACAO_CONFIG: Record<string, { verbo: string; color: string; icon
   evidencia_removida:  { verbo: 'removeu uma Evidência',       color: '#ef4444', icon: <Trash2 size={12} /> },
   revisao_rejeitada:   { verbo: 'solicitou retificação',       color: '#ef4444', icon: <AlertCircle size={12} /> },
   conteudo_reaberto:   { verbo: 'reabriu para retificação',    color: '#f59e0b', icon: <RotateCcw size={12} /> },
+  edicao_concluida_habilitada: { verbo: 'habilitou edição da checagem concluída', color: '#f59e0b', icon: <LockOpen size={12} /> },
   _default:            { verbo: 'realizou uma ação',           color: '#64748b', icon: <History size={12} /> },
 };
 
@@ -163,6 +165,7 @@ interface AnalysisViewProps {
   isToolboxOpen: boolean;
   setIsToolboxOpen: (open: boolean) => void;
   handleSaveFinal: () => void;
+  handleSaveParecer: () => Promise<boolean>;
   handleSaveInvestigation: () => Promise<boolean>;
   handleUpdateReportStructure: (updates: Partial<ReportStructure>) => void;
   handleGenerateDraft: () => void;
@@ -193,6 +196,7 @@ export const AnalysisView = ({
   isToolboxOpen,
   setIsToolboxOpen,
   handleSaveFinal,
+  handleSaveParecer,
   handleSaveInvestigation,
   handleUpdateReportStructure,
   handleGenerateDraft,
@@ -279,7 +283,41 @@ export const AnalysisView = ({
   const isReadOnly = isEditor && selectedNews.status !== 'in_progress'; // Wait, let's be safe: if editor, always read-only in this view.
   // Actually, if editor is accessing from list, it should be read-only.
   // Full curators/admins can edit.
-  const canEdit = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
+  const canEditRole = currentUser.role === 'checker' || currentUser.role === 'admin' || currentUser.role === 'curator';
+  const isCompletedCheck = selectedNews.status === 'completed';
+  const [editUnlocked, setEditUnlocked] = useState(false);
+  const [isEnablingEdit, setIsEnablingEdit] = useState(false);
+  const effectiveCanEdit = canEditRole && (!isCompletedCheck || editUnlocked);
+
+  useEffect(() => {
+    setEditUnlocked(false);
+  }, [selectedNews.id]);
+
+  const handleEnableCompletedEdit = async () => {
+    if (!selectedNews?.id || isEnablingEdit) return;
+    setIsEnablingEdit(true);
+    try {
+      await apiService.habilitarEdicaoConcluida(selectedNews.id);
+      setEditUnlocked(true);
+      if (selectedNews.checagemId) {
+        const logs = await apiService.listarAuditoria(selectedNews.checagemId);
+        setAuditoriaLogs(logs);
+      }
+    } catch (err) {
+      console.error('Erro ao habilitar edição:', err);
+      alert(err instanceof Error ? err.message : 'Não foi possível habilitar a edição.');
+    } finally {
+      setIsEnablingEdit(false);
+    }
+  };
+
+  const handleSaveParecerClick = async () => {
+    const saved = await handleSaveParecer();
+    if (saved) {
+      setShowInvestigationSaveSuccess(true);
+    }
+  };
+
   const [activeTab, setActiveTab] = React.useState<'content' | 'metrics' | 'tools' | 'investigation' | 'result'>('content');
   const [isEvaluationExpanded, setIsEvaluationExpanded] = React.useState(true);
   const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
@@ -506,7 +544,7 @@ export const AnalysisView = ({
                   tabs={[
                     { id: 'content', label: 'Conteúdo', icon: FileIcon },
                     ...(showMetricsTab ? [{ id: 'metrics', label: isAnalyzingAI ? 'Métricas IA ◌' : 'Métricas IA', icon: Sparkles }] : []),
-                    ...(canEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
+                    ...(effectiveCanEdit ? [{ id: 'tools', label: 'Ferramentas', icon: Toolbox }] : []),
                     { id: 'investigation', label: 'Investigação', icon: Search },
                     { id: 'result', label: 'Parecer', icon: FileText },
                   ]}
@@ -516,7 +554,22 @@ export const AnalysisView = ({
             </nav>
           </div>
           <div className={styles.headerActions}>
-            {canEdit && activeTab === 'investigation' && (
+            {isCompletedCheck && canEditRole && !editUnlocked && (activeTab === 'investigation' || activeTab === 'result') && (
+              <button
+                onClick={handleEnableCompletedEdit}
+                disabled={isEnablingEdit}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.general.accent,
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.general.accent}30`,
+                }}
+              >
+                <LockOpen size={18} />
+                {isEnablingEdit ? 'Habilitando...' : 'Permitir edição'}
+              </button>
+            )}
+            {effectiveCanEdit && activeTab === 'investigation' && (
               <button
                 onClick={handleSaveInvestigationClick}
                 disabled={isSaving}
@@ -531,7 +584,7 @@ export const AnalysisView = ({
                 {isSaving ? 'Salvando...' : 'Salvar Investigação'}
               </button>
             )}
-            {canEdit && activeTab === 'result' && (
+            {effectiveCanEdit && activeTab === 'result' && !isCompletedCheck && (
               <button 
                 onClick={handleSaveFinal}
                 disabled={isSaving}
@@ -546,6 +599,21 @@ export const AnalysisView = ({
                 {isSaving ? 'Salvando...' : 'Finalizar'}
               </button>
             )}
+            {effectiveCanEdit && activeTab === 'result' && isCompletedCheck && (
+              <button
+                onClick={handleSaveParecerClick}
+                disabled={isSaving}
+                className={styles.saveButton}
+                style={{
+                  backgroundColor: themeConfig.status.success,
+                  color: '#fff',
+                  boxShadow: `0 10px 15px -3px ${themeConfig.status.success}30`,
+                }}
+              >
+                <Save size={18} />
+                {isSaving ? 'Salvando...' : 'Salvar Parecer'}
+              </button>
+            )}
             {selectedNews.status === 'completed' && (
               <button 
                 onClick={() => navigate(`/editorial-archive`)}
@@ -555,9 +623,9 @@ export const AnalysisView = ({
                 Ver no Acervo
               </button>
             )}
-            {!canEdit && selectedNews.status !== 'completed' && (
+            {(isCompletedCheck && !editUnlocked) || (!canEditRole && selectedNews.status !== 'completed') ? (
               <span className={styles.viewModeTag}>Modo de Visualização</span>
-            )}
+            ) : null}
           </div>
         </header>
 
@@ -651,7 +719,7 @@ export const AnalysisView = ({
                       <div className={styles.contentViewBlock}>
                         <div className={styles.contentViewHeader}>
                           <h2 className={styles.newsTitle} style={{ color: themeConfig.dashboard.text }}>{selectedNews.title}</h2>
-                          {canEdit && (
+                          {effectiveCanEdit && (
                             <button onClick={startEditContent} className={styles.contentEditBtn} title="Editar título, alegação e descrição">
                               <Wand2 size={14} />
                               Editar
@@ -688,7 +756,7 @@ export const AnalysisView = ({
                         </label>
                       </div>
 
-                      {canEdit && (
+                      {effectiveCanEdit && (
                         <div
                           className={cn(
                             styles.uploadZone,
@@ -791,7 +859,7 @@ export const AnalysisView = ({
                               </div>
                             )}
 
-                            {canEdit && m.id && (
+                            {effectiveCanEdit && m.id && (
                               <button
                                 onClick={async () => {
                                   try {
@@ -809,7 +877,7 @@ export const AnalysisView = ({
                         ))}
                       </div>
 
-                      {(selectedNews.media ?? []).length === 0 && !canEdit && (
+                      {(selectedNews.media ?? []).length === 0 && !effectiveCanEdit && (
                         <div className={styles.noMediaEmptyState}>
                           <Info size={24} />
                           <p className={styles.emptyStateMessage}>Nenhum anexo disponível para este conteúdo.</p>
@@ -1430,7 +1498,7 @@ export const AnalysisView = ({
                           A classificação final deverá refletir essa condição.
                         </p>
                       </div>
-                      {canEdit && (
+                      {effectiveCanEdit && (
                         <button
                           onClick={() => handleUpdateReportStructure({ isInverifiable: false })}
                           className={styles.inverificavelUndoButton}
@@ -1441,7 +1509,7 @@ export const AnalysisView = ({
                       )}
                     </div>
                   ) : (
-                    canEdit && (
+                    effectiveCanEdit && (
                       <button
                         onClick={() => handleUpdateReportStructure({ isInverifiable: true })}
                         className={styles.markAsInverificavelButton}
@@ -1476,7 +1544,7 @@ export const AnalysisView = ({
                   </div>
                   <div className={styles.evidenceCardBody}>
                     {/* Multi-modal Evidence Input Split */}
-                    {canEdit && (
+                    {effectiveCanEdit && (
                        <div className={styles.evidenceUploadGrid}>
                           {/* File Upload Option */}
                           <div className={cn(
@@ -1613,7 +1681,7 @@ export const AnalysisView = ({
                               )}
                               <p className={styles.evidenceItemUrl}>{ev.url}</p>
                             </div>
-                            {canEdit && (
+                            {effectiveCanEdit && (
                               <button
                                 onClick={() => handleRemoveEvidence(ev.id)}
                                 className={styles.removeEvidenceButton}
@@ -1646,7 +1714,7 @@ export const AnalysisView = ({
                           ].map((opt) => (
                             <button 
                               key={opt.label}
-                              disabled={!canEdit}
+                              disabled={!effectiveCanEdit}
                               onClick={() => handleUpdateReportStructure({ 
                                 contactWithAuthor: { ...reportStructure.contactWithAuthor, hadContact: opt.value } 
                               })}
@@ -1703,7 +1771,7 @@ export const AnalysisView = ({
                       {labels.map((label) => (
                         <button 
                           key={label.id}
-                          disabled={!canEdit}
+                          disabled={!effectiveCanEdit}
                           onClick={() => handleUpdateReportStructure({ label: label.name })}
                           className={cn(
                             styles.labelButton,
@@ -1759,7 +1827,7 @@ export const AnalysisView = ({
                         value={selectedNews.report}
                         onChange={(e) => handleUpdateReport(e.target.value)}
                         placeholder="Inicie a redação do parecer final..."
-                        readOnly={!canEdit}
+                        readOnly={!effectiveCanEdit}
                         className={styles.reportEditorTextarea}
                         style={{ color: themeConfig.general.inputText }}
                       />

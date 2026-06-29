@@ -1043,6 +1043,10 @@ export const apiService = {
     return api.post<void>(`/conteudos/${conteudoId}/reabrir`, { justificativa });
   },
 
+  async habilitarEdicaoConcluida(conteudoId: string): Promise<void> {
+    return api.post<void>(`/conteudos/${conteudoId}/habilitar-edicao`, {});
+  },
+
   // Checagens
   async iniciarChecagem(checagemId: string): Promise<ApiChecagemDto> {
     return api.post<ApiChecagemDto>(`/checagens/${checagemId}/iniciar`);

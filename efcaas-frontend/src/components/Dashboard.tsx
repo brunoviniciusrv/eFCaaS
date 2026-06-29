@@ -45,6 +45,7 @@ interface DashboardProps {
   user: UserProfile;
   setSelectedNewsId: (id: string | null) => void;
   handleStartAnalysis: (id: string) => void;
+  handleViewCompletedCheck: (id: string) => void;
   handleMoveTask: (id: string, targetStatus: 'pending' | 'in_progress') => void;
   handleMoveRedacao?: (id: string, assigned: boolean) => void;
   themeConfig: ThemeConfig;
@@ -63,6 +64,7 @@ export const Dashboard = ({
   user, 
   setSelectedNewsId, 
   handleStartAnalysis,
+  handleViewCompletedCheck,
   handleMoveTask,
   handleMoveRedacao,
   themeConfig,
@@ -278,7 +280,7 @@ export const Dashboard = ({
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      onClick={() => handleStartAnalysis(item.id)}
+                      onClick={() => handleViewCompletedCheck(item.id)}
                       className={cn(styles.taskCard, styles.taskCardIdle)}
                       style={{ borderColor: themeConfig.general.border }}
                     >
@@ -300,7 +302,7 @@ export const Dashboard = ({
                             <div className={styles.sourceTag}>{item.source}</div>
                           </div>
                           <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
-                             Analisar <ArrowRight size={12} />
+                             Visualizar <ArrowRight size={12} />
                           </button>
                         </div>
                       </div>

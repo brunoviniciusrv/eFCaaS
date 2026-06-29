@@ -546,6 +546,44 @@ function AppContent() {
     navigate(`/analysis/${id}`);
   };
 
+  const handleViewCompletedCheck = (id: string) => {
+    setSelectedNewsId(id);
+    navigate(`/analysis/${id}`);
+  };
+
+  const handleSaveParecer = async (): Promise<boolean> => {
+    if (!selectedNews?.checagemId) return false;
+    setIsSaving(true);
+    try {
+      const rs = selectedNews.reportStructure;
+      if (rs) {
+        await apiService.salvarEstruturaRelatorio(selectedNews.checagemId, {
+          resumo: rs.summary ?? '',
+          perguntas: (rs.questions ?? []).filter(Boolean),
+          fontes: (rs.sources ?? []).filter(Boolean),
+          inverificavel: rs.isInverifiable ?? false,
+          contatoAutor: {
+            hadContact: rs.contactWithAuthor?.hadContact ?? null,
+            justificacao: rs.contactWithAuthor?.justification ?? null,
+            response: rs.contactWithAuthor?.response ?? null,
+          },
+        });
+      }
+      if (selectedNews.report) {
+        await apiService.salvarParecer(selectedNews.checagemId, {
+          textoParecer: selectedNews.report,
+        });
+      }
+      return true;
+    } catch (err) {
+      console.error('Erro ao salvar parecer:', err);
+      alert(`Erro ao salvar: ${err instanceof Error ? err.message : err}`);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleAssign = async (newsId: string, checkerId: string, briefing: string) => {
     await apiService.atribuirConteudo(newsId, {
       checadorId: Number(checkerId),
@@ -1481,6 +1519,7 @@ function AppContent() {
                 user={user}
                 setSelectedNewsId={setSelectedNewsId}
                 handleStartAnalysis={handleStartAnalysis}
+                handleViewCompletedCheck={handleViewCompletedCheck}
                 handleMoveTask={handleMoveTask}
                 handleMoveRedacao={handleMoveRedacao}
                 themeConfig={themeConfig}
@@ -1563,6 +1602,7 @@ function AppContent() {
               isToolboxOpen={isToolboxOpen}
               setIsToolboxOpen={setIsToolboxOpen}
               handleSaveFinal={handleSaveFinal}
+              handleSaveParecer={handleSaveParecer}
               handleSaveInvestigation={handleSaveInvestigation}
               handleUpdateReportStructure={handleUpdateReportStructure}
               handleGenerateDraft={handleGenerateDraft}

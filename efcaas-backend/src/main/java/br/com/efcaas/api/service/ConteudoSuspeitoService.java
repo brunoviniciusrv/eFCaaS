@@ -378,6 +378,21 @@ public class ConteudoSuspeitoService {
     }
 
     @Transactional
+    public void habilitarEdicaoConcluida(Long conteudoId, Long usuarioId) {
+        ConteudoSuspeito conteudo = requireConteudo(conteudoId);
+        if (!"completed".equals(conteudo.getStatus())) {
+            throw new IllegalStateException(
+                    "Só é possível habilitar edição para conteúdos concluídos.");
+        }
+
+        Checagem checagem = checagemRepo.findByConteudoId(conteudoId)
+                .orElseThrow(() -> new NoSuchElementException("Checagem não encontrada para conteudo: " + conteudoId));
+
+        auditoria.registrar(usuarioId, "edicao_concluida_habilitada",
+                "checagem:" + checagem.getId(), null);
+    }
+
+    @Transactional
     public void excluir(Long id, Long usuarioId) {
         ConteudoSuspeito conteudo = requireConteudo(id);
 

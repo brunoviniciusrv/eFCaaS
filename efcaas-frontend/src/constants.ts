@@ -45,9 +45,11 @@ export const PLATFORM_ONLY_PERMISSION_IDS = [
 ] as const;
 
 /** Permissões disponíveis dentro de instâncias de agência (sem control plane). */
-export const TENANT_PERMISSION_IDS = SYSTEM_PERMISSIONS
-  .map((p) => p.id)
-  .filter((id) => !(PLATFORM_ONLY_PERMISSION_IDS as readonly string[]).includes(id));
+export const TENANT_SYSTEM_PERMISSIONS = SYSTEM_PERMISSIONS.filter(
+  (p) => !(PLATFORM_ONLY_PERMISSION_IDS as readonly string[]).includes(p.id),
+);
+
+export const TENANT_PERMISSION_IDS = TENANT_SYSTEM_PERMISSIONS.map((p) => p.id);
 
 export const INITIAL_PERMISSION_PROFILES: PermissionProfile[] = [
   {
