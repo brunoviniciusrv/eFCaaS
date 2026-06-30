@@ -89,7 +89,7 @@ docs/
 |---------|-----------|
 | Relatório Final Consolidado | Documento elaborado a partir do template oficial disponibilizado pela disciplina, reunindo os conteúdos produzidos durante o projeto, utilizando o PRD como referência para os capítulos de introdução, requisitos e metodologia. |
 | README.md do Repositório eFCaaS | Manual técnico de instalação e configuração da solução, contendo instruções para preparação do ambiente, execução dos componentes do sistema e demais informações necessárias para utilização do projeto. |
-| Manual do Usuário | Guia prático destinado aos usuários da plataforma, contendo descrições dos fluxos principais e capturas de tela das funcionalidades implementadas, com base nas jornadas definidas no PRD. |
+
 
 ---
 
