@@ -13,11 +13,11 @@
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 
 .pageHeader {
-  @apply border-b px-4 sm:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sticky top-0 z-50;
+  @apply border-b px-4 sm:px-6 py-4 flex flex-col gap-4 sticky top-0 z-50;
 }
 
 .headerLeft {
-  @apply flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full xl:w-auto;
+  @apply flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full min-w-0;
 }
 
 .headerBrand {
@@ -57,7 +57,7 @@
 }
 
 .headerActions {
-  @apply flex flex-wrap items-center gap-3 w-full xl:w-auto;
+  @apply flex flex-wrap items-center justify-end gap-3 w-full shrink-0;
 }
 
 .saveButton {
