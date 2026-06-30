@@ -150,6 +150,8 @@ Detalhes: [`efcaas-frontend/README.md`](efcaas-frontend/README.md).
 
 ### Opção 3 — Railway (deploy online)
 
+Link para acesso do ambiente de testes da equipe: https://frontend-production-681d.up.railway.app/
+
 Guia completo, checklist de variáveis e arquivos `railway.toml`:
 
 - [`docs/railway-deploy.md`](docs/railway-deploy.md)
