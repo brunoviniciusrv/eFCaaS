@@ -46,6 +46,15 @@ export function isSameClassification(a?: string | null, b?: string | null): bool
   return Boolean(x && y && x === y);
 }
 
+export function isSameAiAnalysisState(a: NewsItem, b: NewsItem): boolean {
+  return (
+    a.iaStatus === b.iaStatus &&
+    a.isAIProcessing === b.isAIProcessing &&
+    JSON.stringify(a.aiScores) === JSON.stringify(b.aiScores) &&
+    JSON.stringify(a.aiEvaluation) === JSON.stringify(b.aiEvaluation)
+  );
+}
+
 export function mergeAiAnalysisUpdate(current: NewsItem, fresh: NewsItem): NewsItem {
   return {
     ...current,

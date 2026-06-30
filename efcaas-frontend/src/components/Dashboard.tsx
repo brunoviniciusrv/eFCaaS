@@ -66,6 +66,66 @@ interface DashboardProps {
   labels?: LabelConfig[];
 }
 
+interface TaskCardProps {
+  item: NewsItem;
+  themeConfig: ThemeConfig;
+  onClickHandler: () => void;
+  isDragging: boolean;
+  titleClass?: string;
+  actionLabel?: string;
+}
+
+const TaskCard = ({
+  item,
+  themeConfig,
+  onClickHandler,
+  isDragging,
+  titleClass = styles.taskTitle,
+  actionLabel = 'Investigar',
+}: TaskCardProps) => (
+  <motion.div
+    layout
+    initial={false}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    onClick={onClickHandler}
+    className={cn(styles.taskCard, isDragging ? styles.taskCardDragging : styles.taskCardIdle)}
+    style={{ borderColor: themeConfig.general.border, opacity: isDragging ? 0.95 : 1 }}
+  >
+    <div className={styles.taskSidebar} style={{ backgroundColor: item.priority === 'high' ? themeConfig.status.error : themeConfig.status.info }} />
+    <div className={styles.taskBody}>
+      <div className={styles.taskMeta}>
+        <div className={styles.taskBadges}>
+          <StatusBadge status={item.status} themeConfig={themeConfig} />
+          {item.priority === 'high' && <div className={styles.urgentBadge}>URGENTE</div>}
+        </div>
+        <span className={styles.taskDate}>{item.date}</span>
+      </div>
+      <div>
+        <h3 className={titleClass}>{item.title}</h3>
+        <p className={styles.taskExcerpt}>{item.content}</p>
+      </div>
+      <div className={styles.taskFooter}>
+        <div className={styles.taskFooterLeft}>
+          <div className={styles.sourceTag}>{item.source}</div>
+          {getDesinfoScore(item.aiScores, 'inveracidade') != null && (
+          <div className={styles.trendWrap}>
+            <div className={styles.trendInner}>
+              <TrendingUp size={10} className="text-blue-400" />
+              <span className={styles.trendText}>{getDesinfoScore(item.aiScores, 'inveracidade')}% desinformação</span>
+            </div>
+          </div>
+          )}
+        </div>
+        <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
+          {actionLabel} <ArrowRight size={12} />
+        </button>
+      </div>
+    </div>
+    <div className={styles.dragHandle}><GripVertical size={24} /></div>
+  </motion.div>
+);
+
 export const Dashboard = ({ 
   news, 
   articles = [],
@@ -190,50 +250,6 @@ export const Dashboard = ({
     } as NewsItem;
   };
 
-  const TaskCard = ({ item, onClickHandler, isDragging, titleClass = styles.taskTitle, actionLabel = 'Investigar' }: { item: NewsItem; onClickHandler: () => void; isDragging: boolean; titleClass?: string; actionLabel?: string }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      onClick={onClickHandler}
-      className={cn(styles.taskCard, isDragging ? styles.taskCardDragging : styles.taskCardIdle)}
-      style={{ borderColor: themeConfig.general.border, opacity: isDragging ? 0.95 : 1 }}
-    >
-      <div className={styles.taskSidebar} style={{ backgroundColor: item.priority === 'high' ? themeConfig.status.error : themeConfig.status.info }} />
-      <div className={styles.taskBody}>
-        <div className={styles.taskMeta}>
-          <div className={styles.taskBadges}>
-            <StatusBadge status={item.status} themeConfig={themeConfig} />
-            {item.priority === 'high' && <div className={styles.urgentBadge}>URGENTE</div>}
-          </div>
-          <span className={styles.taskDate}>{item.date}</span>
-        </div>
-        <div>
-          <h3 className={titleClass}>{item.title}</h3>
-          <p className={styles.taskExcerpt}>{item.content}</p>
-        </div>
-        <div className={styles.taskFooter}>
-          <div className={styles.taskFooterLeft}>
-            <div className={styles.sourceTag}>{item.source}</div>
-            {getDesinfoScore(item.aiScores, 'inveracidade') != null && (
-            <div className={styles.trendWrap}>
-              <div className={styles.trendInner}>
-                <TrendingUp size={10} className="text-blue-400" />
-                <span className={styles.trendText}>{getDesinfoScore(item.aiScores, 'inveracidade')}% desinformação</span>
-              </div>
-            </div>
-            )}
-          </div>
-          <button className={styles.analyzeBtn} style={{ color: themeConfig.general.accent }}>
-            {actionLabel} <ArrowRight size={12} />
-          </button>
-        </div>
-      </div>
-      <div className={styles.dragHandle}><GripVertical size={24} /></div>
-    </motion.div>
-  );
-
   return (
     <div className={styles.page} style={{ backgroundColor: themeConfig.dashboard.background, color: themeConfig.dashboard.text }}>
       <div className={styles.inner}>
@@ -275,10 +291,9 @@ export const Dashboard = ({
             <section className={styles.statsGrid}>
               {stats.map((stat: any, i) => (
                 <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 15 }}
+                  key={stat.id}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
                   onClick={() => setCheckFilter(checkFilter === stat.id ? null : stat.id)}
                   className={cn(
                     styles.statCard,
@@ -371,7 +386,7 @@ export const Dashboard = ({
                             <Draggable key={item.id} draggableId={item.id} index={index}>
                               {(provided, snapshot) => (
                                 <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="outline-none">
-                                  <TaskCard item={item} onClickHandler={() => handleStartAnalysis(item.id)} isDragging={snapshot.isDragging} />
+                                  <TaskCard item={item} themeConfig={themeConfig} onClickHandler={() => handleStartAnalysis(item.id)} isDragging={snapshot.isDragging} />
                                 </div>
                               )}
                             </Draggable>
@@ -675,7 +690,7 @@ export const Dashboard = ({
                               <Draggable key={article.newsId} draggableId={article.newsId} index={index}>
                                 {(provided, snapshot) => (
                                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="outline-none">
-                                    <TaskCard item={newsForArticle(article)} onClickHandler={() => navigate(`/editor/${article.newsId}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} actionLabel="Redigir" />
+                                    <TaskCard item={newsForArticle(article)} themeConfig={themeConfig} onClickHandler={() => navigate(`/editor/${article.newsId}`)} isDragging={snapshot.isDragging} titleClass={styles.taskTitleBlue} actionLabel="Redigir" />
                                   </div>
                                 )}
                               </Draggable>

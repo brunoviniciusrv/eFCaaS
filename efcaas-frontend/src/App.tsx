@@ -32,7 +32,7 @@ import {
 } from './types';
 import { apiService, normalizeReportStructure, buildEstruturaRelatorioBody } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
-import { mergeConteudoDetail, mergeAiAnalysisUpdate } from './lib/aiAnalysis';
+import { mergeConteudoDetail, mergeAiAnalysisUpdate, isSameAiAnalysisState } from './lib/aiAnalysis';
 import { normalizeResourceUrl } from './lib/apiBaseUrl';
 import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
 import { addPendingIaConteudo, getPendingIaConteudoIds, isIaFinished, removePendingIaConteudo } from './lib/iaPolling';
@@ -401,9 +401,17 @@ function AppContent() {
         try {
           const fresh = await apiService.obterConteudo(id);
           if (cancelled) return;
-          setNews((prev) =>
-            prev.map((n) => (n.id === id ? mergeAiAnalysisUpdate(n, fresh) : n)),
-          );
+          setNews((prev) => {
+            let changed = false;
+            const next = prev.map((n) => {
+              if (n.id !== id) return n;
+              const merged = mergeAiAnalysisUpdate(n, fresh);
+              if (isSameAiAnalysisState(n, merged)) return n;
+              changed = true;
+              return merged;
+            });
+            return changed ? next : prev;
+          });
           if (isIaFinished(fresh.iaStatus)) {
             removePendingIaConteudo(id);
             if (fresh.iaStatus === 'concluida') {
