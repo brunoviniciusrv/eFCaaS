@@ -18,7 +18,7 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
             JOIN FETCH r.parecer p
             JOIN FETCH p.checagem c
             JOIN FETCH c.conteudo
-            JOIN FETCH r.editor
+            LEFT JOIN FETCH r.editor
             WHERE c.conteudo.id = :conteudoId
               AND c.conteudo.tenantId = :tenantId
             ORDER BY r.dataCriacao DESC
@@ -30,7 +30,7 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
             JOIN FETCH r.parecer p
             JOIN FETCH p.checagem c
             JOIN FETCH c.conteudo
-            JOIN FETCH r.editor
+            LEFT JOIN FETCH r.editor
             WHERE r.id = :id
               AND c.conteudo.tenantId = :tenantId
             """)
@@ -41,7 +41,7 @@ public interface RelatorioPublicacaoRepository extends JpaRepository<RelatorioPu
             JOIN FETCH r.parecer p
             JOIN FETCH p.checagem c
             JOIN FETCH c.conteudo
-            JOIN FETCH r.editor
+            LEFT JOIN FETCH r.editor
             WHERE c.conteudo.tenantId = :tenantId
             ORDER BY r.dataAtualizacao DESC NULLS LAST, r.dataCriacao DESC
             """)
