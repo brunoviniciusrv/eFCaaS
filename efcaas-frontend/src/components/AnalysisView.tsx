@@ -521,6 +521,10 @@ export const AnalysisView = ({
     }
   };
 
+  const openTool = (url?: string) => {
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className={styles.pageContainer} style={{ backgroundColor: themeConfig.dashboard.background }}>
 
@@ -1990,6 +1994,9 @@ export const AnalysisView = ({
                               <p className={styles.toolCardDesc}>{tool.description}</p>
                             </div>
                             <button 
+                              type="button"
+                              onClick={() => openTool(tool.url)}
+                              disabled={!tool.url}
                               className={styles.toolCardButton}
                               style={{ 
                                 backgroundColor: themeConfig.general.cardBackground, 
@@ -2064,6 +2071,9 @@ export const AnalysisView = ({
                       </div>
                       <p className={styles.toolboxToolDesc} style={{ color: themeConfig.dashboard.text }}>{tool.description}</p>
                       <button 
+                        type="button"
+                        onClick={() => openTool(tool.url)}
+                        disabled={!tool.url}
                         className={styles.toolboxToolButton}
                         style={{ 
                           backgroundColor: themeConfig.general.cardBackground, 

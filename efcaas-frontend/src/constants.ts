@@ -110,9 +110,9 @@ export const PLACEHOLDER_USER: UserProfile = {
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [];
 
 export const TOOLS: FactCheckTool[] = [
-  { id: 't1', name: 'Busca Reversa', icon: 'Search', description: 'Verifique a origem de imagens no Google/Yandex.' },
+  { id: 't1', name: 'Busca Reversa', icon: 'Search', url: 'https://yandex.com/', description: 'Verifique a origem de imagens no Yandex.' },
   { id: 't2', name: 'Metadados', icon: 'Info', description: 'Analise metadados EXIF de fotos e vídeos.' },
-  { id: 't3', name: 'Wayback Machine', icon: 'History', description: 'Veja versões arquivadas de páginas web.' },
+  { id: 't3', name: 'Wayback Machine', icon: 'History', url: 'https://web.archive.org/', description: 'Veja versões arquivadas de páginas web.' },
   { id: 't4', name: 'Verificador de Deepfake', icon: 'Cpu', description: 'Ferramenta experimental para detectar manipulação em vídeos.' }
 ];
 
