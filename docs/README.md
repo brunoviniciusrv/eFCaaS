@@ -1,8 +1,9 @@
 # Documentação eFCaaS
 
-Esta pasta concentra os artefatos de descoberta, requisitos, modelagem e apresentação do projeto **eFCaaS** (Checagem de Fatos como Serviço), produzidos pelo Squad 4.
+Esta pasta concentra os artefatos de descoberta, requisitos, modelagem e apresentação do projeto **eFCaaS**, produzidos pelo Squad 4.
+Para melhor visualização dos artefatos sugere-se que navegue pelas pasta do Drive do Time:  https://drive.google.com/drive/u/4/folders/1FG4kPt0RDLDXNe67c_-etsHBrUPutOqZ
 
-Use as seções abaixo para descrever, quando quiser, o conteúdo de cada pasta e documento.
+
 
 ---
 
