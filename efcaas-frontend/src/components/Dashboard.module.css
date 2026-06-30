@@ -461,7 +461,7 @@
 }
 
 .pieLegendLabel {
-  @apply text-xs font-bold text-slate-600;
+  @apply text-xs font-bold;
 }
 
 .labelTag {

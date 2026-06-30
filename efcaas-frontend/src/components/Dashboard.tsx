@@ -859,7 +859,7 @@ export const Dashboard = ({
                   {metricsData.statusDist.map((stat: any, i: number) => (
                     <div key={i} className={styles.pieLegendItem}>
                       <div className={styles.pieDot} style={{ backgroundColor: stat.color }} />
-                      <span className={styles.pieLegendLabel}>{stat.name}</span>
+                      <span className={styles.pieLegendLabel} style={{ color: themeConfig.dashboard.text }}>{stat.name}</span>
                     </div>
                   ))}
                 </div>
