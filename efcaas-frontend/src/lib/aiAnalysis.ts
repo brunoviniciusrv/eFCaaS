@@ -65,15 +65,27 @@ export function mergeAiAnalysisUpdate(current: NewsItem, fresh: NewsItem): NewsI
 }
 
 /** Mescla detalhe do conteúdo preservando edições locais e priorizando métricas IA da API. */
-export function mergeConteudoDetail(prev: NewsItem, fresh: NewsItem): NewsItem {
+export function mergeConteudoDetail(
+  prev: NewsItem,
+  fresh: NewsItem,
+  options?: { replaceInvestigation?: boolean },
+): NewsItem {
+  const replaceInvestigation = options?.replaceInvestigation ?? false;
   const withAi = mergeAiAnalysisUpdate(prev, fresh);
+  const mergedReportStructure = replaceInvestigation
+    ? (fresh.reportStructure ?? prev.reportStructure)
+    : (prev.reportStructure ?? fresh.reportStructure);
+  const mergedReport = replaceInvestigation
+    ? (fresh.report ?? prev.report)
+    : (prev.report ?? fresh.report);
+
   return {
     ...withAi,
     ...fresh,
     id: prev.id,
     evidence: fresh.evidence,
-    reportStructure: fresh.reportStructure ?? prev.reportStructure,
-    report: fresh.report ?? prev.report,
+    reportStructure: mergedReportStructure,
+    report: mergedReport,
     aiScores: fresh.aiScores ? { ...fresh.aiScores } : withAi.aiScores,
     aiEvaluation: fresh.aiEvaluation
       ? {

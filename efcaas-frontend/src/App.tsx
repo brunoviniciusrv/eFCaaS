@@ -1737,7 +1737,7 @@ const AnalysisRouteWrapper = (props: any) => {
       .then((fresh) => {
         if (cancelled || requestId !== detailRequestIdRef.current) return;
         props.setNews((prev: NewsItem[]) =>
-          prev.map((n) => (n.id === id ? mergeConteudoDetail(n, fresh) : n))
+          prev.map((n) => (n.id === id ? mergeConteudoDetail(n, fresh, { replaceInvestigation: true }) : n))
         );
       })
       .catch((err) => {
