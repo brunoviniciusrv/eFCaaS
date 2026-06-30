@@ -32,7 +32,7 @@ import {
 } from './types';
 import { apiService, normalizeReportStructure, buildEstruturaRelatorioBody } from './services/apiService';
 import { mergeChecagemIntoNews } from './lib/newsAssignment';
-import { mergeConteudoDetail } from './lib/aiAnalysis';
+import { mergeConteudoDetail, mergeAiAnalysisUpdate } from './lib/aiAnalysis';
 import { normalizeResourceUrl } from './lib/apiBaseUrl';
 import { clearToken, clearTenantSlug, getToken, tenantStorageKey } from './services/apiClient';
 import { addPendingIaConteudo, getPendingIaConteudoIds, isIaFinished, removePendingIaConteudo } from './lib/iaPolling';
@@ -402,7 +402,7 @@ function AppContent() {
           const fresh = await apiService.obterConteudo(id);
           if (cancelled) return;
           setNews((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, ...fresh } : n)),
+            prev.map((n) => (n.id === id ? mergeAiAnalysisUpdate(n, fresh) : n)),
           );
           if (isIaFinished(fresh.iaStatus)) {
             removePendingIaConteudo(id);
@@ -1750,7 +1750,7 @@ const AnalysisRouteWrapper = (props: any) => {
     return () => {
       cancelled = true;
     };
-  }, [id, props.setNews]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!selectedNews) {
     return <Navigate to="/dashboard" replace />;
